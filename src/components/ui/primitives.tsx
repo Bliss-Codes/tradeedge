@@ -126,6 +126,60 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea {...props} className={`${inputCls} ${props.className ?? ""}`} />;
 }
 
+type CardOption = string | { value: string; label?: string; hint?: string };
+
+/**
+ * Tap-to-select cards/pills — a professional replacement for small dropdowns.
+ * Selected option fills with the accent; clicking an active option clears it
+ * when `clearable`. Use for short enumerations (sessions, exit reasons, etc.).
+ */
+export function OptionCards({
+  label,
+  value,
+  options,
+  onChange,
+  clearable,
+  tone = "accent",
+}: {
+  label?: string;
+  value?: string;
+  options: readonly CardOption[];
+  onChange: (v: string | undefined) => void;
+  clearable?: boolean;
+  tone?: "accent" | "pos" | "neg";
+}) {
+  const norm = options.map((o) => (typeof o === "string" ? { value: o, label: o } : { ...o, label: o.label ?? o.value }));
+  const toneCls =
+    tone === "pos"
+      ? "border-pos/50 bg-pos/15 text-pos"
+      : tone === "neg"
+      ? "border-neg/50 bg-neg/15 text-neg"
+      : "border-accent/50 bg-accent/15 text-accent";
+  return (
+    <div>
+      {label && <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">{label}</div>}
+      <div className="flex flex-wrap gap-1.5">
+        {norm.map((o) => {
+          const active = value === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              title={o.hint}
+              onClick={() => onChange(clearable && active ? undefined : o.value)}
+              className={`rounded-xl border px-3 py-1.5 text-sm transition-colors ${
+                active ? toneCls : "border-edge bg-surface text-mute hover:border-accent/40 hover:text-sub"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Tabs({
   tabs,
   active,

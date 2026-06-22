@@ -19,7 +19,7 @@ import {
   Violation,
 } from "@/lib/types";
 import { useApp, useAllTags, uid } from "@/stores/useApp";
-import { Button, Field, Input, Modal, Select, TagChip, Textarea } from "@/components/ui/primitives";
+import { Button, Field, Input, Modal, Select, TagChip, Textarea, OptionCards } from "@/components/ui/primitives";
 import { ImageUploader } from "@/components/trades/Images";
 import { plannedRR } from "@/lib/metrics";
 
@@ -74,14 +74,13 @@ function StrategyFieldInput({
     );
   }
   return (
-    <Field label={label}>
-      <Select value={value === undefined ? "" : String(value)} onChange={(e) => onChange(e.target.value || undefined)}>
-        <option value="">Select…</option>
-        {(def.options ?? []).map((o) => (
-          <option key={o}>{o}</option>
-        ))}
-      </Select>
-    </Field>
+    <OptionCards
+      label={label}
+      value={value === undefined ? undefined : String(value)}
+      options={def.options ?? []}
+      clearable={!def.required}
+      onChange={(v) => onChange(v)}
+    />
   );
 }
 
@@ -285,38 +284,37 @@ export function TradeModal({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Field label="Session">
-            <Select value={t.session} onChange={(e) => set("session", e.target.value as Session)}>
-              {SESSIONS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Strategy">
-            <Select value={t.strategyId ?? ""} onChange={(e) => set("strategyId", e.target.value || undefined)}>
-              <option value="">None</option>
-              {strategies.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Type">
-            <Select value={t.type} onChange={(e) => set("type", e.target.value as TradeType)}>
-              <option value="live">Live</option>
-              <option value="forward">Forward test</option>
-              <option value="backtest">Backtest</option>
-            </Select>
-          </Field>
+        <div className="space-y-4">
+          <OptionCards label="Session" value={t.session} options={SESSIONS} onChange={(v) => v && set("session", v as Session)} />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Strategy">
+              <Select value={t.strategyId ?? ""} onChange={(e) => set("strategyId", e.target.value || undefined)}>
+                <option value="">None</option>
+                {strategies.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <OptionCards
+              label="Type"
+              value={t.type}
+              options={[
+                { value: "live", label: "Live" },
+                { value: "forward", label: "Forward test" },
+                { value: "backtest", label: "Backtest" },
+              ]}
+              onChange={(v) => v && set("type", v as TradeType)}
+            />
+          </div>
         </div>
 
         {/* Strategy fields — defined by the selected strategy (any methodology) */}
         {strategyFields.length > 0 && (
           <div className="rounded-xl border border-edge bg-surface/40 p-4">
             <div className="mb-3 text-xs font-medium uppercase tracking-wider text-accent">{selectedStrategy?.name} fields</div>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="space-y-4">
               {strategyFields.map((f) => (
                 <StrategyFieldInput key={f.id} def={f} value={t.fieldValues?.[f.id]} onChange={(v) => setFieldValue(f.id, v)} />
               ))}
@@ -360,7 +358,7 @@ export function TradeModal({
         </div>
 
         {/* Grade · quality · exit */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">Setup grade *</div>
             <div className="flex gap-1.5">
@@ -399,15 +397,14 @@ export function TradeModal({
               ))}
             </div>
           </div>
-          <Field label="Exit reason">
-            <Select value={t.exitReason ?? ""} onChange={(e) => set("exitReason", (e.target.value || undefined) as ExitReason | undefined)}>
-              <option value="">—</option>
-              {EXIT_REASONS.map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </Select>
-          </Field>
         </div>
+        <OptionCards
+          label="Exit reason"
+          value={t.exitReason}
+          options={EXIT_REASONS}
+          clearable
+          onChange={(v) => set("exitReason", v as ExitReason | undefined)}
+        />
 
         {/* Planned RR read-out */}
         <div className="flex items-center gap-2 rounded-xl border border-edge bg-surface/50 px-3 py-2 text-sm">
@@ -513,23 +510,9 @@ export function TradeModal({
         </div>
 
         {/* Psychology */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Emotion before">
-            <Select value={t.emotionBefore ?? ""} onChange={(e) => set("emotionBefore", (e.target.value || undefined) as Emotion | undefined)}>
-              <option value="">—</option>
-              {EMOTIONS.map((em) => (
-                <option key={em}>{em}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Emotion after">
-            <Select value={t.emotionAfter ?? ""} onChange={(e) => set("emotionAfter", (e.target.value || undefined) as Emotion | undefined)}>
-              <option value="">—</option>
-              {EMOTIONS.map((em) => (
-                <option key={em}>{em}</option>
-              ))}
-            </Select>
-          </Field>
+        <div className="space-y-4">
+          <OptionCards label="Emotion before" value={t.emotionBefore} options={EMOTIONS} clearable onChange={(v) => set("emotionBefore", v as Emotion | undefined)} />
+          <OptionCards label="Emotion after" value={t.emotionAfter} options={EMOTIONS} clearable onChange={(v) => set("emotionAfter", v as Emotion | undefined)} />
         </div>
 
         {/* Rule violations */}
@@ -574,4 +557,3 @@ export function TradeModal({
     </Modal>
   );
 }
-

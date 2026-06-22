@@ -88,18 +88,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Headline stats */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
-        <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
-        <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
-        <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-        <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} hint="per trade" />
-        <Stat
-          label="Current streak"
-          value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "wins" : "losses"}`}
-          tone={stats.currentStreak}
-        />
+      {/* Headline stats — hero panel */}
+      <div className="relative overflow-hidden rounded-2xl border border-edge bg-gradient-to-br from-accent/10 via-card to-bg p-5">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl" />
+        <div className="relative grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
+          <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
+          <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
+          <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
+          <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} hint="per trade" />
+          <Stat
+            label="Current streak"
+            value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "wins" : "losses"}`}
+            tone={stats.currentStreak}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat label="Largest win" value={fmtR(stats.largestWin)} tone={1} />
