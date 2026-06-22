@@ -10,13 +10,13 @@ import {
   GRADES,
   EXIT_REASONS,
   QUALITY_LABELS,
+  COMMON_PAIRS,
   CustomFieldDef,
   Session,
   Emotion,
   Grade,
   ExitReason,
   Violation,
-  Direction,
 } from "@/lib/types";
 import { useApp, useAllTags, uid } from "@/stores/useApp";
 import { Button, Field, Input, Modal, Select, TagChip, Textarea } from "@/components/ui/primitives";
@@ -98,6 +98,7 @@ export function TradeModal({
 }) {
   const accounts = useApp((s) => s.accounts);
   const strategies = useApp((s) => s.strategies);
+  const allTrades = useApp((s) => s.trades);
   const selectedAccount = useApp((s) => s.selectedAccountId);
   const addTrade = useApp((s) => s.addTrade);
   const updateTrade = useApp((s) => s.updateTrade);
@@ -137,6 +138,28 @@ export function TradeModal({
   const selectedStrategy = strategies.find((s) => s.id === t.strategyId);
   const planned = plannedRR(t);
   const strategyFields = selectedStrategy?.fields ?? [];
+
+  // Pair picker: your most-used pairs first (one-tap), then common ones; type anything too.
+  const { quickPairs, pairOptions } = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tr of allTrades) counts.set(tr.pair, (counts.get(tr.pair) ?? 0) + 1);
+    const used = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(([p]) => p);
+    const quick: string[] = [];
+    for (const p of [...used, ...COMMON_PAIRS]) {
+      if (!quick.includes(p) && quick.length < 6) quick.push(p);
+    }
+    const options = Array.from(new Set([...used, ...COMMON_PAIRS]));
+    return { quickPairs: quick, pairOptions: options };
+  }, [allTrades]);
+
+  // One-tap outcome: fills RR, exit reason, and PnL (from risk amount) in a single click.
+  const applyOutcome = (kind: "tp" | "sl" | "be") =>
+    setT((prev) => {
+      const rr = kind === "tp" ? plannedRR(prev) ?? (prev.rr > 0 ? prev.rr : 2) : kind === "sl" ? -1 : 0;
+      const exitReason = kind === "tp" ? "Take Profit" : kind === "sl" ? "Stop Loss" : "Breakeven";
+      const pnl = prev.riskAmount ? +(rr * prev.riskAmount).toFixed(2) : prev.pnl;
+      return { ...prev, rr, exitReason, pnl };
+    });
 
   const setFieldValue = (fid: string, v: string | number | boolean | undefined) =>
     setT((prev) => {
@@ -202,17 +225,67 @@ export function TradeModal({
             </Select>
           </Field>
           <Field label="Pair">
-            <Input value={t.pair} onChange={(e) => set("pair", e.target.value)} placeholder="EURUSD" autoFocus />
+            <Input
+              list="pair-options"
+              value={t.pair}
+              onChange={(e) => set("pair", e.target.value.toUpperCase())}
+              placeholder="Type or pick"
+              autoFocus
+            />
+            <datalist id="pair-options">
+              {pairOptions.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
           </Field>
-          <Field label="Direction">
-            <Select value={t.direction} onChange={(e) => set("direction", e.target.value as Direction)}>
-              <option value="long">Long</option>
-              <option value="short">Short</option>
-            </Select>
-          </Field>
+          <div>
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">Direction</div>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => set("direction", "long")}
+                className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors ${
+                  t.direction === "long" ? "border-pos/50 bg-pos/20 text-pos" : "border-edge bg-surface text-mute hover:text-sub"
+                }`}
+              >
+                Long
+              </button>
+              <button
+                type="button"
+                onClick={() => set("direction", "short")}
+                className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors ${
+                  t.direction === "short" ? "border-neg/50 bg-neg/20 text-neg" : "border-edge bg-surface text-mute hover:text-sub"
+                }`}
+              >
+                Short
+              </button>
+            </div>
+          </div>
           <Field label="Entry date & time">
             <Input type="datetime-local" value={dateValue} onChange={(e) => set("date", new Date(e.target.value).toISOString())} />
           </Field>
+        </div>
+
+        {/* Quick pairs — one tap */}
+        {quickPairs.length > 0 && (
+          <div className="-mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-mute">Quick:</span>
+            {quickPairs.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => set("pair", p)}
+                className={`rounded-full border px-2.5 py-0.5 font-mono text-xs transition-colors ${
+                  t.pair === p ? "border-accent/50 bg-accent/15 text-accent" : "border-edge bg-surface text-sub hover:border-accent/40"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Field label="Session">
             <Select value={t.session} onChange={(e) => set("session", e.target.value as Session)}>
               {SESSIONS.map((s) => (
@@ -269,6 +342,21 @@ export function TradeModal({
             <Field label="RR"><Input type="number" step="any" value={str(t.rr)} onChange={(e) => set("rr", num(e.target.value) ?? 0)} /></Field>
             <Field label="PnL"><Input type="number" step="any" value={str(t.pnl)} onChange={(e) => set("pnl", num(e.target.value) ?? 0)} /></Field>
           </div>
+        </div>
+
+        {/* One-tap outcome — fills RR + exit reason + PnL */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-mute">Quick outcome:</span>
+          <button type="button" onClick={() => applyOutcome("tp")} className="rounded-xl border border-pos/30 bg-pos/10 px-3 py-1.5 text-sm text-pos transition-colors hover:bg-pos/20">
+            ✓ Win {planned !== undefined ? `(+${planned.toFixed(1)}R)` : "(TP)"}
+          </button>
+          <button type="button" onClick={() => applyOutcome("sl")} className="rounded-xl border border-neg/30 bg-neg/10 px-3 py-1.5 text-sm text-neg transition-colors hover:bg-neg/20">
+            ✗ Loss (−1R)
+          </button>
+          <button type="button" onClick={() => applyOutcome("be")} className="rounded-xl border border-edge bg-surface px-3 py-1.5 text-sm text-mute transition-colors hover:text-sub">
+            Breakeven
+          </button>
+          {t.riskAmount ? <span className="text-xs text-mute">PnL auto-fills from risk amount</span> : <span className="text-xs text-mute">Set a risk amount to auto-fill PnL</span>}
         </div>
 
         {/* Grade · quality · exit */}

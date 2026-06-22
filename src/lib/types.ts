@@ -12,6 +12,13 @@ export type Session = (typeof SESSIONS)[number];
 export const MARKETS = ["Forex", "Indices", "Crypto", "Commodities", "Stocks"] as const;
 export type Market = (typeof MARKETS)[number];
 
+/** Common instruments for the quick-pick pair picker (you can still type any). */
+export const COMMON_PAIRS = [
+  "EURUSD", "GBPUSD", "XAUUSD", "GBPJPY", "USDJPY", "AUDUSD",
+  "USDCAD", "NZDUSD", "EURJPY", "EURGBP", "USDCHF", "AUDJPY",
+  "US30", "NAS100", "SPX500", "GER40", "UK100", "BTCUSD", "ETHUSD", "XAGUSD",
+];
+
 export const EMOTIONS = ["Neutral", "Focused", "Fear", "FOMO", "Revenge", "Frustrated"] as const;
 export type Emotion = (typeof EMOTIONS)[number];
 
