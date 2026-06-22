@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { color-scheme: dark; }
+body { background: #0B1020; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 8px; border: 2px solid #0B1020; }
+::-webkit-scrollbar-track { background: transparent; }
+
+:focus-visible { outline: 2px solid rgba(96, 165, 250, 0.6); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

@@ -1,0 +1,454 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useApp, useVisibleTrades } from "@/stores/useApp";
+import {
+  computeStats,
+  equityCurve,
+  fmtPF,
+  fmtPct,
+  fmtR,
+  statsByGroup,
+  tagCombos,
+  executionSummary,
+  executionFindings,
+  ruleAdherence,
+  adherenceTrend,
+  statsByHour,
+  distribution,
+  signColor,
+} from "@/lib/metrics";
+import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components/ui/primitives";
+import { GroupTable } from "@/components/ui/GroupTable";
+import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
+import { GRADES, EXIT_REASONS, QUALITY_LABELS } from "@/lib/types";
+import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/fields";
+
+const TABS = [
+  "Overview",
+  "Breakdowns",
+  "Time of Day",
+  "Exits",
+  "Quality",
+  "Pairs",
+  "Sessions",
+  "Strategies",
+  "Accounts",
+  "Tags",
+  "Grades",
+  "Execution",
+  "Violations",
+];
+
+export default function AnalyticsPage() {
+  const trades = useVisibleTrades();
+  const strategies = useApp((s) => s.strategies);
+  const accounts = useApp((s) => s.accounts);
+  const [tab, setTab] = useState("Overview");
+  const [comboSize, setComboSize] = useState("All");
+
+  const stats = useMemo(() => computeStats(trades), [trades]);
+  const curve = useMemo(() => equityCurve(trades), [trades]);
+
+  const byPair = useMemo(() => statsByGroup(trades, (t) => t.pair), [trades]);
+  const bySession = useMemo(() => statsByGroup(trades, (t) => t.session), [trades]);
+  const byStrategy = useMemo(
+    () => statsByGroup(trades, (t) => (t.strategyId ? strategies.find((s) => s.id === t.strategyId)?.name ?? "Unknown" : "No strategy")),
+    [trades, strategies]
+  );
+  const byAccount = useMemo(
+    () => statsByGroup(trades, (t) => accounts.find((a) => a.id === t.accountId)?.name ?? "Unknown"),
+    [trades, accounts]
+  );
+  const combos = useMemo(() => tagCombos(trades, 2), [trades]);
+  const filteredCombos = useMemo(() => {
+    if (comboSize === "All") return combos.slice(0, 40);
+    const n = comboSize === "Single tags" ? 1 : comboSize === "Pairs of tags" ? 2 : 3;
+    return combos.filter((c) => c.key.split(" + ").length === n).slice(0, 40);
+  }, [combos, comboSize]);
+
+  const byGrade = useMemo(() => {
+    const order = new Map(GRADES.map((g, i) => [g as string, i]));
+    return statsByGroup(trades, (t) => t.grade).sort((a, b) => (order.get(a.key) ?? 9) - (order.get(b.key) ?? 9));
+  }, [trades]);
+  const exec = useMemo(() => executionSummary(trades), [trades]);
+  const execFindings = useMemo(() => executionFindings(trades), [trades]);
+
+  const byId = useMemo(() => strategyMap(strategies), [strategies]);
+  const breakdownFields = useMemo(() => availableBreakdownFields(trades, strategies), [trades, strategies]);
+  const [breakdownField, setBreakdownField] = useState<string>("");
+  const activeField = breakdownField || breakdownFields[0] || "";
+  const byField = useMemo(
+    () => (activeField ? statsByGroup(trades, (t) => fieldValueByName(t, activeField, byId)) : []),
+    [trades, activeField, byId]
+  );
+  const byHour = useMemo(() => statsByHour(trades), [trades]);
+  const exitDist = useMemo(() => distribution(trades, (t) => t.exitReason), [trades]);
+  const byQuality = useMemo(() => {
+    return statsByGroup(trades, (t) => (t.qualityScore ? String(t.qualityScore) : undefined)).sort((a, b) => Number(a.key) - Number(b.key));
+  }, [trades]);
+  const adherence = useMemo(() => ruleAdherence(trades), [trades]);
+  const adherenceWeekly = useMemo(() => adherenceTrend(trades, "week", 10), [trades]);
+  const adherenceMonthly = useMemo(() => adherenceTrend(trades, "month", 6), [trades]);
+
+  const violationRows = useMemo(() => {
+    const withV = trades.filter((t) => t.violations.length > 0);
+    const rows = statsByGroup(
+      withV.flatMap((t) => t.violations.map((v) => ({ ...t, _v: v }))),
+      (t) => (t as { _v?: string })._v
+    );
+    return rows.sort((a, b) => a.stats.netRR - b.stats.netRR);
+  }, [trades]);
+
+  const cleanStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length === 0)), [trades]);
+  const dirtyStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length > 0)), [trades]);
+
+  if (trades.length === 0) {
+    return <EmptyState title="Nothing to analyze yet" body="Once you've logged trades, this page breaks down what's working — by pair, session, strategy, tag, and rule discipline." />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+
+      {tab === "Overview" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
+            <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
+            <Stat label="Win rate" value={fmtPct(stats.winRate)} />
+            <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
+            <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} />
+            <Stat label="Max drawdown" value={`−${stats.maxDrawdownR.toFixed(2)}R`} tone={-1} />
+          </div>
+          <Card>
+            <SectionTitle>Equity curve (R)</SectionTitle>
+            <EquityCurve points={curve} />
+          </Card>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Card>
+              <SectionTitle>Rule adherence — weekly</SectionTitle>
+              {adherenceWeekly.length === 0 ? (
+                <div className="py-6 text-center text-sm text-mute">Mark trades as followed-plan to build this trend.</div>
+              ) : (
+                adherenceWeekly.map((p) => (
+                  <BarRow key={p.label} label={p.label} value={p.value} max={100} display={`${p.value.toFixed(0)}% · ${p.total}t`} color={p.value >= 70 ? "#22C55E" : p.value >= 50 ? "#F59E0B" : "#EF4444"} />
+                ))
+              )}
+            </Card>
+            <Card>
+              <SectionTitle>Rule adherence — monthly</SectionTitle>
+              {adherenceMonthly.length === 0 ? (
+                <div className="py-6 text-center text-sm text-mute">Mark trades as followed-plan to build this trend.</div>
+              ) : (
+                adherenceMonthly.map((p) => (
+                  <BarRow key={p.label} label={p.label} value={p.value} max={100} display={`${p.value.toFixed(0)}% · ${p.total}t`} color={p.value >= 70 ? "#22C55E" : p.value >= 50 ? "#F59E0B" : "#EF4444"} />
+                ))
+              )}
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {tab === "Breakdowns" && (
+        <div className="space-y-4">
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <SectionTitle>Performance by field</SectionTitle>
+              {breakdownFields.length > 0 && (
+                <Select value={activeField} onChange={(e) => setBreakdownField(e.target.value)} className="w-auto">
+                  {breakdownFields.map((f) => (
+                    <option key={f}>{f}</option>
+                  ))}
+                </Select>
+              )}
+            </div>
+            <p className="mb-4 text-sm text-mute">
+              Group your trades by any field your strategies define — Entry Model, HTF Bias, Zone Type, Trigger, anything. This is how the journal stays methodology-agnostic.
+            </p>
+            {breakdownFields.length === 0 ? (
+              <div className="py-8 text-center text-sm text-mute">
+                No custom fields yet. Add fields to a strategy (Strategies → Create → Custom fields, or start from a template) and they&apos;ll show up here.
+              </div>
+            ) : (
+              <>
+                <GroupTable rows={byField} keyLabel={activeField} />
+                {byField.length > 0 && (
+                  <div className="mt-5">
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-mute">Net RR by {activeField}</div>
+                    {byField.map((r) => (
+                      <BarRow
+                        key={r.key}
+                        label={r.key}
+                        value={Math.abs(r.stats.netRR)}
+                        max={Math.max(...byField.map((x) => Math.abs(x.stats.netRR)), 1)}
+                        display={`${fmtR(r.stats.netRR)} · ${r.stats.total}t`}
+                        color={r.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {tab === "Time of Day" && (
+        <div className="space-y-6">
+          {byHour.length === 0 ? (
+            <EmptyState title="No timing data yet" body="Each trade's entry timestamp drives this. Log trades to see which hours pay." />
+          ) : (
+            <>
+              <Card>
+                <SectionTitle>Net RR by entry hour</SectionTitle>
+                {byHour.map((h) => (
+                  <BarRow
+                    key={h.hour}
+                    label={`${String(h.hour).padStart(2, "0")}:00`}
+                    value={Math.abs(h.stats.netRR)}
+                    max={Math.max(...byHour.map((x) => Math.abs(x.stats.netRR)), 1)}
+                    display={`${fmtR(h.stats.netRR)} · ${h.stats.total}t`}
+                    color={h.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+                  />
+                ))}
+              </Card>
+              <Card>
+                <SectionTitle>Win rate by entry hour</SectionTitle>
+                {byHour.map((h) => (
+                  <BarRow
+                    key={h.hour}
+                    label={`${String(h.hour).padStart(2, "0")}:00`}
+                    value={h.stats.winRate}
+                    max={100}
+                    display={`${fmtPct(h.stats.winRate)} · ${h.stats.total}t`}
+                    color="#60A5FA"
+                  />
+                ))}
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "Exits" && (
+        <div className="space-y-6">
+          {exitDist.length === 0 ? (
+            <EmptyState title="No exit data yet" body="Set an exit reason on your trades (Take Profit, Stop Loss, Breakeven, Manual, Partial) to see how you close." />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                {EXIT_REASONS.map((r) => {
+                  const d = exitDist.find((x) => x.key === r);
+                  return <Stat key={r} label={r} value={d ? fmtPct(d.pct) : "0%"} hint={d ? `${d.count} trades` : "—"} />;
+                })}
+              </div>
+              <Card>
+                <SectionTitle>Exit distribution</SectionTitle>
+                {exitDist.map((d) => (
+                  <BarRow key={d.key} label={d.key} value={d.pct} max={100} display={`${fmtPct(d.pct)} · ${d.count}t`} color={d.key === "Stop Loss" ? "#EF4444" : d.key === "Take Profit" ? "#22C55E" : "#94A3B8"} />
+                ))}
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "Quality" && (
+        <Card>
+          <SectionTitle>Performance by setup quality score</SectionTitle>
+          <p className="mb-4 text-sm text-mute">Higher scores should produce higher expectancy. If a 3 out-earns your 5s, recalibrate what &quot;textbook&quot; means.</p>
+          {byQuality.length === 0 ? (
+            <div className="py-8 text-center text-sm text-mute">Score setups 1–5 as you log them to populate this.</div>
+          ) : (
+            <GroupTable rows={byQuality.map((r) => ({ ...r, key: `${r.key} · ${QUALITY_LABELS[Number(r.key)] ?? ""}` }))} keyLabel="Quality score" />
+          )}
+        </Card>
+      )}
+
+      {tab === "Pairs" && (
+        <Card>
+          <SectionTitle>Performance by pair</SectionTitle>
+          <GroupTable rows={byPair} keyLabel="Pair" />
+        </Card>
+      )}
+
+      {tab === "Sessions" && (
+        <div className="space-y-6">
+          <Card>
+            <SectionTitle>Performance by session</SectionTitle>
+            <GroupTable rows={bySession} keyLabel="Session" />
+          </Card>
+          <Card>
+            <SectionTitle>Net RR by session</SectionTitle>
+            {bySession.map((r) => (
+              <BarRow
+                key={r.key}
+                label={r.key}
+                value={Math.abs(r.stats.netRR)}
+                max={Math.max(...bySession.map((x) => Math.abs(x.stats.netRR)), 1)}
+                display={fmtR(r.stats.netRR)}
+                color={r.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+              />
+            ))}
+          </Card>
+        </div>
+      )}
+
+      {tab === "Strategies" && (
+        <Card>
+          <SectionTitle>Performance by strategy</SectionTitle>
+          <GroupTable rows={byStrategy} keyLabel="Strategy" />
+        </Card>
+      )}
+
+      {tab === "Accounts" && (
+        <Card>
+          <SectionTitle>Performance by account</SectionTitle>
+          <GroupTable rows={byAccount} keyLabel="Account" />
+        </Card>
+      )}
+
+      {tab === "Tags" && (
+        <Card>
+          <SectionTitle
+            action={
+              <Tabs tabs={["All", "Single tags", "Pairs of tags", "Triples"]} active={comboSize} onChange={setComboSize} />
+            }
+          >
+            Tags & combinations
+          </SectionTitle>
+          <p className="mb-4 text-sm text-mute">
+            Combinations need at least 2 trades to appear. This is where the system shows you which confluences actually pay.
+          </p>
+          <GroupTable rows={filteredCombos} keyLabel="Tag combination" />
+        </Card>
+      )}
+
+      {tab === "Grades" && (
+        <div className="space-y-6">
+          <Card>
+            <SectionTitle>Performance by setup grade</SectionTitle>
+            <p className="mb-4 text-sm text-mute">
+              The test of good grading: your A+ setups should out-earn your B and C setups. If they don&apos;t, your idea of an A+ needs work.
+            </p>
+            {byGrade.length === 0 ? (
+              <div className="py-8 text-center text-sm text-mute">No graded trades yet. Grade setups A+ / A / B / C as you log them.</div>
+            ) : (
+              <GroupTable rows={byGrade} keyLabel="Grade" />
+            )}
+          </Card>
+          {byGrade.length > 0 && (
+            <Card>
+              <SectionTitle>Avg RR by grade</SectionTitle>
+              {byGrade.map((r) => (
+                <BarRow
+                  key={r.key}
+                  label={r.key}
+                  value={Math.abs(r.stats.avgRR)}
+                  max={Math.max(...byGrade.map((x) => Math.abs(x.stats.avgRR)), 1)}
+                  display={`${r.stats.avgRR.toFixed(2)}R`}
+                  color={r.stats.avgRR >= 0 ? "#60A5FA" : "#EF4444"}
+                />
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab === "Execution" && (
+        <div className="space-y-6">
+          {exec.sampled === 0 ? (
+            <EmptyState
+              title="No execution data yet"
+              body="Add entry, stop loss, and take profit to your trades. TradeEdge then compares your planned RR to what you actually took — and shows where you cut winners early or let losers run."
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Stat label="Trades measured" value={String(exec.sampled)} hint="with entry/SL/TP" />
+                <Stat label="Target capture" value={fmtPct(exec.avgCapture * 100)} hint="of planned R on winners" />
+                <Stat label="Avg planned RR" value={`${exec.avgPlanned.toFixed(2)}R`} />
+                <Stat label="Avg realized RR" value={`${exec.avgRealized.toFixed(2)}R`} tone={exec.avgRealized} />
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Card>
+                  <div className="text-xs font-medium uppercase tracking-wider text-mute">Cut winners early</div>
+                  <div className="mt-2 font-mono text-2xl font-semibold text-warn">{exec.cutEarly}</div>
+                  <div className="mt-1 text-xs text-mute">
+                    ~{exec.cutEarlyCostR.toFixed(1)}R left on the table. Your winners can take more room.
+                  </div>
+                </Card>
+                <Card>
+                  <div className="text-xs font-medium uppercase tracking-wider text-mute">Let losers run past stop</div>
+                  <div className="mt-2 font-mono text-2xl font-semibold text-neg">{exec.letRun}</div>
+                  <div className="mt-1 text-xs text-mute">
+                    ~{exec.letRunCostR.toFixed(1)}R of avoidable damage from moved stops or oversizing.
+                  </div>
+                </Card>
+              </div>
+              <Card className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-edge text-left text-xs uppercase tracking-wider text-mute">
+                        <th className="py-2.5 pl-5 pr-4 font-medium">Pair</th>
+                        <th className="py-2.5 pr-4 font-medium text-right">Planned</th>
+                        <th className="py-2.5 pr-4 font-medium text-right">Realized</th>
+                        <th className="py-2.5 pr-4 font-medium text-right">Capture</th>
+                        <th className="py-2.5 pr-5 font-medium">Read</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {execFindings
+                        .filter((f) => f.kind === "cut_early" || f.kind === "let_run")
+                        .slice(0, 20)
+                        .map((f) => (
+                          <tr key={f.trade.id} className="border-b border-edge/50 last:border-0">
+                            <td className="py-3 pl-5 pr-4 font-medium text-ink">{f.trade.pair}</td>
+                            <td className="py-3 pr-4 text-right font-mono text-sub">{f.planned.toFixed(2)}R</td>
+                            <td className={`py-3 pr-4 text-right font-mono ${signColor(f.realized)}`}>{fmtR(f.realized)}</td>
+                            <td className="py-3 pr-4 text-right font-mono text-sub">{fmtPct(f.capture * 100)}</td>
+                            <td className="py-3 pr-5">
+                              <span className={f.kind === "cut_early" ? "text-warn" : "text-neg"}>
+                                {f.kind === "cut_early" ? "Cut early" : "Ran past stop"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "Violations" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card>
+              <div className="text-xs font-medium uppercase tracking-wider text-mute">Rule-following trades</div>
+              <div className={`mt-2 font-mono text-2xl font-semibold ${signColor(cleanStats.netRR)}`}>{fmtR(cleanStats.netRR)}</div>
+              <div className="mt-1 text-xs text-mute">{cleanStats.total} trades · {fmtPct(cleanStats.winRate)} win rate · {cleanStats.avgRR.toFixed(2)}R expectancy</div>
+            </Card>
+            <Card>
+              <div className="text-xs font-medium uppercase tracking-wider text-mute">Trades with violations</div>
+              <div className={`mt-2 font-mono text-2xl font-semibold ${signColor(dirtyStats.netRR)}`}>{fmtR(dirtyStats.netRR)}</div>
+              <div className="mt-1 text-xs text-mute">{dirtyStats.total} trades · {fmtPct(dirtyStats.winRate)} win rate · {dirtyStats.avgRR.toFixed(2)}R expectancy</div>
+            </Card>
+          </div>
+          <Card>
+            <SectionTitle>Impact by violation</SectionTitle>
+            {violationRows.length === 0 ? (
+              <div className="py-8 text-center text-sm text-mute">No rule violations logged. Keep it that way.</div>
+            ) : (
+              <GroupTable rows={violationRows} keyLabel="Violation" />
+            )}
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
