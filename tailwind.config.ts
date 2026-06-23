@@ -5,17 +5,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#0A0B0A",
-        surface: "#141614",
-        card: "#181B18",
-        edge: "#272A27",
-        ink: "#F4F7F3",
-        sub: "#C9CEC7",
-        mute: "#8C928A",
-        pos: "#22C55E",
-        neg: "#EF4444",
-        warn: "#F59E0B",
-        accent: "#A3E635",
+        bg: "rgb(var(--bg) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        card: "rgb(var(--card) / <alpha-value>)",
+        edge: "rgb(var(--edge) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        sub: "rgb(var(--sub) / <alpha-value>)",
+        mute: "rgb(var(--mute) / <alpha-value>)",
+        pos: "rgb(var(--pos) / <alpha-value>)",
+        neg: "rgb(var(--neg) / <alpha-value>)",
+        warn: "rgb(var(--warn) / <alpha-value>)",
+        accent: "rgb(var(--accent) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["Montserrat", "system-ui", "sans-serif"],

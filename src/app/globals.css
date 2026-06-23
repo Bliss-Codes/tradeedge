@@ -2,21 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens as RGB channels so Tailwind opacity utilities keep working. */
+:root {
+  --bg: 9 10 9;
+  --surface: 22 25 22;
+  --card: 15 18 15;
+  --edge: 38 42 38;
+  --ink: 244 247 243;
+  --sub: 201 206 199;
+  --mute: 138 144 136;
+  --accent: 163 230 53;
+  --pos: 34 197 94;
+  --neg: 239 68 68;
+  --warn: 245 158 11;
+}
+
+:root[data-theme="light"] {
+  --bg: 243 244 242;
+  --surface: 255 255 255;
+  --card: 255 255 255;
+  --edge: 226 228 224;
+  --ink: 23 28 22;
+  --sub: 60 68 58;
+  --mute: 118 126 116;
+  --accent: 77 124 15;
+  --pos: 22 163 74;
+  --neg: 220 38 38;
+  --warn: 202 110 8;
+}
+
 @layer base {
-  /* Type system: Inter Medium body, Inter SemiBold headings, JetBrains Mono Medium metrics */
+  /* Type system: Montserrat Medium body, SemiBold headings, JetBrains Mono Medium metrics */
   body { font-weight: 500; }
   h1, h2, h3, h4, h5, h6 { font-weight: 600; }
   .font-mono { font-weight: 500; }
 }
 
 html { color-scheme: dark; }
-body { background: #0A0B0A; }
+:root[data-theme="light"] { color-scheme: light; }
+body { background: rgb(var(--bg)); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #272A27; border-radius: 8px; border: 2px solid #0A0B0A; }
+::-webkit-scrollbar-thumb { background: rgb(var(--edge)); border-radius: 8px; border: 2px solid rgb(var(--bg)); }
 ::-webkit-scrollbar-track { background: transparent; }
 
-:focus-visible { outline: 2px solid rgba(163, 230, 53, 0.55); outline-offset: 2px; }
+:focus-visible { outline: 2px solid rgb(var(--accent) / 0.55); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }

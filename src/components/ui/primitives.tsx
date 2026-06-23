@@ -6,7 +6,7 @@ import { signColor } from "@/lib/metrics";
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-white/[0.06] bg-card bg-gradient-to-b from-white/[0.02] to-transparent p-5 shadow-[0_12px_32px_-18px_rgba(0,0,0,0.8)] transition-colors ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-edge bg-card p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.55)] transition-colors ${className}`}
     >
       {children}
     </div>

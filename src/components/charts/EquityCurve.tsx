@@ -71,7 +71,6 @@ export function EquityCurve({ points, height = 260 }: { points: EquityPoint[]; h
         {zeroY > PAD && zeroY < H - PAD && (
           <line x1={PAD} x2={W - PAD} y1={zeroY} y2={zeroY} stroke="#272A27" strokeDasharray="4 4" />
         )}
-        <path d={area} fill={`url(#${gid})`} />
         <path d={path} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" />
         {hover !== null && (
           <g>

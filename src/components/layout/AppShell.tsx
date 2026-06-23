@@ -7,6 +7,7 @@ import { useApp } from "@/stores/useApp";
 import { Modal } from "@/components/ui/primitives";
 import { fmtR } from "@/lib/metrics";
 import { AuthScreen } from "@/components/layout/AuthScreen";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zm10-18v6h8V3h-8z" },
@@ -237,6 +238,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <kbd className="rounded border border-edge bg-surface px-1.5 text-[10px] text-mute">⌘K</kbd>
             </button>
             <AccountSelector />
+            <ThemeToggle />
             {cloud && user && (
               <div className="hidden items-center gap-2 sm:flex">
                 <span className="max-w-32 truncate text-xs text-mute" title={user.email ?? ""}>{user.email}</span>

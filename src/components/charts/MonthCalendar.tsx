@@ -93,7 +93,7 @@ export function MonthCalendar({
               className={`relative flex min-h-16 flex-col rounded-lg border p-1.5 text-left transition-colors ${
                 dayTrades.length ? "cursor-pointer hover:border-accent/40" : "cursor-default"
               } ${isToday ? "border-accent/50" : "border-edge"} ${
-                dayTrades.length === 0 ? "bg-surface/30" : net > 0 ? "bg-pos/[0.06]" : net < 0 ? "bg-neg/[0.06]" : "bg-card"
+                dayTrades.length === 0 ? "bg-surface/30" : "bg-card"
               } ${inMonth ? "" : "opacity-35"}`}
             >
               <div className="flex items-center justify-between">
