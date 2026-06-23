@@ -5,7 +5,9 @@ import { signColor } from "@/lib/metrics";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-edge bg-card p-5 transition-colors ${className}`}>
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-white/[0.06] bg-card bg-gradient-to-b from-white/[0.02] to-transparent p-5 shadow-[0_12px_32px_-18px_rgba(0,0,0,0.8)] transition-colors ${className}`}
+    >
       {children}
     </div>
   );
@@ -24,8 +26,9 @@ export function Stat({ label, value, tone, hint }: { label: string; value: strin
   return (
     <Card className="min-w-0">
       <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className={`mt-2 truncate font-mono text-2xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>
-        {value}
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span className={`truncate font-mono text-2xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>{value}</span>
+        {tone !== undefined && tone !== 0 && <span className={`text-sm ${signColor(tone)}`}>{tone > 0 ? "↑" : "↓"}</span>}
       </div>
       {hint && <div className="mt-1 text-xs text-mute">{hint}</div>}
     </Card>

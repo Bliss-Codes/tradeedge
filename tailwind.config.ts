@@ -18,7 +18,7 @@ const config: Config = {
         accent: "#A3E635",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Montserrat", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       borderRadius: { xl2: "1.25rem" },
