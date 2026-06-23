@@ -48,7 +48,7 @@ export function Button({
   type?: "button" | "submit";
 }) {
   const styles = {
-    primary: "bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25",
+    primary: "bg-accent text-bg font-semibold hover:bg-accent/90",
     ghost: "text-sub border border-edge hover:bg-surface hover:text-ink",
     danger: "text-neg border border-neg/30 hover:bg-neg/10",
     subtle: "text-mute hover:text-ink",

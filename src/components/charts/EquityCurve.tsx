@@ -69,7 +69,7 @@ export function EquityCurve({ points, height = 260 }: { points: EquityPoint[]; h
           </linearGradient>
         </defs>
         {zeroY > PAD && zeroY < H - PAD && (
-          <line x1={PAD} x2={W - PAD} y1={zeroY} y2={zeroY} stroke="#1F2937" strokeDasharray="4 4" />
+          <line x1={PAD} x2={W - PAD} y1={zeroY} y2={zeroY} stroke="#272A27" strokeDasharray="4 4" />
         )}
         <path d={area} fill={`url(#${gid})`} />
         <path d={path} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" />
@@ -90,7 +90,7 @@ export function EquityCurve({ points, height = 260 }: { points: EquityPoint[]; h
   );
 }
 
-export function BarRow({ label, value, max, display, color = "#60A5FA" }: { label: string; value: number; max: number; display: string; color?: string }) {
+export function BarRow({ label, value, max, display, color = "#A3E635" }: { label: string; value: number; max: number; display: string; color?: string }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-3 py-1.5">

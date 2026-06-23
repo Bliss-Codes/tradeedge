@@ -50,14 +50,13 @@ function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
+              className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-gradient-to-r from-accent/20 to-accent/5 text-ink shadow-[inset_0_0_0_1px_rgba(96,165,250,0.25)]"
+                  ? "bg-accent text-bg shadow-[0_4px_20px_-4px_rgba(163,230,53,0.5)]"
                   : "text-mute hover:bg-card/60 hover:text-sub"
               }`}
             >
-              {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-accent" />}
-              <span className={active ? "text-accent" : ""}>
+              <span className={active ? "text-bg" : ""}>
                 <Icon d={item.icon} />
               </span>
               {item.label}

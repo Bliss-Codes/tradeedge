@@ -222,7 +222,7 @@ export default function AnalyticsPage() {
                     value={h.stats.winRate}
                     max={100}
                     display={`${fmtPct(h.stats.winRate)} · ${h.stats.total}t`}
-                    color="#60A5FA"
+                    color="#A3E635"
                   />
                 ))}
               </Card>
@@ -348,7 +348,7 @@ export default function AnalyticsPage() {
                   value={Math.abs(r.stats.avgRR)}
                   max={Math.max(...byGrade.map((x) => Math.abs(x.stats.avgRR)), 1)}
                   display={`${r.stats.avgRR.toFixed(2)}R`}
-                  color={r.stats.avgRR >= 0 ? "#60A5FA" : "#EF4444"}
+                  color={r.stats.avgRR >= 0 ? "#A3E635" : "#EF4444"}
                 />
               ))}
             </Card>
