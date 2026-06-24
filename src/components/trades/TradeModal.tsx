@@ -88,11 +88,13 @@ export function TradeModal({
   open,
   onClose,
   existing,
+  seed,
   defaultType = "live",
 }: {
   open: boolean;
   onClose: () => void;
   existing?: Trade | null;
+  seed?: Trade | null;
   defaultType?: TradeType;
 }) {
   const accounts = useApp((s) => s.accounts);
@@ -125,12 +127,12 @@ export function TradeModal({
     [open]
   );
 
-  const [t, setT] = useState<Trade>(existing ?? blank);
+  const [t, setT] = useState<Trade>(existing ?? seed ?? blank);
   const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
-    if (open) setT(existing ? { ...existing } : blank);
-  }, [open, existing, blank]);
+    if (open) setT(existing ? { ...existing } : seed ? { ...seed } : blank);
+  }, [open, existing, seed, blank]);
 
   const set = <K extends keyof Trade>(key: K, value: Trade[K]) => setT((prev) => ({ ...prev, [key]: value }));
 

@@ -33,6 +33,30 @@ function AccountModal({ open, onClose, existing }: { open: boolean; onClose: () 
         <Field label="Prop firm"><Input value={a.propFirm ?? ""} onChange={(e) => setA({ ...a, propFirm: e.target.value || undefined })} placeholder="Optional" /></Field>
         <Field label="Starting balance"><Input type="number" step="any" value={a.balance} onChange={(e) => setA({ ...a, balance: parseFloat(e.target.value) || 0 })} /></Field>
         <Field label="Currency"><Input value={a.currency} onChange={(e) => setA({ ...a, currency: e.target.value.toUpperCase() })} placeholder="USD" /></Field>
+        <div className="rounded-xl border border-edge bg-surface/40 p-3">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-mute">Prop-firm risk limits (optional)</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Daily loss limit">
+              <Input
+                type="number"
+                step="any"
+                value={a.dailyLossLimit ?? ""}
+                onChange={(e) => setA({ ...a, dailyLossLimit: e.target.value === "" ? undefined : parseFloat(e.target.value) })}
+                placeholder={`e.g. 500 ${a.currency}`}
+              />
+            </Field>
+            <Field label="Max drawdown limit">
+              <Input
+                type="number"
+                step="any"
+                value={a.maxDrawdownLimit ?? ""}
+                onChange={(e) => setA({ ...a, maxDrawdownLimit: e.target.value === "" ? undefined : parseFloat(e.target.value) })}
+                placeholder={`e.g. 1000 ${a.currency}`}
+              />
+            </Field>
+          </div>
+          <p className="mt-2 text-[11px] text-mute">When set, the dashboard warns you as you approach these on this account.</p>
+        </div>
       </div>
       <div className="mt-5 flex justify-end gap-2 border-t border-edge pt-4">
         <Button variant="ghost" onClick={onClose}>Cancel</Button>

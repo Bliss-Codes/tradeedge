@@ -1,4 +1,4 @@
-import { Trade, outcomeOf } from "@/lib/types";
+import { Trade, Account, outcomeOf } from "@/lib/types";
 
 export interface Stats {
   total: number;
@@ -308,6 +308,69 @@ export function mostCommonMistake(trades: Trade[]): { violation: string; count: 
   for (const t of trades) for (const v of t.violations) map.set(v, (map.get(v) ?? 0) + 1);
   const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   return sorted.length ? { violation: sorted[0][0], count: sorted[0][1] } : null;
+}
+
+// ── prop-firm risk guardrails ─────────────────────────────────────────
+
+export interface RiskStatus {
+  hasLimits: boolean;
+  dailyLossLimit?: number;
+  dailyLoss: number; // positive number = currency lost today
+  dailyRemaining?: number;
+  maxDrawdownLimit?: number;
+  drawdown: number; // current peak-to-trough drawdown in currency
+  ddRemaining?: number;
+  level: "ok" | "warn" | "breach";
+  oneTradeAway: boolean; // a typical losing trade would breach the daily limit
+}
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/** Evaluate an account's daily-loss and drawdown limits against its trades. */
+export function riskStatus(account: Account, trades: Trade[]): RiskStatus {
+  const acctTrades = trades.filter((t) => t.accountId === account.id);
+  const today = new Date();
+  const todayPnl = acctTrades.filter((t) => isSameDay(new Date(t.date), today)).reduce((s, t) => s + t.pnl, 0);
+  const dailyLoss = todayPnl < 0 ? -todayPnl : 0;
+
+  // Drawdown from peak equity over the account's history.
+  const sorted = [...acctTrades].sort((a, b) => a.date.localeCompare(b.date));
+  let equity = account.balance;
+  let peak = account.balance;
+  let maxDD = 0;
+  for (const t of sorted) {
+    equity += t.pnl;
+    if (equity > peak) peak = equity;
+    const dd = peak - equity;
+    if (dd > maxDD) maxDD = dd;
+  }
+  const drawdown = peak - equity;
+
+  const dll = account.dailyLossLimit;
+  const mdd = account.maxDrawdownLimit;
+  const hasLimits = !!dll || !!mdd;
+
+  const dailyRemaining = dll !== undefined ? Math.max(0, dll - dailyLoss) : undefined;
+  const ddRemaining = mdd !== undefined ? Math.max(0, mdd - drawdown) : undefined;
+
+  // Typical risk per trade (from recent trades) to flag "one trade away".
+  const risks = acctTrades.map((t) => t.riskAmount ?? 0).filter((r) => r > 0);
+  const typicalRisk = risks.length ? risks.reduce((a, b) => a + b, 0) / risks.length : 0;
+
+  let level: RiskStatus["level"] = "ok";
+  if ((dll !== undefined && dailyLoss >= dll) || (mdd !== undefined && drawdown >= mdd)) level = "breach";
+  else if (
+    (dailyRemaining !== undefined && dll! > 0 && dailyRemaining <= dll! * 0.3) ||
+    (ddRemaining !== undefined && mdd! > 0 && ddRemaining <= mdd! * 0.3)
+  )
+    level = "warn";
+
+  const oneTradeAway =
+    level !== "breach" && dailyRemaining !== undefined && typicalRisk > 0 && dailyRemaining <= typicalRisk;
+
+  return { hasLimits, dailyLossLimit: dll, dailyLoss, dailyRemaining, maxDrawdownLimit: mdd, drawdown, ddRemaining, level, oneTradeAway };
 }
 
 // ── formatting helpers ────────────────────────────────────────────────
