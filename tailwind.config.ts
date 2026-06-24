@@ -19,7 +19,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Montserrat", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+        mono: ["Montserrat", "system-ui", "sans-serif"],
       },
       borderRadius: { xl2: "1.25rem" },
     },

@@ -64,18 +64,19 @@ export function EquityCurve({ points, height = 260 }: { points: EquityPoint[]; h
       >
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.12" />
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>
         {zeroY > PAD && zeroY < H - PAD && (
-          <line x1={PAD} x2={W - PAD} y1={zeroY} y2={zeroY} stroke="#272A27" strokeDasharray="4 4" />
+          <line x1={PAD} x2={W - PAD} y1={zeroY} y2={zeroY} className="stroke-edge" strokeDasharray="4 4" />
         )}
-        <path d={path} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        <path d={area} fill={`url(#${gid})`} />
+        <path d={path} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         {hover !== null && (
           <g>
-            <line x1={coords[hover][0]} x2={coords[hover][0]} y1={PAD} y2={H - PAD} stroke="#334155" />
-            <circle cx={coords[hover][0]} cy={coords[hover][1]} r="4" fill={stroke} />
+            <line x1={coords[hover][0]} x2={coords[hover][0]} y1={PAD} y2={H - PAD} className="stroke-mute" strokeOpacity="0.5" />
+            <circle cx={coords[hover][0]} cy={coords[hover][1]} r="4" fill={stroke} className="stroke-bg" strokeWidth="2" />
           </g>
         )}
       </svg>
