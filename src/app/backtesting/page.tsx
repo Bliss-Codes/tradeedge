@@ -23,7 +23,7 @@ export default function BacktestingPage() {
   const strategies = useApp((s) => s.strategies);
 
   const [importOpen, setImportOpen] = useState(false);
-  const [importType, setImportType] = useState<TradeType>("backtest");
+  const [importType, setImportType] = useState<TradeType>("live");
   const [importAccount, setImportAccount] = useState("");
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [logOpen, setLogOpen] = useState(false);

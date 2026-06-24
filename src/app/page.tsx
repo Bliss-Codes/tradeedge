@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useApp, useVisibleTrades } from "@/stores/useApp";
+import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
 import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
 import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/components/ui/primitives";
@@ -37,12 +37,12 @@ function startOfMonth(d: Date) {
   return x;
 }
 
-function PeriodCard({ label, trades }: { label: string; trades: Trade[] }) {
+function PeriodCard({ label, trades, currency }: { label: string; trades: Trade[]; currency: string }) {
   const s = computeStats(trades);
   return (
     <Card>
       <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className={`mt-2 font-mono text-xl font-semibold ${signColor(s.netPnl)}`}>{fmtMoney(s.netPnl)}</div>
+      <div className={`mt-2 font-mono text-xl font-semibold ${signColor(s.netPnl)}`}>{fmtMoney(s.netPnl, currency)}</div>
       <div className="mt-1 text-xs text-mute">
         {s.total ? `${s.total} trade${s.total === 1 ? "" : "s"} · ${fmtPct(s.winRate)} win · ${fmtR(s.netRR)}` : "no trades yet"}
       </div>
@@ -52,6 +52,7 @@ function PeriodCard({ label, trades }: { label: string; trades: Trade[] }) {
 
 export default function DashboardPage() {
   const trades = useVisibleTrades();
+  const currency = useDisplayCurrency();
   const hasAnyData = useApp((s) => s.trades.length > 0 || s.accounts.length > 0);
   const loadSample = useApp((s) => s.loadSampleData);
   const strategies = useApp((s) => s.strategies);
@@ -111,10 +112,10 @@ export default function DashboardPage() {
       <div className="relative overflow-hidden rounded-2xl border border-edge bg-gradient-to-br from-accent/[0.06] via-card to-bg p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.55)]">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <Stat label="Net P&L" value={fmtMoney(stats.netPnl)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
+          <Stat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
           <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
           <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-          <Stat label="Expectancy" value={fmtMoney(money.expectancy)} tone={money.expectancy} hint={`${stats.avgRR.toFixed(2)}R/trade`} />
+          <Stat label="Expectancy" value={fmtMoney(money.expectancy, currency)} tone={money.expectancy} hint={`${stats.avgRR.toFixed(2)}R/trade`} />
           <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
           <Stat
             label="Current streak"
@@ -124,9 +125,9 @@ export default function DashboardPage() {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="Largest win" value={fmtMoney(money.largestWin)} tone={1} />
-        <Stat label="Largest loss" value={fmtMoney(money.largestLoss)} tone={-1} />
-        <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD).replace("-", "")}`} tone={-1} />
+        <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />
+        <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={-1} />
+        <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD, currency).replace("-", "")}`} tone={-1} />
         <Stat label="Total trades" value={String(stats.total)} />
       </div>
 
@@ -136,22 +137,22 @@ export default function DashboardPage() {
           <SectionTitle action={<Link href="/analytics" className="text-xs text-accent hover:underline">Open analytics →</Link>}>
             Daily net cumulative P&L
           </SectionTitle>
-          <EquityCurve points={curve} mode="money" />
+          <EquityCurve points={curve} mode="money" currency={currency} />
         </Card>
         <Card>
           <SectionTitle>Net daily P&L</SectionTitle>
-          <DailyPnlBars days={daily} />
+          <DailyPnlBars days={daily} currency={currency} />
         </Card>
       </div>
 
       {/* Trading calendar */}
-      <MonthCalendar trades={trades} reviews={reviews} onSelectTrade={setSelected} />
+      <MonthCalendar trades={trades} reviews={reviews} onSelectTrade={setSelected} currency={currency} />
 
       {/* Periods */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <PeriodCard label="Today" trades={today} />
-        <PeriodCard label="This week" trades={week} />
-        <PeriodCard label="This month" trades={month} />
+        <PeriodCard label="Today" trades={today} currency={currency} />
+        <PeriodCard label="This week" trades={week} currency={currency} />
+        <PeriodCard label="This month" trades={month} currency={currency} />
       </div>
 
       {/* Insights — what to do, before the deep stats */}
@@ -185,7 +186,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl) : fmtR(t.rr)}</span>
+                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
                   <OutcomePill rr={t.rr} pnl={t.pnl} />
                 </div>
               </button>

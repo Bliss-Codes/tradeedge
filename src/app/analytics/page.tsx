@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useApp, useVisibleTrades } from "@/stores/useApp";
+import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
 import {
   computeStats,
   equityCurve,
@@ -57,6 +57,7 @@ function WLList({ rows }: { rows: [string, string][] }) {
 
 export default function AnalyticsPage() {
   const visible = useVisibleTrades();
+  const currency = useDisplayCurrency();
   const strategies = useApp((s) => s.strategies);
   const accounts = useApp((s) => s.accounts);
   const [tab, setTab] = useState("Overview");
@@ -215,8 +216,8 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           {/* KPI strip */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <Stat label="Total P&L" value={fmtMoney(stats.netPnl)} tone={stats.netPnl} />
-            <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
+            <Stat label="Total P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} />
+            <Stat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
             <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L`} />
             <Stat label="Total trades" value={String(stats.total)} hint={`${stats.breakevens} breakeven`} />
             <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
@@ -224,8 +225,8 @@ export default function AnalyticsPage() {
           </div>
 
           <Card>
-            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
-            <EquityCurve points={curve} mode="money" />
+            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl, currency)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
+            <EquityCurve points={curve} mode="money" currency={currency} />
           </Card>
 
           {/* Expectancy & profit factor + winners/losers */}
@@ -233,7 +234,7 @@ export default function AnalyticsPage() {
             <Card>
               <SectionTitle>Expectancy & profit factor</SectionTitle>
               <div className="flex items-baseline gap-3">
-                <span className={`font-mono text-2xl font-semibold ${signColor(stats.avgRR)}`}>{fmtMoney(wl.avgWinPnl * (stats.winRate / 100) + wl.avgLossPnl * (1 - stats.winRate / 100))}</span>
+                <span className={`font-mono text-2xl font-semibold ${signColor(stats.avgRR)}`}>{fmtMoney(wl.avgWinPnl * (stats.winRate / 100) + wl.avgLossPnl * (1 - stats.winRate / 100), currency)}</span>
                 <span className="text-xs text-mute">expectancy / trade · PF {fmtPF(stats.profitFactor)}</span>
               </div>
               <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-surface">
@@ -241,13 +242,13 @@ export default function AnalyticsPage() {
                 <div className="h-full bg-neg" style={{ width: `${(-wl.grossLossPnl / (wl.grossWinPnl - wl.grossLossPnl || 1)) * 100}%` }} />
               </div>
               <div className="mt-1.5 flex justify-between font-mono text-xs">
-                <span className="text-pos">{fmtMoney(wl.grossWinPnl)}</span>
-                <span className="text-neg">{fmtMoney(wl.grossLossPnl)}</span>
+                <span className="text-pos">{fmtMoney(wl.grossWinPnl, currency)}</span>
+                <span className="text-neg">{fmtMoney(wl.grossLossPnl, currency)}</span>
               </div>
             </Card>
             <Card>
               <SectionTitle>Performance by side</SectionTitle>
-              <GroupTable rows={bySide} keyLabel="Side" />
+              <GroupTable rows={bySide} keyLabel="Side" currency={currency} />
             </Card>
           </div>
 
@@ -260,7 +261,7 @@ export default function AnalyticsPage() {
                   ["Total winners", String(wl.winners)],
                   ["Best win", fmtR(wl.bestWinR)],
                   ["Average win", `${wl.avgWinR.toFixed(2)}R`],
-                  ["Avg win P&L", fmtMoney(wl.avgWinPnl)],
+                  ["Avg win P&L", fmtMoney(wl.avgWinPnl, currency)],
                   ["Max consecutive wins", String(wl.maxConsecutiveWins)],
                   ["Avg consecutive wins", wl.avgConsecutiveWins.toFixed(2)],
                 ]}
@@ -273,7 +274,7 @@ export default function AnalyticsPage() {
                   ["Total losers", String(wl.losers)],
                   ["Worst loss", fmtR(wl.worstLossR)],
                   ["Average loss", `${wl.avgLossR.toFixed(2)}R`],
-                  ["Avg loss P&L", fmtMoney(wl.avgLossPnl)],
+                  ["Avg loss P&L", fmtMoney(wl.avgLossPnl, currency)],
                   ["Max consecutive losses", String(wl.maxConsecutiveLosses)],
                   ["Avg consecutive losses", wl.avgConsecutiveLosses.toFixed(2)],
                 ]}
@@ -425,7 +426,7 @@ export default function AnalyticsPage() {
       {tab === "Pairs" && (
         <Card>
           <SectionTitle>Performance by pair</SectionTitle>
-          <GroupTable rows={byPair} keyLabel="Pair" />
+          <GroupTable rows={byPair} keyLabel="Pair" currency={currency} />
         </Card>
       )}
 
@@ -433,7 +434,7 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           <Card>
             <SectionTitle>Performance by session</SectionTitle>
-            <GroupTable rows={bySession} keyLabel="Session" />
+            <GroupTable rows={bySession} keyLabel="Session" currency={currency} />
           </Card>
           <Card>
             <SectionTitle>Net RR by session</SectionTitle>
@@ -454,14 +455,14 @@ export default function AnalyticsPage() {
       {tab === "Strategies" && (
         <Card>
           <SectionTitle>Performance by strategy</SectionTitle>
-          <GroupTable rows={byStrategy} keyLabel="Strategy" />
+          <GroupTable rows={byStrategy} keyLabel="Strategy" currency={currency} />
         </Card>
       )}
 
       {tab === "Accounts" && (
         <Card>
           <SectionTitle>Performance by account</SectionTitle>
-          <GroupTable rows={byAccount} keyLabel="Account" />
+          <GroupTable rows={byAccount} keyLabel="Account" currency={currency} />
         </Card>
       )}
 
@@ -477,7 +478,7 @@ export default function AnalyticsPage() {
           <p className="mb-4 text-sm text-mute">
             Combinations need at least 2 trades to appear. This is where the system shows you which confluences actually pay.
           </p>
-          <GroupTable rows={filteredCombos} keyLabel="Tag combination" />
+          <GroupTable rows={filteredCombos} keyLabel="Tag combination" currency={currency} />
         </Card>
       )}
 
@@ -491,7 +492,7 @@ export default function AnalyticsPage() {
             {byGrade.length === 0 ? (
               <div className="py-8 text-center text-sm text-mute">No graded trades yet. Grade setups A+ / A / B / C as you log them.</div>
             ) : (
-              <GroupTable rows={byGrade} keyLabel="Grade" />
+              <GroupTable rows={byGrade} keyLabel="Grade" currency={currency} />
             )}
           </Card>
           {byGrade.length > 0 && (
@@ -600,7 +601,7 @@ export default function AnalyticsPage() {
             {violationRows.length === 0 ? (
               <div className="py-8 text-center text-sm text-mute">No rule violations logged. Keep it that way.</div>
             ) : (
-              <GroupTable rows={violationRows} keyLabel="Violation" />
+              <GroupTable rows={violationRows} keyLabel="Violation" currency={currency} />
             )}
           </Card>
         </div>

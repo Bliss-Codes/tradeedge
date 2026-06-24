@@ -239,6 +239,17 @@ export const useApp = create<AppState>((set, get) => ({
 
 // ── selectors ─────────────────────────────────────────────────────────
 
+/** Currency to display aggregate money in: the selected account's, else the first active account's. */
+export function useDisplayCurrency(): string {
+  const accounts = useApp((s) => s.accounts);
+  const selected = useApp((s) => s.selectedAccountId);
+  if (selected !== "all") {
+    const a = accounts.find((x) => x.id === selected);
+    if (a) return a.currency;
+  }
+  return accounts.filter((a) => !a.archived)[0]?.currency ?? "USD";
+}
+
 /** Trades visible under the global account selector (live trades only). */
 export function useVisibleTrades(): Trade[] {
   const trades = useApp((s) => s.trades);

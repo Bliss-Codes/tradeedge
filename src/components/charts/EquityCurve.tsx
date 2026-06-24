@@ -20,8 +20,8 @@ function niceTicks(min: number, max: number, count = 4) {
   return { ticks, niceMin, niceMax };
 }
 
-export function EquityCurve({ points, height = 280, mode = "R" }: { points: EquityPoint[]; height?: number; mode?: "R" | "money" }) {
-  const fmt = mode === "money" ? fmtMoney : fmtR;
+export function EquityCurve({ points, height = 280, mode = "R", currency = "USD" }: { points: EquityPoint[]; height?: number; mode?: "R" | "money"; currency?: string }) {
+  const fmt = mode === "money" ? (v: number) => fmtMoney(v, currency) : fmtR;
   const gid = useId();
   const [hover, setHover] = useState<number | null>(null);
   const W = 1000;
@@ -142,7 +142,7 @@ export function EquityCurve({ points, height = 280, mode = "R" }: { points: Equi
   );
 }
 
-export function DailyPnlBars({ days, height = 220 }: { days: { date: string; pnl: number }[]; height?: number }) {
+export function DailyPnlBars({ days, height = 220, currency = "USD" }: { days: { date: string; pnl: number }[]; height?: number; currency?: string }) {
   if (days.length === 0) {
     return <div className="flex items-center justify-center text-sm text-mute" style={{ height }}>No daily P&L yet.</div>;
   }
@@ -158,7 +158,7 @@ export function DailyPnlBars({ days, height = 220 }: { days: { date: string; pnl
     <div className="flex" style={{ height }}>
       <div className="flex w-14 shrink-0 flex-col justify-between py-1 pr-2 text-right">
         {ticks.map((t) => (
-          <span key={t} className="font-mono text-[10px] text-mute">{fmtMoney(t)}</span>
+          <span key={t} className="font-mono text-[10px] text-mute">{fmtMoney(t, currency)}</span>
         ))}
       </div>
       <div className="relative flex-1">
@@ -172,7 +172,7 @@ export function DailyPnlBars({ days, height = 220 }: { days: { date: string; pnl
             const h = (Math.abs(d.pnl) / top) * 50; // % of half-height
             const pos = d.pnl >= 0;
             return (
-              <div key={d.date} className="group relative flex flex-1 flex-col" title={`${new Date(d.date).toLocaleDateString()} · ${fmtMoney(d.pnl)}`}>
+              <div key={d.date} className="group relative flex flex-1 flex-col" title={`${new Date(d.date).toLocaleDateString()} · ${fmtMoney(d.pnl, currency)}`}>
                 <div className="flex h-1/2 items-end justify-center">
                   {pos && <div className="w-full max-w-[18px] rounded-t bg-pos transition-opacity group-hover:opacity-80" style={{ height: `${h * 2}%` }} />}
                 </div>

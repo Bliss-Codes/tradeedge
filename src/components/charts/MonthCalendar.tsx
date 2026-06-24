@@ -11,10 +11,12 @@ export function MonthCalendar({
   trades,
   reviews,
   onSelectTrade,
+  currency = "USD",
 }: {
   trades: Trade[];
   reviews: DayReview[];
   onSelectTrade: (t: Trade) => void;
+  currency?: string;
 }) {
   const [cursor, setCursor] = useState(() => new Date());
   const [openDay, setOpenDay] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export function MonthCalendar({
           <div className="mt-1 flex gap-4 text-xs text-mute">
             <span>{monthStats.total} trades</span>
             <span>{monthStats.total ? fmtPct(monthStats.winRate) + " WR" : "—"}</span>
-            <span className={`font-mono ${signColor(monthStats.netPnl)}`}>{fmtMoney(monthStats.netPnl)}</span>
+            <span className={`font-mono ${signColor(monthStats.netPnl)}`}>{fmtMoney(monthStats.netPnl, currency)}</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -102,7 +104,7 @@ export function MonthCalendar({
               </div>
               {dayTrades.length > 0 && (
                 <div className="mt-auto pt-1">
-                  <div className={`font-mono text-sm font-semibold ${signColor(net)}`}>{fmtMoney(net)}</div>
+                  <div className={`font-mono text-sm font-semibold ${signColor(net)}`}>{fmtMoney(net, currency)}</div>
                   <div className="text-[10px] text-mute">{dayTrades.length} trade{dayTrades.length > 1 ? "s" : ""}</div>
                 </div>
               )}
@@ -125,7 +127,7 @@ export function MonthCalendar({
                   <span className="ml-2 text-xs text-mute">{t.session} · {t.direction}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{fmtMoney(t.pnl)}</span>
+                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{fmtMoney(t.pnl, currency)}</span>
                   <OutcomePill rr={t.rr} pnl={t.pnl} />
                 </div>
               </button>

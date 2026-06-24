@@ -99,7 +99,10 @@ export default function AccountsPage() {
             <div className="text-base font-semibold text-ink">{a.name}</div>
             <div className="mt-1 text-xs text-mute">{[a.broker, a.propFirm].filter(Boolean).join(" · ") || "—"}</div>
           </div>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${typeBadge[a.type]}`}>{a.type}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            {a.archived && <span className="rounded-full border border-edge px-2 py-0.5 text-xs text-mute">Archived</span>}
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${typeBadge[a.type]}`}>{a.type}</span>
+          </div>
         </div>
         <div className="mt-4 font-mono text-2xl font-semibold text-ink">{fmtMoney(equity, a.currency)}</div>
         <div className="mt-1 text-xs text-mute">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useVisibleTrades, useApp, uid } from "@/stores/useApp";
+import { useVisibleTrades, useApp, uid, useDisplayCurrency } from "@/stores/useApp";
 import { Trade, DayReview } from "@/lib/types";
 import {
   computeStats,
@@ -12,6 +12,7 @@ import {
   distribution,
   fmtPct,
   fmtR,
+  fmtMoney,
   signColor,
 } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
@@ -136,6 +137,7 @@ function ReviewJournal({ periodKey, scope, label }: { periodKey: string; scope: 
 
 export default function ReviewsPage() {
   const trades = useVisibleTrades();
+  const currency = useDisplayCurrency();
   const strategies = useApp((s) => s.strategies);
   const [view, setView] = useState("Weekly");
   const [cursor, setCursor] = useState(() => new Date());
@@ -213,7 +215,7 @@ export default function ReviewsPage() {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
             <Stat label="Total trades" value={String(stats.total)} />
             <Stat label="Win rate" value={fmtPct(stats.winRate)} />
-            <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
+            <Stat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
             <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} />
             <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} />
           </div>
@@ -222,10 +224,10 @@ export default function ReviewsPage() {
           <Card>
             <SectionTitle>{view} highlights</SectionTitle>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-              <Highlight label="Best pair" value={pairBW.best ? `${pairBW.best.key} (${fmtR(pairBW.best.stats.netRR)})` : "—"} tone={1} />
-              <Highlight label="Worst pair" value={pairBW.worst && pairBW.worst.key !== pairBW.best?.key ? `${pairBW.worst.key} (${fmtR(pairBW.worst.stats.netRR)})` : "—"} tone={-1} />
-              <Highlight label="Best session" value={sessionBW.best ? `${sessionBW.best.key} (${fmtR(sessionBW.best.stats.netRR)})` : "—"} tone={1} />
-              <Highlight label="Worst session" value={sessionBW.worst && sessionBW.worst.key !== sessionBW.best?.key ? `${sessionBW.worst.key} (${fmtR(sessionBW.worst.stats.netRR)})` : "—"} tone={-1} />
+              <Highlight label="Best pair" value={pairBW.best ? `${pairBW.best.key} (${fmtMoney(pairBW.best.stats.netPnl, currency)})` : "—"} tone={1} />
+              <Highlight label="Worst pair" value={pairBW.worst && pairBW.worst.key !== pairBW.best?.key ? `${pairBW.worst.key} (${fmtMoney(pairBW.worst.stats.netPnl, currency)})` : "—"} tone={-1} />
+              <Highlight label="Best session" value={sessionBW.best ? `${sessionBW.best.key} (${fmtMoney(sessionBW.best.stats.netPnl, currency)})` : "—"} tone={1} />
+              <Highlight label="Worst session" value={sessionBW.worst && sessionBW.worst.key !== sessionBW.best?.key ? `${sessionBW.worst.key} (${fmtMoney(sessionBW.worst.stats.netPnl, currency)})` : "—"} tone={-1} />
               <Highlight label={primaryField ? `Top ${primaryField}` : "Top setup"} value={modelBest ? `${modelBest.key}` : "—"} tone={1} />
               <Highlight label="Most common mistake" value={mistake ? `${mistake.violation} (${mistake.count})` : "None logged"} tone={mistake ? -1 : undefined} />
             </div>
@@ -237,7 +239,7 @@ export default function ReviewsPage() {
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <Card>
                   <SectionTitle>{primaryField ? `${primaryField} this month` : "Setup breakdown"}</SectionTitle>
-                  <GroupTable rows={byEntryModel} keyLabel="Entry model" />
+                  <GroupTable rows={byEntryModel} keyLabel="Entry model" currency={currency} />
                 </Card>
                 <Card>
                   <SectionTitle>Exit distribution</SectionTitle>
@@ -257,11 +259,11 @@ export default function ReviewsPage() {
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card>
                 <SectionTitle>By pair</SectionTitle>
-                <GroupTable rows={byPair} keyLabel="Pair" />
+                <GroupTable rows={byPair} keyLabel="Pair" currency={currency} />
               </Card>
               <Card>
                 <SectionTitle>By session</SectionTitle>
-                <GroupTable rows={bySession} keyLabel="Session" />
+                <GroupTable rows={bySession} keyLabel="Session" currency={currency} />
               </Card>
             </div>
           )}
