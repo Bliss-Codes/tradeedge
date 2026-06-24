@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp, useVisibleTrades } from "@/stores/useApp";
-import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
+import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
 import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/components/ui/primitives";
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
@@ -42,9 +42,9 @@ function PeriodCard({ label, trades }: { label: string; trades: Trade[] }) {
   return (
     <Card>
       <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className={`mt-2 font-mono text-xl font-semibold ${signColor(s.netRR)}`}>{fmtR(s.netRR)}</div>
+      <div className={`mt-2 font-mono text-xl font-semibold ${signColor(s.netPnl)}`}>{fmtMoney(s.netPnl)}</div>
       <div className="mt-1 text-xs text-mute">
-        {s.total} trade{s.total === 1 ? "" : "s"} · {s.total ? fmtPct(s.winRate) + " win rate" : "no trades yet"}
+        {s.total ? `${s.total} trade${s.total === 1 ? "" : "s"} · ${fmtPct(s.winRate)} win · ${fmtR(s.netRR)}` : "no trades yet"}
       </div>
     </Card>
   );
@@ -64,6 +64,22 @@ export default function DashboardPage() {
   const adherence = useMemo(() => ruleAdherence(trades), [trades]);
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const daily = useMemo(() => dailyPnl(trades), [trades]);
+  const money = useMemo(() => {
+    const pnls = trades.map((t) => t.pnl);
+    let eq = 0, peak = 0, maxDD = 0;
+    for (const t of [...trades].sort((a, b) => a.date.localeCompare(b.date))) {
+      eq += t.pnl;
+      if (eq > peak) peak = eq;
+      const dd = peak - eq;
+      if (dd > maxDD) maxDD = dd;
+    }
+    return {
+      largestWin: pnls.length ? Math.max(0, ...pnls) : 0,
+      largestLoss: pnls.length ? Math.min(0, ...pnls) : 0,
+      maxDD,
+      expectancy: trades.length ? stats.netPnl / trades.length : 0,
+    };
+  }, [trades, stats.netPnl]);
   const recent = useMemo(() => [...trades].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8), [trades]);
   const insights = useMemo(() => buildInsights(trades, strategies), [trades, strategies]);
   const reviewedToday = reviews.some((r) => r.date === todayKey());
@@ -95,11 +111,11 @@ export default function DashboardPage() {
       <div className="relative overflow-hidden rounded-2xl border border-edge bg-gradient-to-br from-accent/[0.06] via-card to-bg p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.55)]">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
-          <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
+          <Stat label="Net P&L" value={fmtMoney(stats.netPnl)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
           <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
           <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-          <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} hint="per trade" />
+          <Stat label="Expectancy" value={fmtMoney(money.expectancy)} tone={money.expectancy} hint={`${stats.avgRR.toFixed(2)}R/trade`} />
+          <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
           <Stat
             label="Current streak"
             value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "wins" : "losses"}`}
@@ -108,9 +124,9 @@ export default function DashboardPage() {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="Largest win" value={fmtR(stats.largestWin)} tone={1} />
-        <Stat label="Largest loss" value={fmtR(stats.largestLoss)} tone={-1} />
-        <Stat label="Max drawdown" value={`−${stats.maxDrawdownR.toFixed(2)}R`} tone={-1} />
+        <Stat label="Largest win" value={fmtMoney(money.largestWin)} tone={1} />
+        <Stat label="Largest loss" value={fmtMoney(money.largestLoss)} tone={-1} />
+        <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD).replace("-", "")}`} tone={-1} />
         <Stat label="Total trades" value={String(stats.total)} />
       </div>
 
@@ -169,7 +185,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`font-mono text-sm ${signColor(t.rr)}`}>{fmtR(t.rr)}</span>
+                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl) : fmtR(t.rr)}</span>
                   <OutcomePill rr={t.rr} pnl={t.pnl} />
                 </div>
               </button>

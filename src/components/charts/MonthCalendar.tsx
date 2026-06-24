@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Trade, DayReview } from "@/lib/types";
-import { computeStats, fmtPct, fmtR, signColor } from "@/lib/metrics";
+import { computeStats, fmtPct, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, Modal, OutcomePill, SectionTitle } from "@/components/ui/primitives";
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -65,7 +65,7 @@ export function MonthCalendar({
           <div className="mt-1 flex gap-4 text-xs text-mute">
             <span>{monthStats.total} trades</span>
             <span>{monthStats.total ? fmtPct(monthStats.winRate) + " WR" : "—"}</span>
-            <span className={`font-mono ${signColor(monthStats.netRR)}`}>{fmtR(monthStats.netRR)}</span>
+            <span className={`font-mono ${signColor(monthStats.netPnl)}`}>{fmtMoney(monthStats.netPnl)}</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -82,7 +82,7 @@ export function MonthCalendar({
         {cells.map((d) => {
           const k = dayKey(d);
           const dayTrades = byDay.get(k) ?? [];
-          const net = dayTrades.reduce((a, t) => a + t.rr, 0);
+          const net = dayTrades.reduce((a, t) => a + t.pnl, 0);
           const inMonth = d.getMonth() === cursor.getMonth();
           const isToday = k === dayKey(new Date());
           const reviewed = reviewedDays.has(k);
@@ -102,7 +102,7 @@ export function MonthCalendar({
               </div>
               {dayTrades.length > 0 && (
                 <div className="mt-auto pt-1">
-                  <div className={`font-mono text-sm font-semibold ${signColor(net)}`}>{fmtR(net)}</div>
+                  <div className={`font-mono text-sm font-semibold ${signColor(net)}`}>{fmtMoney(net)}</div>
                   <div className="text-[10px] text-mute">{dayTrades.length} trade{dayTrades.length > 1 ? "s" : ""}</div>
                 </div>
               )}
@@ -125,7 +125,7 @@ export function MonthCalendar({
                   <span className="ml-2 text-xs text-mute">{t.session} · {t.direction}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`font-mono text-sm ${signColor(t.rr)}`}>{fmtR(t.rr)}</span>
+                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{fmtMoney(t.pnl)}</span>
                   <OutcomePill rr={t.rr} pnl={t.pnl} />
                 </div>
               </button>
