@@ -8,6 +8,7 @@ import {
   fmtPF,
   fmtPct,
   fmtR,
+  fmtMoney,
   statsByGroup,
   tagCombos,
   executionSummary,
@@ -16,12 +17,13 @@ import {
   adherenceTrend,
   statsByHour,
   distribution,
+  winLossSummary,
   signColor,
 } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
-import { GRADES, EXIT_REASONS, QUALITY_LABELS } from "@/lib/types";
+import { GRADES, EXIT_REASONS, QUALITY_LABELS, SESSIONS, outcomeOf } from "@/lib/types";
 import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/fields";
 
 const TABS = [
@@ -40,15 +42,53 @@ const TABS = [
   "Violations",
 ];
 
+function WLList({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="mt-1 divide-y divide-edge/50">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex items-center justify-between py-2 text-sm">
+          <span className="text-mute">{k}</span>
+          <span className="font-mono font-semibold text-ink">{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
-  const trades = useVisibleTrades();
+  const visible = useVisibleTrades();
   const strategies = useApp((s) => s.strategies);
   const accounts = useApp((s) => s.accounts);
   const [tab, setTab] = useState("Overview");
   const [comboSize, setComboSize] = useState("All");
 
+  // Horizontal filter bar — applies to every tab.
+  const [fRange, setFRange] = useState("all");
+  const [fStrategy, setFStrategy] = useState("");
+  const [fSession, setFSession] = useState("");
+  const [fSide, setFSide] = useState("");
+  const [fOutcome, setFOutcome] = useState("");
+
+  const trades = useMemo(() => {
+    const days = fRange === "all" ? Infinity : parseInt(fRange, 10);
+    const cutoff = days === Infinity ? -Infinity : Date.now() - days * 86400000;
+    return visible.filter((t) => {
+      if (fStrategy && t.strategyId !== fStrategy) return false;
+      if (fSession && t.session !== fSession) return false;
+      if (fSide && t.direction !== fSide) return false;
+      if (fOutcome && outcomeOf(t) !== fOutcome) return false;
+      if (new Date(t.date).getTime() < cutoff) return false;
+      return true;
+    });
+  }, [visible, fRange, fStrategy, fSession, fSide, fOutcome]);
+
   const stats = useMemo(() => computeStats(trades), [trades]);
   const curve = useMemo(() => equityCurve(trades), [trades]);
+  const wl = useMemo(() => winLossSummary(trades), [trades]);
+  const bySide = useMemo(
+    () => statsByGroup(trades, (t) => (t.direction === "long" ? "Long" : "Short")),
+    [trades]
+  );
 
   const byPair = useMemo(() => statsByGroup(trades, (t) => t.pair), [trades]);
   const bySession = useMemo(() => statsByGroup(trades, (t) => t.session), [trades]);
@@ -103,28 +143,128 @@ export default function AnalyticsPage() {
   const cleanStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length === 0)), [trades]);
   const dirtyStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length > 0)), [trades]);
 
-  if (trades.length === 0) {
+  if (visible.length === 0) {
     return <EmptyState title="Nothing to analyze yet" body="Once you've logged trades, this page breaks down what's working — by pair, session, strategy, tag, and rule discipline." />;
   }
 
   return (
     <div className="space-y-6">
+      {/* Horizontal filter bar */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-edge bg-card p-3">
+        <span className="px-1 text-xs font-medium uppercase tracking-wider text-mute">Filters</span>
+        <Select value={fRange} onChange={(e) => setFRange(e.target.value)} className="w-auto">
+          <option value="all">All time</option>
+          <option value="7">7 days</option>
+          <option value="30">30 days</option>
+          <option value="90">90 days</option>
+          <option value="365">1 year</option>
+        </Select>
+        <Select value={fStrategy} onChange={(e) => setFStrategy(e.target.value)} className="w-auto">
+          <option value="">All strategies</option>
+          {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </Select>
+        <Select value={fSession} onChange={(e) => setFSession(e.target.value)} className="w-auto">
+          <option value="">All sessions</option>
+          {SESSIONS.map((s) => <option key={s}>{s}</option>)}
+        </Select>
+        <Select value={fSide} onChange={(e) => setFSide(e.target.value)} className="w-auto">
+          <option value="">Long & short</option>
+          <option value="long">Long</option>
+          <option value="short">Short</option>
+        </Select>
+        <Select value={fOutcome} onChange={(e) => setFOutcome(e.target.value)} className="w-auto">
+          <option value="">All outcomes</option>
+          <option value="win">Wins</option>
+          <option value="loss">Losses</option>
+          <option value="be">Breakeven</option>
+        </Select>
+        <span className="ml-auto px-1 font-mono text-xs text-mute">{trades.length} trades</span>
+        {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome) && (
+          <button
+            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); }}
+            className="rounded-lg border border-edge px-2 py-1 text-xs text-mute hover:text-sub"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
+      {trades.length === 0 ? (
+        <EmptyState title="No trades match these filters" body="Adjust or clear the filters above." />
+      ) : (
+      <>
       {tab === "Overview" && (
         <div className="space-y-6">
+          {/* KPI strip */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
+            <Stat label="Total P&L" value={fmtMoney(stats.netPnl)} tone={stats.netPnl} />
             <Stat label="Net RR" value={fmtR(stats.netRR)} tone={stats.netRR} />
-            <Stat label="Win rate" value={fmtPct(stats.winRate)} />
+            <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L`} />
+            <Stat label="Total trades" value={String(stats.total)} hint={`${stats.breakevens} breakeven`} />
             <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-            <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} />
-            <Stat label="Max drawdown" value={`−${stats.maxDrawdownR.toFixed(2)}R`} tone={-1} />
+            <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} hint="per trade" />
           </div>
+
           <Card>
-            <SectionTitle>Equity curve (R)</SectionTitle>
+            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtR(stats.netRR)} cumulative</span>}>Profit & loss over time</SectionTitle>
             <EquityCurve points={curve} />
           </Card>
+
+          {/* Expectancy & profit factor + winners/losers */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Card>
+              <SectionTitle>Expectancy & profit factor</SectionTitle>
+              <div className="flex items-baseline gap-3">
+                <span className={`font-mono text-2xl font-semibold ${signColor(stats.avgRR)}`}>{fmtMoney(wl.avgWinPnl * (stats.winRate / 100) + wl.avgLossPnl * (1 - stats.winRate / 100))}</span>
+                <span className="text-xs text-mute">expectancy / trade · PF {fmtPF(stats.profitFactor)}</span>
+              </div>
+              <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-surface">
+                <div className="h-full bg-pos" style={{ width: `${(wl.grossWinPnl / (wl.grossWinPnl - wl.grossLossPnl || 1)) * 100}%` }} />
+                <div className="h-full bg-neg" style={{ width: `${(-wl.grossLossPnl / (wl.grossWinPnl - wl.grossLossPnl || 1)) * 100}%` }} />
+              </div>
+              <div className="mt-1.5 flex justify-between font-mono text-xs">
+                <span className="text-pos">{fmtMoney(wl.grossWinPnl)}</span>
+                <span className="text-neg">{fmtMoney(wl.grossLossPnl)}</span>
+              </div>
+            </Card>
+            <Card>
+              <SectionTitle>Performance by side</SectionTitle>
+              <GroupTable rows={bySide} keyLabel="Side" />
+            </Card>
+          </div>
+
+          {/* Winners vs losers */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Card className="border-pos/20">
+              <SectionTitle>Winners</SectionTitle>
+              <WLList
+                rows={[
+                  ["Total winners", String(wl.winners)],
+                  ["Best win", fmtR(wl.bestWinR)],
+                  ["Average win", `${wl.avgWinR.toFixed(2)}R`],
+                  ["Avg win P&L", fmtMoney(wl.avgWinPnl)],
+                  ["Max consecutive wins", String(wl.maxConsecutiveWins)],
+                  ["Avg consecutive wins", wl.avgConsecutiveWins.toFixed(2)],
+                ]}
+              />
+            </Card>
+            <Card className="border-neg/20">
+              <SectionTitle>Losers</SectionTitle>
+              <WLList
+                rows={[
+                  ["Total losers", String(wl.losers)],
+                  ["Worst loss", fmtR(wl.worstLossR)],
+                  ["Average loss", `${wl.avgLossR.toFixed(2)}R`],
+                  ["Avg loss P&L", fmtMoney(wl.avgLossPnl)],
+                  ["Max consecutive losses", String(wl.maxConsecutiveLosses)],
+                  ["Avg consecutive losses", wl.avgConsecutiveLosses.toFixed(2)],
+                ]}
+              />
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card>
               <SectionTitle>Rule adherence — weekly</SectionTitle>
@@ -448,6 +588,8 @@ export default function AnalyticsPage() {
             )}
           </Card>
         </div>
+      )}
+      </>
       )}
     </div>
   );

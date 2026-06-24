@@ -310,6 +310,68 @@ export function mostCommonMistake(trades: Trade[]): { violation: string; count: 
   return sorted.length ? { violation: sorted[0][0], count: sorted[0][1] } : null;
 }
 
+export interface WinLossSummary {
+  winners: number;
+  losers: number;
+  bestWinR: number;
+  worstLossR: number;
+  avgWinR: number;
+  avgLossR: number;
+  avgWinPnl: number;
+  avgLossPnl: number; // negative
+  grossWinPnl: number;
+  grossLossPnl: number; // negative
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+  avgConsecutiveWins: number;
+  avgConsecutiveLosses: number;
+}
+
+/** Winner/loser breakdown including consecutive-streak stats (chronological). */
+export function winLossSummary(trades: Trade[]): WinLossSummary {
+  const chron = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+  const wins = chron.filter((t) => t.rr > 0);
+  const losses = chron.filter((t) => t.rr < 0);
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
+
+  // consecutive runs
+  const winRuns: number[] = [];
+  const lossRuns: number[] = [];
+  let run = 0;
+  let runSign = 0;
+  for (const t of chron) {
+    const s = t.rr > 0 ? 1 : t.rr < 0 ? -1 : 0;
+    if (s === 0) continue;
+    if (s === runSign) run++;
+    else {
+      if (runSign === 1) winRuns.push(run);
+      if (runSign === -1) lossRuns.push(run);
+      runSign = s;
+      run = 1;
+    }
+  }
+  if (runSign === 1) winRuns.push(run);
+  if (runSign === -1) lossRuns.push(run);
+
+  return {
+    winners: wins.length,
+    losers: losses.length,
+    bestWinR: wins.length ? Math.max(...wins.map((t) => t.rr)) : 0,
+    worstLossR: losses.length ? Math.min(...losses.map((t) => t.rr)) : 0,
+    avgWinR: avg(wins.map((t) => t.rr)),
+    avgLossR: avg(losses.map((t) => t.rr)),
+    avgWinPnl: avg(wins.map((t) => t.pnl)),
+    avgLossPnl: avg(losses.map((t) => t.pnl)),
+    grossWinPnl: sum(wins.map((t) => t.pnl)),
+    grossLossPnl: sum(losses.map((t) => t.pnl)),
+    maxConsecutiveWins: winRuns.length ? Math.max(...winRuns) : 0,
+    maxConsecutiveLosses: lossRuns.length ? Math.max(...lossRuns) : 0,
+    avgConsecutiveWins: avg(winRuns),
+    avgConsecutiveLosses: avg(lossRuns),
+  };
+}
+
 // ── prop-firm risk guardrails ─────────────────────────────────────────
 
 export interface RiskStatus {

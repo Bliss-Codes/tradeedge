@@ -223,8 +223,8 @@ function JournalInner() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-edge">
-                  <th className="w-10 py-2.5 pl-5">
+                <tr className="border-b border-edge bg-surface/40">
+                  <th className="w-10 py-3 pl-5">
                     <input
                       type="checkbox"
                       aria-label="Select all"
@@ -246,20 +246,22 @@ function JournalInner() {
               </thead>
               <tbody>
                 {filtered.map((t) => (
-                  <tr key={t.id} className="cursor-pointer border-b border-edge/50 transition-colors last:border-0 hover:bg-surface/50" onClick={() => { setReplay(false); setDetailId(t.id); }}>
-                    <td className="py-3 pl-5" onClick={(e) => e.stopPropagation()}>
+                  <tr key={t.id} className="cursor-pointer border-b border-edge/50 transition-colors last:border-0 hover:bg-surface/40" onClick={() => { setReplay(false); setDetailId(t.id); }}>
+                    <td className="py-3.5 pl-5" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" aria-label="Select trade" checked={checked.has(t.id)} onChange={() => toggleCheck(t.id)} />
                     </td>
-                    <td className="py-3 pr-4 font-medium text-ink">{t.pair}</td>
-                    <td className="py-3 pr-4 text-mute">{fmtDate(t.date)}</td>
-                    <td className="py-3 pr-4">
-                      <span className={t.direction === "long" ? "text-pos" : "text-neg"}>{t.direction === "long" ? "Long" : "Short"}</span>
+                    <td className="py-3.5 pr-4 font-semibold text-ink">{t.pair}</td>
+                    <td className="py-3.5 pr-4 text-mute">{fmtDate(t.date)}</td>
+                    <td className="py-3.5 pr-4">
+                      <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${t.direction === "long" ? "bg-pos/15 text-pos" : "bg-neg/15 text-neg"}`}>
+                        {t.direction === "long" ? "Long" : "Short"}
+                      </span>
                     </td>
-                    <td className={`py-3 pr-4 font-mono ${signColor(t.rr)}`}>{fmtR(t.rr)}</td>
-                    <td className={`py-3 pr-4 font-mono ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl) : "—"}</td>
-                    <td className="py-3 pr-4 text-sub">{t.session}</td>
-                    <td className="py-3 pr-4 text-sub">{strategies.find((s) => s.id === t.strategyId)?.name ?? "—"}</td>
-                    <td className="py-3 pr-4">
+                    <td className={`py-3.5 pr-4 font-mono font-semibold ${signColor(t.rr)}`}>{fmtR(t.rr)}</td>
+                    <td className={`py-3.5 pr-4 font-mono ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl) : "—"}</td>
+                    <td className="py-3.5 pr-4 text-sub">{t.session}</td>
+                    <td className="py-3.5 pr-4 text-sub">{strategies.find((s) => s.id === t.strategyId)?.name ?? "—"}</td>
+                    <td className="py-3.5 pr-4">
                       <div className="flex max-w-48 flex-wrap gap-1">
                         {t.tags.slice(0, 3).map((tag) => (
                           <span key={tag} className="rounded-full border border-edge px-1.5 py-0.5 text-[10px] text-mute">{tag}</span>
@@ -267,8 +269,8 @@ function JournalInner() {
                         {t.tags.length > 3 && <span className="text-[10px] text-mute">+{t.tags.length - 3}</span>}
                       </div>
                     </td>
-                    <td className="py-3 pr-5"><OutcomePill rr={t.rr} pnl={t.pnl} /></td>
-                    <td className="py-3 pr-5" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-3.5 pr-5"><OutcomePill rr={t.rr} pnl={t.pnl} /></td>
+                    <td className="py-3.5 pr-5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setEditing(t)}
