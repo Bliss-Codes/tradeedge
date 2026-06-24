@@ -82,6 +82,8 @@ function AccountSelector() {
   }, [selected, accounts, setSelected]);
 
   const value = selected !== "all" && accounts.some((a) => a.id === selected) ? selected : "all";
+  const active = accounts.filter((a) => !a.archived);
+  const archived = accounts.filter((a) => a.archived);
   return (
     <select
       value={value}
@@ -89,12 +91,21 @@ function AccountSelector() {
       className="rounded-xl border border-edge bg-card px-3 py-2 text-sm text-ink focus:border-accent/60 focus:outline-none"
       aria-label="Account"
     >
-      <option value="all">All Accounts</option>
-      {accounts.map((a) => (
+      <option value="all">All accounts (active)</option>
+      {active.map((a) => (
         <option key={a.id} value={a.id}>
           {a.name}
         </option>
       ))}
+      {archived.length > 0 && (
+        <optgroup label="Archived">
+          {archived.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }

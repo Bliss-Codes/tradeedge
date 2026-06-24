@@ -245,7 +245,12 @@ export function useVisibleTrades(): Trade[] {
   const accounts = useApp((s) => s.accounts);
   const selected = useApp((s) => s.selectedAccountId);
   const effective = selected === "all" || accounts.some((a) => a.id === selected) ? selected : "all";
-  return trades.filter((t) => t.type === "live" && (effective === "all" || t.accountId === effective));
+  const activeIds = new Set(accounts.filter((a) => !a.archived).map((a) => a.id));
+  return trades.filter(
+    (t) =>
+      t.type === "live" &&
+      (effective === "all" ? activeIds.has(t.accountId) : t.accountId === effective)
+  );
 }
 
 export function useAllTags(): string[] {

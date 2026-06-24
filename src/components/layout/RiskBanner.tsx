@@ -65,7 +65,7 @@ function AccountRisk({ account }: { account: Account }) {
 export function RiskBanner() {
   const accounts = useApp((s) => s.accounts);
   const selectedAccountId = useApp((s) => s.selectedAccountId);
-  const shown = selectedAccountId === "all" ? accounts : accounts.filter((a) => a.id === selectedAccountId);
+  const shown = selectedAccountId === "all" ? accounts.filter((a) => !a.archived) : accounts.filter((a) => a.id === selectedAccountId);
   if (shown.length === 0) return null;
   return (
     <div className="space-y-3">

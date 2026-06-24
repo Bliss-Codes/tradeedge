@@ -78,64 +78,88 @@ export default function AccountsPage() {
   const accounts = useApp((s) => s.accounts);
   const trades = useApp((s) => s.trades);
   const deleteAccount = useApp((s) => s.deleteAccount);
+  const updateAccount = useApp((s) => s.updateAccount);
   const setSelected = useApp((s) => s.setSelectedAccount);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [confirming, setConfirming] = useState<Account | null>(null);
 
+  const active = accounts.filter((a) => !a.archived);
+  const archived = accounts.filter((a) => a.archived);
+
+  const card = (a: Account) => {
+    const accountTrades = trades.filter((t) => t.accountId === a.id && t.type === "live");
+    const st = computeStats(accountTrades);
+    const equity = a.balance + st.netPnl;
+    return (
+      <Card key={a.id} className={a.archived ? "opacity-75" : ""}>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-base font-semibold text-ink">{a.name}</div>
+            <div className="mt-1 text-xs text-mute">{[a.broker, a.propFirm].filter(Boolean).join(" · ") || "—"}</div>
+          </div>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${typeBadge[a.type]}`}>{a.type}</span>
+        </div>
+        <div className="mt-4 font-mono text-2xl font-semibold text-ink">{fmtMoney(equity, a.currency)}</div>
+        <div className="mt-1 text-xs text-mute">
+          Start {fmtMoney(a.balance, a.currency)} · P&L <span className={signColor(st.netPnl)}>{fmtMoney(st.netPnl, a.currency)}</span>
+        </div>
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-edge bg-surface/50 px-3 py-2 text-xs text-mute">
+          <span>{st.total} trades</span>
+          <span>{st.total ? fmtPct(st.winRate) : "—"} WR</span>
+          <span className={`font-mono ${signColor(st.netRR)}`}>{fmtR(st.netRR)}</span>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="ghost" className="flex-1" onClick={() => setSelected(a.id)}>Review</Button>
+          <Button variant="ghost" onClick={() => setEditing(a)}>Edit</Button>
+          {a.archived ? (
+            <Button variant="subtle" onClick={() => updateAccount({ ...a, archived: false })}>Restore</Button>
+          ) : (
+            <Button variant="subtle" onClick={() => updateAccount({ ...a, archived: true })}>Archive</Button>
+          )}
+          <Button variant="danger" onClick={() => setConfirming(a)}>Delete</Button>
+        </div>
+      </Card>
+    );
+  };
+
   return (
-    <div className="space-y-5">
-      <div className="flex justify-end">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-mute">Archive finished or blown accounts to keep their history without cluttering your active view.</p>
         <Button onClick={() => setCreateOpen(true)}>Create account</Button>
       </div>
 
       {accounts.length === 0 ? (
         <EmptyState title="No accounts yet" body="Create your first account — personal, demo, challenge, funded, or backtest. Every trade belongs to one." action={<Button onClick={() => setCreateOpen(true)}>Create account</Button>} />
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {accounts.map((a) => {
-            const accountTrades = trades.filter((t) => t.accountId === a.id && t.type === "live");
-            const st = computeStats(accountTrades);
-            const equity = a.balance + st.netPnl;
-            return (
-              <Card key={a.id}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-base font-semibold text-ink">{a.name}</div>
-                    <div className="mt-1 text-xs text-mute">{[a.broker, a.propFirm].filter(Boolean).join(" · ") || "—"}</div>
-                  </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${typeBadge[a.type]}`}>{a.type}</span>
-                </div>
-                <div className="mt-4 font-mono text-2xl font-semibold text-ink">{fmtMoney(equity, a.currency)}</div>
-                <div className="mt-1 text-xs text-mute">
-                  Start {fmtMoney(a.balance, a.currency)} · P&L <span className={signColor(st.netPnl)}>{fmtMoney(st.netPnl, a.currency)}</span>
-                </div>
-                <div className="mt-4 flex items-center justify-between rounded-xl border border-edge bg-surface/50 px-3 py-2 text-xs text-mute">
-                  <span>{st.total} trades</span>
-                  <span>{st.total ? fmtPct(st.winRate) : "—"} WR</span>
-                  <span className={`font-mono ${signColor(st.netRR)}`}>{fmtR(st.netRR)}</span>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Button variant="ghost" className="flex-1" onClick={() => setSelected(a.id)}>Focus</Button>
-                  <Button variant="ghost" onClick={() => setEditing(a)}>Edit</Button>
-                  <Button variant="danger" onClick={() => setConfirming(a)}>Delete</Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">{active.map(card)}</div>
+          {archived.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="text-xs font-medium uppercase tracking-wider text-mute">Archived ({archived.length})</div>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">{archived.map(card)}</div>
+            </div>
+          )}
+        </>
       )}
 
       {createOpen && <AccountModal open onClose={() => setCreateOpen(false)} />}
       {editing && <AccountModal open onClose={() => setEditing(null)} existing={editing} />}
       {confirming && (
-        <Modal open onClose={() => setConfirming(null)} title="Delete account">
+        <Modal open onClose={() => setConfirming(null)} title="Delete account permanently">
           <p className="text-sm text-sub">
-            Deleting <span className="font-medium text-ink">{confirming.name}</span> also removes its {trades.filter((t) => t.accountId === confirming.id).length} trades. This can't be undone.
+            Deleting <span className="font-medium text-ink">{confirming.name}</span> also <span className="text-neg">permanently removes its {trades.filter((t) => t.accountId === confirming.id).length} trades</span> and their stats. This can&apos;t be undone.
+          </p>
+          <p className="mt-2 text-sm text-mute">
+            If this is a finished or blown prop account, use <span className="font-medium text-ink">Archive</span> instead — it keeps the trade history for review and just hides the account from your active view.
           </p>
           <div className="mt-5 flex justify-end gap-2">
+            {!confirming.archived && (
+              <Button variant="subtle" onClick={() => { updateAccount({ ...confirming, archived: true }); setConfirming(null); }}>Archive instead</Button>
+            )}
             <Button variant="ghost" onClick={() => setConfirming(null)}>Keep account</Button>
-            <Button variant="danger" onClick={() => { deleteAccount(confirming.id); setConfirming(null); }}>Delete account</Button>
+            <Button variant="danger" onClick={() => { deleteAccount(confirming.id); setConfirming(null); }}>Delete permanently</Button>
           </div>
         </Modal>
       )}

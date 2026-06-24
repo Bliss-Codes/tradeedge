@@ -115,6 +115,7 @@ export interface Account {
   balance: number;
   propFirm?: string;
   currency: string;
+  archived?: boolean; // hidden from active views; trades preserved for review
   dailyLossLimit?: number; // max loss allowed in one day (account currency)
   maxDrawdownLimit?: number; // max peak-to-trough drawdown (account currency)
   createdAt: string;
