@@ -46,15 +46,22 @@ function detectDelimiter(firstLine: string): string {
 
 // Accepted header names for each canonical field (lower-cased, trimmed).
 const ALIASES: Record<string, string[]> = {
-  date: ["date", "entry date", "open date", "opened", "datetime", "date/time", "time", "entry time", "open time", "trade date"],
+  date: ["date", "entry date", "open date", "opened", "datetime", "date/time", "time", "entry time", "open time", "trade date", "datestart", "date start", "opentime", "start", "start time"],
   pair: ["pair", "symbol", "asset", "instrument", "ticker", "market"],
   direction: ["direction", "side", "position", "type", "buy/sell", "b/s", "long/short"],
-  rr: ["rr", "r", "r multiple", "r-multiple", "rmultiple", "return (r)", "r:r", "risk reward", "risk/reward"],
-  pnl: ["pnl", "p&l", "p/l", "profit", "net p&l", "net pnl", "return ($)", "return $", "return", "profit/loss", "realized p&l", "gross p&l", "result"],
+  rr: ["rr", "r", "r multiple", "r-multiple", "rmultiple", "return (r)", "r:r", "risk reward", "risk/reward", "avgriskreward", "avg risk reward", "avgrr", "avg rr", "rrr"],
+  pnl: ["pnl", "p&l", "p/l", "profit", "net p&l", "net pnl", "return ($)", "return $", "return", "profit/loss", "realized p&l", "gross p&l", "result", "rpnl", "realized pnl", "realizedpnl", "net profit"],
   session: ["session"],
   tags: ["tags", "tag", "labels"],
   notes: ["notes", "note", "comment", "comments", "remark", "remarks"],
 };
+
+/** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
+function normalizeDate(s: string): string {
+  const m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})[ T](\d{2}:\d{2}(:\d{2})?)/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}T${m[4]}`;
+  return s;
+}
 
 /**
  * Import trades from CSV. Expected headers (case-insensitive, any order):
@@ -98,7 +105,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const get = (canon: string) => (idx[canon] >= 0 ? (r[idx[canon]] ?? "").trim() : "");
-    const date = new Date(get("date"));
+    const date = new Date(normalizeDate(get("date")));
     const rrStr = get("rr");
     const pnlStr = get("pnl").replace(/[$,]/g, "");
     const rr = rrStr !== "" ? parseFloat(rrStr) : NaN;
@@ -110,11 +117,14 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
     const dirRaw = get("direction").toLowerCase();
     const sessionRaw = get("session");
     const session = (SESSIONS as readonly string[]).includes(sessionRaw) ? (sessionRaw as Session) : "London";
+    // Strip exchange prefix like "OANDA:XAUUSD" → "XAUUSD".
+    const rawPair = get("pair").toUpperCase();
+    const pair = (rawPair.includes(":") ? rawPair.split(":").pop()! : rawPair) || "UNKNOWN";
     trades.push({
       id: uid(),
       accountId,
       type,
-      pair: get("pair").toUpperCase() || "UNKNOWN",
+      pair,
       direction: dirRaw.startsWith("s") ? "short" : "long",
       market: "Forex",
       date: date.toISOString(),
