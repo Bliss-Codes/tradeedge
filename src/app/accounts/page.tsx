@@ -83,6 +83,7 @@ export default function AccountsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [confirming, setConfirming] = useState<Account | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const active = accounts.filter((a) => !a.archived);
   const archived = accounts.filter((a) => a.archived);
@@ -136,9 +137,17 @@ export default function AccountsPage() {
         <>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">{active.map(card)}</div>
           {archived.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <div className="text-xs font-medium uppercase tracking-wider text-mute">Archived ({archived.length})</div>
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">{archived.map(card)}</div>
+            <div className="pt-2">
+              <button
+                onClick={() => setShowArchived((v) => !v)}
+                className="flex w-full items-center gap-2 rounded-xl border border-edge bg-surface/30 px-4 py-2.5 text-left text-sm text-sub transition-colors hover:bg-surface/60"
+              >
+                <span className={`text-mute transition-transform ${showArchived ? "rotate-90" : ""}`}>▶</span>
+                <span className="font-medium">Archived accounts</span>
+                <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-mute">{archived.length}</span>
+                <span className="ml-auto text-xs text-mute">{showArchived ? "Hide" : "Show"}</span>
+              </button>
+              {showArchived && <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">{archived.map(card)}</div>}
             </div>
           )}
         </>
