@@ -166,49 +166,65 @@ function JournalInner() {
     <div className="space-y-5">
       <RiskBanner />
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Tabs tabs={["List", "Gallery"]} active={view} onChange={setView} />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pair, notes, tags…" className="max-w-60 flex-1" />
-        <Select value={pair} onChange={(e) => setPair(e.target.value)} className="w-auto">
-          <option value="">All pairs</option>
-          {pairOptions.map((p) => <option key={p}>{p}</option>)}
-        </Select>
-        <Select value={session} onChange={(e) => setSession(e.target.value)} className="w-auto">
-          <option value="">All sessions</option>
-          {SESSIONS.map((s) => <option key={s}>{s}</option>)}
-        </Select>
-        <Select value={strategy} onChange={(e) => setStrategy(e.target.value)} className="w-auto">
-          <option value="">All strategies</option>
-          {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </Select>
-        <Select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="w-auto">
-          <option value="">All outcomes</option>
-          <option value="win">Wins</option>
-          <option value="loss">Losses</option>
-          <option value="be">Breakeven</option>
-        </Select>
-        <Select value={tag} onChange={(e) => setTag(e.target.value)} className="w-auto">
-          <option value="">All tags</option>
-          {allTags.map((t) => <option key={t}>{t}</option>)}
-        </Select>
-        <Select value={range} onChange={(e) => setRange(e.target.value)} className="w-auto">
-          <option value="all">All time</option>
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-        </Select>
-        <div className="ml-auto flex gap-2">
-          {checked.size > 0 && (
-            <Button variant="danger" onClick={() => setDeleteTarget(Array.from(checked))}>
-              Delete {checked.size}
-            </Button>
-          )}
-          {lastTrade && (
-            <Button variant="subtle" onClick={() => setSeed(duplicateSeed(lastTrade))}>
-              Duplicate last
-            </Button>
-          )}
-          <Button onClick={() => setLogOpen(true)}>Log trade</Button>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Tabs tabs={["List", "Gallery"]} active={view} onChange={setView} />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pair, notes, tags…" className="max-w-60 flex-1" />
+          <div className="ml-auto flex gap-2">
+            {checked.size > 0 && (
+              <Button variant="danger" onClick={() => setDeleteTarget(Array.from(checked))}>
+                Delete {checked.size}
+              </Button>
+            )}
+            {lastTrade && (
+              <Button variant="subtle" onClick={() => setSeed(duplicateSeed(lastTrade))}>
+                Duplicate last
+              </Button>
+            )}
+            <Button onClick={() => setLogOpen(true)}>Log trade</Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="min-w-[120px] flex-1">
+            <Select value={pair} onChange={(e) => setPair(e.target.value)}>
+              <option value="">All pairs</option>
+              {pairOptions.map((p) => <option key={p}>{p}</option>)}
+            </Select>
+          </div>
+          <div className="min-w-[120px] flex-1">
+            <Select value={session} onChange={(e) => setSession(e.target.value)}>
+              <option value="">All sessions</option>
+              {SESSIONS.map((s) => <option key={s}>{s}</option>)}
+            </Select>
+          </div>
+          <div className="min-w-[120px] flex-1">
+            <Select value={strategy} onChange={(e) => setStrategy(e.target.value)}>
+              <option value="">All strategies</option>
+              {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </div>
+          <div className="min-w-[120px] flex-1">
+            <Select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+              <option value="">All outcomes</option>
+              <option value="win">Wins</option>
+              <option value="loss">Losses</option>
+              <option value="be">Breakeven</option>
+            </Select>
+          </div>
+          <div className="min-w-[120px] flex-1">
+            <Select value={tag} onChange={(e) => setTag(e.target.value)}>
+              <option value="">All tags</option>
+              {allTags.map((t) => <option key={t}>{t}</option>)}
+            </Select>
+          </div>
+          <div className="min-w-[120px] flex-1">
+            <Select value={range} onChange={(e) => setRange(e.target.value)}>
+              <option value="all">All time</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </Select>
+          </div>
         </div>
       </div>
 

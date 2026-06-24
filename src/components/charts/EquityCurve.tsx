@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { EquityPoint, fmtR } from "@/lib/metrics";
+import { EquityPoint, fmtR, fmtMoney } from "@/lib/metrics";
 
 function niceNum(x: number) {
   if (x <= 0) return 1;
@@ -20,7 +20,8 @@ function niceTicks(min: number, max: number, count = 4) {
   return { ticks, niceMin, niceMax };
 }
 
-export function EquityCurve({ points, height = 280 }: { points: EquityPoint[]; height?: number }) {
+export function EquityCurve({ points, height = 280, mode = "R" }: { points: EquityPoint[]; height?: number; mode?: "R" | "money" }) {
+  const fmt = mode === "money" ? fmtMoney : fmtR;
   const gid = useId();
   const [hover, setHover] = useState<number | null>(null);
   const W = 1000;
@@ -134,8 +135,54 @@ export function EquityCurve({ points, height = 280 }: { points: EquityPoint[]; h
       <div className="mt-5 flex justify-between pl-[46px] text-xs text-mute">
         <span>{hoverPoint ? new Date(hoverPoint.date).toLocaleDateString() : "Cumulative R"}</span>
         <span className={`font-mono ${(hoverPoint ? hoverPoint.value : last) >= 0 ? "text-pos" : "text-neg"}`}>
-          {hoverPoint ? fmtR(hoverPoint.value) : hover === 0 ? "0.00R" : fmtR(last)}
+          {hoverPoint ? fmt(hoverPoint.value) : hover === 0 ? fmt(0) : fmt(last)}
         </span>
+      </div>
+    </div>
+  );
+}
+
+export function DailyPnlBars({ days, height = 220 }: { days: { date: string; pnl: number }[]; height?: number }) {
+  if (days.length === 0) {
+    return <div className="flex items-center justify-center text-sm text-mute" style={{ height }}>No daily P&L yet.</div>;
+  }
+  const max = Math.max(1, ...days.map((d) => Math.abs(d.pnl)));
+  // nice top tick
+  const exp = Math.floor(Math.log10(max));
+  const f = max / Math.pow(10, exp);
+  const nf = f < 1.5 ? 1.5 : f < 3 ? 3 : f < 7 ? 7 : 10;
+  const top = nf * Math.pow(10, exp);
+  const ticks = [top, top / 2, 0, -top / 2, -top];
+  const recent = days.slice(-22); // keep it readable
+  return (
+    <div className="flex" style={{ height }}>
+      <div className="flex w-14 shrink-0 flex-col justify-between py-1 pr-2 text-right">
+        {ticks.map((t) => (
+          <span key={t} className="font-mono text-[10px] text-mute">{fmtMoney(t)}</span>
+        ))}
+      </div>
+      <div className="relative flex-1">
+        {/* gridlines */}
+        {ticks.map((t, i) => (
+          <div key={t} className="absolute left-0 right-0 border-t border-edge/50" style={{ top: `${(i / (ticks.length - 1)) * 100}%` }} />
+        ))}
+        {/* bars */}
+        <div className="absolute inset-0 flex items-stretch gap-1">
+          {recent.map((d) => {
+            const h = (Math.abs(d.pnl) / top) * 50; // % of half-height
+            const pos = d.pnl >= 0;
+            return (
+              <div key={d.date} className="group relative flex flex-1 flex-col" title={`${new Date(d.date).toLocaleDateString()} · ${fmtMoney(d.pnl)}`}>
+                <div className="flex h-1/2 items-end justify-center">
+                  {pos && <div className="w-full max-w-[18px] rounded-t bg-pos transition-opacity group-hover:opacity-80" style={{ height: `${h * 2}%` }} />}
+                </div>
+                <div className="flex h-1/2 items-start justify-center">
+                  {!pos && <div className="w-full max-w-[18px] rounded-b bg-neg transition-opacity group-hover:opacity-80" style={{ height: `${h * 2}%` }} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

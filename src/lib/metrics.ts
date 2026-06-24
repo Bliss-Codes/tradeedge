@@ -372,6 +372,28 @@ export function winLossSummary(trades: Trade[]): WinLossSummary {
   };
 }
 
+export interface DayPnl {
+  date: string; // yyyy-mm-dd
+  pnl: number;
+  trades: number;
+}
+
+/** Net P&L grouped by calendar day (chronological). */
+export function dailyPnl(trades: Trade[]): DayPnl[] {
+  const map = new Map<string, { pnl: number; trades: number }>();
+  for (const t of trades) {
+    const d = new Date(t.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const cur = map.get(key) ?? { pnl: 0, trades: 0 };
+    cur.pnl += t.pnl;
+    cur.trades += 1;
+    map.set(key, cur);
+  }
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, v]) => ({ date, ...v }));
+}
+
 // ── prop-firm risk guardrails ─────────────────────────────────────────
 
 export interface RiskStatus {

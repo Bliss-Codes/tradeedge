@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
   }, [visible, fRange, fStrategy, fSession, fSide, fOutcome]);
 
   const stats = useMemo(() => computeStats(trades), [trades]);
-  const curve = useMemo(() => equityCurve(trades), [trades]);
+  const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const wl = useMemo(() => winLossSummary(trades), [trades]);
   const bySide = useMemo(
     () => statsByGroup(trades, (t) => (t.direction === "long" ? "Long" : "Short")),
@@ -150,43 +150,59 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       {/* Horizontal filter bar */}
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-edge bg-card p-3">
-        <span className="px-1 text-xs font-medium uppercase tracking-wider text-mute">Filters</span>
-        <Select value={fRange} onChange={(e) => setFRange(e.target.value)} className="w-auto">
-          <option value="all">All time</option>
-          <option value="7">7 days</option>
-          <option value="30">30 days</option>
-          <option value="90">90 days</option>
-          <option value="365">1 year</option>
-        </Select>
-        <Select value={fStrategy} onChange={(e) => setFStrategy(e.target.value)} className="w-auto">
-          <option value="">All strategies</option>
-          {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </Select>
-        <Select value={fSession} onChange={(e) => setFSession(e.target.value)} className="w-auto">
-          <option value="">All sessions</option>
-          {SESSIONS.map((s) => <option key={s}>{s}</option>)}
-        </Select>
-        <Select value={fSide} onChange={(e) => setFSide(e.target.value)} className="w-auto">
-          <option value="">Long & short</option>
-          <option value="long">Long</option>
-          <option value="short">Short</option>
-        </Select>
-        <Select value={fOutcome} onChange={(e) => setFOutcome(e.target.value)} className="w-auto">
-          <option value="">All outcomes</option>
-          <option value="win">Wins</option>
-          <option value="loss">Losses</option>
-          <option value="be">Breakeven</option>
-        </Select>
-        <span className="ml-auto px-1 font-mono text-xs text-mute">{trades.length} trades</span>
-        {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome) && (
-          <button
-            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); }}
-            className="rounded-lg border border-edge px-2 py-1 text-xs text-mute hover:text-sub"
-          >
-            Clear
-          </button>
-        )}
+      <div className="rounded-2xl border border-edge bg-card p-3">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <span className="text-xs font-medium uppercase tracking-wider text-mute">Filters</span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-mute">{trades.length} trades</span>
+            {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome) && (
+              <button
+                onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); }}
+                className="rounded-lg border border-edge px-2 py-1 text-xs text-mute hover:text-sub"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="min-w-[130px] flex-1">
+            <Select value={fRange} onChange={(e) => setFRange(e.target.value)}>
+              <option value="all">All time</option>
+              <option value="7">7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="365">1 year</option>
+            </Select>
+          </div>
+          <div className="min-w-[130px] flex-1">
+            <Select value={fStrategy} onChange={(e) => setFStrategy(e.target.value)}>
+              <option value="">All strategies</option>
+              {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </div>
+          <div className="min-w-[130px] flex-1">
+            <Select value={fSession} onChange={(e) => setFSession(e.target.value)}>
+              <option value="">All sessions</option>
+              {SESSIONS.map((s) => <option key={s}>{s}</option>)}
+            </Select>
+          </div>
+          <div className="min-w-[130px] flex-1">
+            <Select value={fSide} onChange={(e) => setFSide(e.target.value)}>
+              <option value="">Long & short</option>
+              <option value="long">Long</option>
+              <option value="short">Short</option>
+            </Select>
+          </div>
+          <div className="min-w-[130px] flex-1">
+            <Select value={fOutcome} onChange={(e) => setFOutcome(e.target.value)}>
+              <option value="">All outcomes</option>
+              <option value="win">Wins</option>
+              <option value="loss">Losses</option>
+              <option value="be">Breakeven</option>
+            </Select>
+          </div>
+        </div>
       </div>
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
@@ -208,8 +224,8 @@ export default function AnalyticsPage() {
           </div>
 
           <Card>
-            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtR(stats.netRR)} cumulative</span>}>Profit & loss over time</SectionTitle>
-            <EquityCurve points={curve} />
+            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtR(stats.netRR)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
+            <EquityCurve points={curve} mode="money" />
           </Card>
 
           {/* Expectancy & profit factor + winners/losers */}

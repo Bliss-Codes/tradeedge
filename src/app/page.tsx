@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp, useVisibleTrades } from "@/stores/useApp";
-import { computeStats, equityCurve, fmtPF, fmtPct, fmtR, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
+import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
 import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/components/ui/primitives";
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
-import { EquityCurve } from "@/components/charts/EquityCurve";
+import { EquityCurve, DailyPnlBars } from "@/components/charts/EquityCurve";
 import { MonthCalendar } from "@/components/charts/MonthCalendar";
 import { RiskBanner } from "@/components/layout/RiskBanner";
 import { TradeModal } from "@/components/trades/TradeModal";
@@ -62,7 +62,8 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   const adherence = useMemo(() => ruleAdherence(trades), [trades]);
-  const curve = useMemo(() => equityCurve(trades), [trades]);
+  const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
+  const daily = useMemo(() => dailyPnl(trades), [trades]);
   const recent = useMemo(() => [...trades].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8), [trades]);
   const insights = useMemo(() => buildInsights(trades, strategies), [trades, strategies]);
   const reviewedToday = reviews.some((r) => r.date === todayKey());
@@ -113,13 +114,19 @@ export default function DashboardPage() {
         <Stat label="Total trades" value={String(stats.total)} />
       </div>
 
-      {/* Equity curve */}
-      <Card>
-        <SectionTitle action={<Link href="/analytics" className="text-xs text-accent hover:underline">Open analytics →</Link>}>
-          Equity curve (R)
-        </SectionTitle>
-        <EquityCurve points={curve} />
-      </Card>
+      {/* P&L charts */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Card>
+          <SectionTitle action={<Link href="/analytics" className="text-xs text-accent hover:underline">Open analytics →</Link>}>
+            Daily net cumulative P&L
+          </SectionTitle>
+          <EquityCurve points={curve} mode="money" />
+        </Card>
+        <Card>
+          <SectionTitle>Net daily P&L</SectionTitle>
+          <DailyPnlBars days={daily} />
+        </Card>
+      </div>
 
       {/* Trading calendar */}
       <MonthCalendar trades={trades} reviews={reviews} onSelectTrade={setSelected} />

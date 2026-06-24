@@ -75,10 +75,10 @@ export function MonthCalendar({
         </div>
       </div>
 
-      <div className="mb-2 grid grid-cols-7 gap-1.5 text-center text-[10px] uppercase tracking-wider text-mute">
+      <div className="mb-2 grid grid-cols-7 gap-2 text-center text-[10px] font-medium uppercase tracking-widest text-mute">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d}>{d}</div>)}
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-2">
         {cells.map((d) => {
           const k = dayKey(d);
           const dayTrades = byDay.get(k) ?? [];
@@ -90,20 +90,20 @@ export function MonthCalendar({
             <button
               key={k}
               onClick={() => dayTrades.length && setOpenDay(k)}
-              className={`relative flex min-h-16 flex-col rounded-lg border p-1.5 text-left transition-colors ${
-                dayTrades.length ? "cursor-pointer hover:border-accent/40" : "cursor-default"
-              } ${isToday ? "border-accent/50" : "border-edge"} ${
-                dayTrades.length === 0 ? "bg-surface/30" : "bg-card"
-              } ${inMonth ? "" : "opacity-35"}`}
+              className={`relative flex min-h-[76px] flex-col rounded-xl border p-2 text-left transition-colors ${
+                dayTrades.length ? "cursor-pointer hover:border-accent/50" : "cursor-default"
+              } ${isToday ? "border-accent/60 ring-1 ring-accent/30" : "border-edge"} ${
+                dayTrades.length === 0 ? "bg-surface/20" : net > 0 ? "bg-pos/[0.08]" : net < 0 ? "bg-neg/[0.08]" : "bg-card"
+              } ${inMonth ? "" : "opacity-30"}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] ${isToday ? "font-semibold text-accent" : "text-mute"}`}>{d.getDate()}</span>
+                <span className={`text-[11px] font-medium ${isToday ? "text-accent" : "text-sub"}`}>{d.getDate()}</span>
                 {reviewed && <span className="h-1.5 w-1.5 rounded-full bg-accent" title="Reviewed" />}
               </div>
               {dayTrades.length > 0 && (
-                <div className="mt-auto">
-                  <div className={`font-mono text-xs font-medium ${signColor(net)}`}>{fmtR(net)}</div>
-                  <div className="text-[9px] text-mute">{dayTrades.length}t</div>
+                <div className="mt-auto pt-1">
+                  <div className={`font-mono text-sm font-semibold ${signColor(net)}`}>{fmtR(net)}</div>
+                  <div className="text-[10px] text-mute">{dayTrades.length} trade{dayTrades.length > 1 ? "s" : ""}</div>
                 </div>
               )}
             </button>
