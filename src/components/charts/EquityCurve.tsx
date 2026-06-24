@@ -75,7 +75,7 @@ export function EquityCurve({ points, height = 280, mode = "R" }: { points: Equi
             className="absolute left-0 -translate-y-1/2 font-mono text-[10px] text-mute"
             style={{ top: `${(y(v) / H) * 100}%`, width: 40, textAlign: "right" }}
           >
-            {fmtR(v)}
+            {fmt(v)}
           </span>
         ))}
         <div className="relative" style={{ height }}>
@@ -133,7 +133,7 @@ export function EquityCurve({ points, height = 280, mode = "R" }: { points: Equi
         </div>
       </div>
       <div className="mt-5 flex justify-between pl-[46px] text-xs text-mute">
-        <span>{hoverPoint ? new Date(hoverPoint.date).toLocaleDateString() : "Cumulative R"}</span>
+        <span>{hoverPoint ? new Date(hoverPoint.date).toLocaleDateString() : mode === "money" ? "Cumulative P&L" : "Cumulative R"}</span>
         <span className={`font-mono ${(hoverPoint ? hoverPoint.value : last) >= 0 ? "text-pos" : "text-neg"}`}>
           {hoverPoint ? fmt(hoverPoint.value) : hover === 0 ? fmt(0) : fmt(last)}
         </span>

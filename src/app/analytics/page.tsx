@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
           </div>
 
           <Card>
-            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtR(stats.netRR)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
+            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
             <EquityCurve points={curve} mode="money" />
           </Card>
 

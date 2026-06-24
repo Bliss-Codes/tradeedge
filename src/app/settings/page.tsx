@@ -53,7 +53,7 @@ export default function SettingsPage() {
             Full backup (JSON)
           </Button>
         </div>
-        <p className="mt-3 text-xs text-mute">The full backup includes accounts, trades, strategies, missed trades, and tags. Screenshots stay on this device.</p>
+        <p className="mt-3 text-xs text-mute">The JSON file includes accounts, trades, strategies, missed trades, and tags. Screenshots aren&apos;t embedded in this file — when signed in they live in your private Supabase storage bucket (or in this browser in local mode), referenced by id.</p>
       </Card>
 
       <Card>

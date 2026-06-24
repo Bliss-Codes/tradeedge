@@ -212,10 +212,12 @@ export interface MissedTrade {
 /** A structured end-of-day reflection, keyed to one calendar day. */
 export interface DayReview {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD for days; "YYYY-Www" weekly; "YYYY-Mmm" monthly
+  scope?: "day" | "week" | "month";
   marketNotes?: string;
   wentWell?: string;
   toImprove?: string;
+  focusNext?: string; // focus / goals for the coming week or month
   disciplineRating?: number; // 1–5
   followedPlan?: boolean;
   mood?: Emotion;

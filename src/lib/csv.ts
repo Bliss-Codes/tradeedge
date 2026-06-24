@@ -3,7 +3,7 @@ import { uid } from "@/stores/useApp";
 
 // ── tiny CSV parser (handles quoted fields) ───────────────────────────
 
-export function parseCSV(text: string): string[][] {
+export function parseCSV(text: string, delim = ","): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -18,7 +18,7 @@ export function parseCSV(text: string): string[][] {
         } else inQuotes = false;
       } else field += c;
     } else if (c === '"') inQuotes = true;
-    else if (c === ",") {
+    else if (c === delim) {
       row.push(field);
       field = "";
     } else if (c === "\n" || c === "\r") {
@@ -34,6 +34,28 @@ export function parseCSV(text: string): string[][] {
   return rows;
 }
 
+/** Guess the column delimiter from the header line (comma, semicolon, or tab). */
+function detectDelimiter(firstLine: string): string {
+  const counts: Record<string, number> = {
+    ",": (firstLine.match(/,/g) || []).length,
+    ";": (firstLine.match(/;/g) || []).length,
+    "\t": (firstLine.match(/\t/g) || []).length,
+  };
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+// Accepted header names for each canonical field (lower-cased, trimmed).
+const ALIASES: Record<string, string[]> = {
+  date: ["date", "entry date", "open date", "opened", "datetime", "date/time", "time", "entry time", "open time", "trade date"],
+  pair: ["pair", "symbol", "asset", "instrument", "ticker", "market"],
+  direction: ["direction", "side", "position", "type", "buy/sell", "b/s", "long/short"],
+  rr: ["rr", "r", "r multiple", "r-multiple", "rmultiple", "return (r)", "r:r", "risk reward", "risk/reward"],
+  pnl: ["pnl", "p&l", "p/l", "profit", "net p&l", "net pnl", "return ($)", "return $", "return", "profit/loss", "realized p&l", "gross p&l", "result"],
+  session: ["session"],
+  tags: ["tags", "tag", "labels"],
+  notes: ["notes", "note", "comment", "comments", "remark", "remarks"],
+};
+
 /**
  * Import trades from CSV. Expected headers (case-insensitive, any order):
  * date, pair, direction, rr  — required
@@ -41,23 +63,48 @@ export function parseCSV(text: string): string[][] {
  * Tags separated by ";" or "|".
  */
 export function tradesFromCSV(text: string, accountId: string, type: TradeType): { trades: Trade[]; errors: string[] } {
-  const rows = parseCSV(text);
+  // Strip UTF-8 BOM that Excel/Sheets prepend to the first cell.
+  text = text.replace(/^\uFEFF/, "");
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+  const delim = detectDelimiter(firstLine);
+  const rows = parseCSV(text, delim);
   const errors: string[] = [];
   if (rows.length < 2) return { trades: [], errors: ["File has no data rows."] };
+
   const header = rows[0].map((h) => h.trim().toLowerCase());
-  const col = (name: string) => header.indexOf(name);
-  const required = ["date", "pair", "direction", "rr"];
-  for (const r of required) {
-    if (col(r) === -1) return { trades: [], errors: [`Missing required column: ${r}`] };
+  // Resolve each canonical field to a column index via its aliases.
+  const idx: Record<string, number> = {};
+  for (const [canon, names] of Object.entries(ALIASES)) {
+    idx[canon] = header.findIndex((h) => names.includes(h));
   }
+
+  // Need date, pair, direction, and at least one of rr / pnl.
+  const missing: string[] = [];
+  if (idx.date < 0) missing.push("date");
+  if (idx.pair < 0) missing.push("pair");
+  if (idx.direction < 0) missing.push("direction");
+  if (idx.rr < 0 && idx.pnl < 0) missing.push("rr or pnl");
+  if (missing.length) {
+    return {
+      trades: [],
+      errors: [
+        `Missing required column${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.`,
+        `Found headers: ${header.join(", ") || "(none)"}.`,
+      ],
+    };
+  }
+
   const trades: Trade[] = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    const get = (name: string) => (col(name) >= 0 ? (r[col(name)] ?? "").trim() : "");
+    const get = (canon: string) => (idx[canon] >= 0 ? (r[idx[canon]] ?? "").trim() : "");
     const date = new Date(get("date"));
-    const rr = parseFloat(get("rr"));
-    if (isNaN(date.getTime()) || isNaN(rr)) {
-      errors.push(`Row ${i + 1} skipped (bad date or rr).`);
+    const rrStr = get("rr");
+    const pnlStr = get("pnl").replace(/[$,]/g, "");
+    const rr = rrStr !== "" ? parseFloat(rrStr) : NaN;
+    const pnl = pnlStr !== "" ? parseFloat(pnlStr) : NaN;
+    if (isNaN(date.getTime()) || (isNaN(rr) && isNaN(pnl))) {
+      errors.push(`Row ${i + 1} skipped (bad date, or no rr/pnl value).`);
       continue;
     }
     const dirRaw = get("direction").toLowerCase();
@@ -71,8 +118,8 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       direction: dirRaw.startsWith("s") ? "short" : "long",
       market: "Forex",
       date: date.toISOString(),
-      rr,
-      pnl: parseFloat(get("pnl")) || 0,
+      rr: isNaN(rr) ? 0 : rr,
+      pnl: isNaN(pnl) ? 0 : pnl,
       session,
       tags: get("tags") ? get("tags").split(/[;|]/).map((t) => t.trim()).filter(Boolean) : [],
       notes: get("notes") || undefined,
@@ -82,6 +129,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       createdAt: new Date().toISOString(),
     });
   }
+  if (trades.length === 0 && errors.length) errors.unshift("No rows could be imported — check the date and rr/pnl columns.");
   return { trades, errors };
 }
 

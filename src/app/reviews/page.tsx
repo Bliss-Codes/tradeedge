@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useVisibleTrades, useApp } from "@/stores/useApp";
-import { Trade } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { useVisibleTrades, useApp, uid } from "@/stores/useApp";
+import { Trade, DayReview } from "@/lib/types";
 import {
   computeStats,
   statsByGroup,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
 import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/fields";
-import { Button, Card, EmptyState, SectionTitle, Stat, Tabs } from "@/components/ui/primitives";
+import { Button, Card, EmptyState, SectionTitle, Stat, Tabs, inputCls } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
 import { BarRow } from "@/components/charts/EquityCurve";
@@ -34,6 +34,103 @@ function Highlight({ label, value, tone }: { label: string; value: string; tone?
       <div className="text-[10px] uppercase tracking-wider text-mute">{label}</div>
       <div className={`mt-1 truncate text-sm font-medium ${tone !== undefined ? signColor(tone) : "text-ink"}`}>{value}</div>
     </div>
+  );
+}
+
+function isoWeekKey(d: Date) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function ReviewJournal({ periodKey, scope, label }: { periodKey: string; scope: "week" | "month"; label: string }) {
+  const reviews = useApp((s) => s.reviews);
+  const upsertReview = useApp((s) => s.upsertReview);
+  const existing = useMemo(() => reviews.find((r) => r.date === periodKey), [reviews, periodKey]);
+
+  const [wentWell, setWentWell] = useState("");
+  const [toImprove, setToImprove] = useState("");
+  const [focusNext, setFocusNext] = useState("");
+  const [discipline, setDiscipline] = useState<number | undefined>(undefined);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setWentWell(existing?.wentWell ?? "");
+    setToImprove(existing?.toImprove ?? "");
+    setFocusNext(existing?.focusNext ?? "");
+    setDiscipline(existing?.disciplineRating);
+    setSaved(false);
+  }, [periodKey, existing]);
+
+  const dirty =
+    wentWell !== (existing?.wentWell ?? "") ||
+    toImprove !== (existing?.toImprove ?? "") ||
+    focusNext !== (existing?.focusNext ?? "") ||
+    discipline !== existing?.disciplineRating;
+
+  const save = () => {
+    const now = new Date().toISOString();
+    const r: DayReview = {
+      id: existing?.id ?? uid(),
+      date: periodKey,
+      scope,
+      wentWell: wentWell.trim() || undefined,
+      toImprove: toImprove.trim() || undefined,
+      focusNext: focusNext.trim() || undefined,
+      disciplineRating: discipline,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    upsertReview(r);
+    setSaved(true);
+  };
+
+  const ta = `${inputCls} min-h-24 resize-y leading-relaxed`;
+
+  return (
+    <Card>
+      <SectionTitle
+        action={
+          <div className="flex items-center gap-2">
+            {saved && !dirty && <span className="text-xs text-pos">Saved ✓</span>}
+            <Button onClick={save} disabled={!dirty}>Save reflection</Button>
+          </div>
+        }
+      >
+        {scope === "week" ? "Weekly" : "Monthly"} reflection — {label}
+      </SectionTitle>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-sub">What went well</span>
+          <textarea className={ta} value={wentWell} onChange={(e) => setWentWell(e.target.value)} placeholder="Setups I executed cleanly, good discipline moments, wins to repeat…" />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-sub">What to improve</span>
+          <textarea className={ta} value={toImprove} onChange={(e) => setToImprove(e.target.value)} placeholder="Mistakes, broken rules, patterns to fix…" />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-sub">Focus for next {scope}</span>
+          <textarea className={ta} value={focusNext} onChange={(e) => setFocusNext(e.target.value)} placeholder="The 1–2 things I'll concentrate on next…" />
+        </label>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <span className="text-xs font-medium text-sub">Discipline this {scope}</span>
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              onClick={() => setDiscipline(discipline === n ? undefined : n)}
+              className={`h-8 w-8 rounded-lg border text-sm transition-colors ${discipline === n ? "border-accent bg-accent/15 text-accent" : "border-edge text-mute hover:text-sub"}`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -92,6 +189,8 @@ export default function ReviewsPage() {
   const insights = useMemo(() => buildInsights(period, strategies), [period, strategies]);
   const exitDist = useMemo(() => distribution(period, (t) => t.exitReason), [period]);
 
+  const periodKey = view === "Weekly" ? isoWeekKey(from) : `${cursor.getFullYear()}-M${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -104,8 +203,10 @@ export default function ReviewsPage() {
         </div>
       </div>
 
+      <ReviewJournal periodKey={periodKey} scope={view === "Weekly" ? "week" : "month"} label={label} />
+
       {period.length === 0 ? (
-        <EmptyState title={`No trades this ${view === "Weekly" ? "week" : "month"}`} body="Pick another period, or log trades to auto-generate this review." />
+        <EmptyState title={`No trades this ${view === "Weekly" ? "week" : "month"}`} body="Your reflection above is saved. Log trades to auto-generate the stats for this period." />
       ) : (
         <>
           {/* Headline */}

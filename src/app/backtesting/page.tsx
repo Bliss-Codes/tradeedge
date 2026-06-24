@@ -139,7 +139,7 @@ export default function BacktestingPage() {
       <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Import trades from CSV">
         <div className="space-y-4">
           <p className="text-sm text-mute">
-            Required columns: <span className="font-mono text-sub">date, pair, direction, rr</span>. Optional: <span className="font-mono text-sub">pnl, session, tags, notes</span> (tags separated by <span className="font-mono">;</span>).
+            Required: <span className="font-mono text-sub">date</span>, <span className="font-mono text-sub">pair</span>, <span className="font-mono text-sub">direction</span>, and <span className="font-mono text-sub">rr</span> or <span className="font-mono text-sub">pnl</span>. Optional: <span className="font-mono text-sub">session, tags, notes</span>. Commas, semicolons or tabs all work, and common header names (Symbol, Asset, Side, Return) are recognised automatically.
           </p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Import as">
