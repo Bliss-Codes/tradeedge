@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useApp } from "@/stores/useApp";
 import { tradesFromCSV } from "@/lib/csv";
 import { TradeType } from "@/lib/types";
-import { computeStats, equityCurve, fmtPF, fmtPct, fmtR, signColor } from "@/lib/metrics";
+import { computeStats, equityCurve, fmtPF, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, Field, Modal, SectionTitle, Select } from "@/components/ui/primitives";
 import { EquityCurve } from "@/components/charts/EquityCurve";
 import { TradeModal } from "@/components/trades/TradeModal";
@@ -97,7 +97,7 @@ export default function BacktestingPage() {
                   ["Win rate", s.total ? fmtPct(s.winRate) : "—", "text-ink"],
                   ["Avg RR (expectancy)", s.total ? `${s.avgRR.toFixed(2)}R` : "—", signColor(s.avgRR)],
                   ["Profit factor", s.total ? fmtPF(s.profitFactor) : "—", "text-ink"],
-                  ["Net RR", s.total ? fmtR(s.netRR) : "—", signColor(s.netRR)],
+                  ["Net P&L", s.total ? fmtMoney(s.netPnl) : "—", signColor(s.netRR)],
                   ["Max drawdown", s.total ? `−${s.maxDrawdownR.toFixed(2)}R` : "—", "text-neg"],
                 ].map(([label, value, cls]) => (
                   <div key={label} className="flex justify-between border-b border-edge/50 pb-2 last:border-0">

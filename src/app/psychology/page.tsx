@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useVisibleTrades } from "@/stores/useApp";
-import { statsByGroup, computeStats, fmtR, fmtPct, signColor } from "@/lib/metrics";
+import { useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
+import { statsByGroup, computeStats, fmtR, fmtMoney, fmtPct, signColor } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Stat, Tabs } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { BarRow } from "@/components/charts/EquityCurve";
 
 export default function PsychologyPage() {
   const trades = useVisibleTrades();
+  const currency = useDisplayCurrency();
   const [view, setView] = useState("Before entry");
 
   const byBefore = useMemo(() => statsByGroup(trades, (t) => t.emotionBefore), [trades]);
@@ -40,12 +41,12 @@ export default function PsychologyPage() {
           <Stat label="Trades with emotion logged" value={String(tagged.length)} hint={`of ${trades.length} total`} />
           <Card>
             <div className="text-xs font-medium uppercase tracking-wider text-mute">Calm states (Neutral / Focused)</div>
-            <div className={`mt-2 font-mono text-xl font-semibold ${signColor(disciplined.netRR)}`}>{fmtR(disciplined.netRR)}</div>
+            <div className={`mt-2 font-mono text-xl font-semibold ${signColor(disciplined.netPnl)}`}>{fmtMoney(disciplined.netPnl, currency)}</div>
             <div className="mt-1 text-xs text-mute">{disciplined.total} trades · {fmtPct(disciplined.winRate)} WR</div>
           </Card>
           <Card>
             <div className="text-xs font-medium uppercase tracking-wider text-mute">Reactive states (Fear / FOMO / Revenge / Frustrated)</div>
-            <div className={`mt-2 font-mono text-xl font-semibold ${signColor(reactive.netRR)}`}>{fmtR(reactive.netRR)}</div>
+            <div className={`mt-2 font-mono text-xl font-semibold ${signColor(reactive.netPnl)}`}>{fmtMoney(reactive.netPnl, currency)}</div>
             <div className="mt-1 text-xs text-mute">{reactive.total} trades · {fmtPct(reactive.winRate)} WR</div>
           </Card>
         </div>
@@ -69,10 +70,10 @@ export default function PsychologyPage() {
             <BarRow
               key={r.key}
               label={r.key}
-              value={Math.abs(r.stats.netRR)}
-              max={Math.max(...rows.map((x) => Math.abs(x.stats.netRR)), 1)}
-              display={fmtR(r.stats.netRR)}
-              color={r.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+              value={Math.abs(r.stats.netPnl)}
+              max={Math.max(...rows.map((x) => Math.abs(x.stats.netPnl)), 1)}
+              display={fmtMoney(r.stats.netPnl, currency)}
+              color={r.stats.netPnl >= 0 ? "#22C55E" : "#EF4444"}
             />
           ))}
         </Card>

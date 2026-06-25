@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useApp, useVisibleTrades, uid } from "@/stores/useApp";
+import { useApp, useVisibleTrades, uid, useDisplayCurrency } from "@/stores/useApp";
 import { Strategy, CustomFieldDef, FieldType } from "@/lib/types";
-import { computeStats, fmtPF, fmtPct, fmtR, signColor } from "@/lib/metrics";
+import { computeStats, fmtPF, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, EmptyState, Field, Input, Modal, Select, TagChip, Textarea } from "@/components/ui/primitives";
 import { useAllTags } from "@/stores/useApp";
 import { STRATEGY_TEMPLATES } from "@/lib/data/templates";
@@ -125,6 +125,7 @@ export default function StrategiesPage() {
   const strategies = useApp((s) => s.strategies);
   const deleteStrategy = useApp((s) => s.deleteStrategy);
   const trades = useVisibleTrades();
+  const currency = useDisplayCurrency();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Strategy | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -166,7 +167,7 @@ export default function StrategiesPage() {
                     ["Win rate", fmtPct(st.winRate), ""],
                     ["Avg RR", st.avgRR.toFixed(2), signColor(st.avgRR)],
                     ["PF", fmtPF(st.profitFactor), ""],
-                    ["Net RR", fmtR(st.netRR), signColor(st.netRR)],
+                    ["Net P&L", fmtMoney(st.netPnl, currency), signColor(st.netPnl)],
                     ["Trades", String(st.total), ""],
                   ].map(([label, value, cls]) => (
                     <div key={label}>

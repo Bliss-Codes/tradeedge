@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
       withV.flatMap((t) => t.violations.map((v) => ({ ...t, _v: v }))),
       (t) => (t as { _v?: string })._v
     );
-    return rows.sort((a, b) => a.stats.netRR - b.stats.netRR);
+    return rows.sort((a, b) => a.stats.netPnl - b.stats.netPnl);
   }, [trades]);
 
   const cleanStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length === 0)), [trades]);
@@ -337,10 +337,10 @@ export default function AnalyticsPage() {
                       <BarRow
                         key={r.key}
                         label={r.key}
-                        value={Math.abs(r.stats.netRR)}
-                        max={Math.max(...byField.map((x) => Math.abs(x.stats.netRR)), 1)}
-                        display={`${fmtR(r.stats.netRR)} · ${r.stats.total}t`}
-                        color={r.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+                        value={Math.abs(r.stats.netPnl)}
+                        max={Math.max(...byField.map((x) => Math.abs(x.stats.netPnl)), 1)}
+                        display={`${fmtMoney(r.stats.netPnl, currency)} · ${r.stats.total}t`}
+                        color={r.stats.netPnl >= 0 ? "#22C55E" : "#EF4444"}
                       />
                     ))}
                   </div>
@@ -363,10 +363,10 @@ export default function AnalyticsPage() {
                   <BarRow
                     key={h.hour}
                     label={`${String(h.hour).padStart(2, "0")}:00`}
-                    value={Math.abs(h.stats.netRR)}
-                    max={Math.max(...byHour.map((x) => Math.abs(x.stats.netRR)), 1)}
-                    display={`${fmtR(h.stats.netRR)} · ${h.stats.total}t`}
-                    color={h.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+                    value={Math.abs(h.stats.netPnl)}
+                    max={Math.max(...byHour.map((x) => Math.abs(x.stats.netPnl)), 1)}
+                    display={`${fmtMoney(h.stats.netPnl, currency)} · ${h.stats.total}t`}
+                    color={h.stats.netPnl >= 0 ? "#22C55E" : "#EF4444"}
                   />
                 ))}
               </Card>
@@ -442,10 +442,10 @@ export default function AnalyticsPage() {
               <BarRow
                 key={r.key}
                 label={r.key}
-                value={Math.abs(r.stats.netRR)}
-                max={Math.max(...bySession.map((x) => Math.abs(x.stats.netRR)), 1)}
-                display={fmtR(r.stats.netRR)}
-                color={r.stats.netRR >= 0 ? "#22C55E" : "#EF4444"}
+                value={Math.abs(r.stats.netPnl)}
+                max={Math.max(...bySession.map((x) => Math.abs(x.stats.netPnl)), 1)}
+                display={fmtMoney(r.stats.netPnl, currency)}
+                color={r.stats.netPnl >= 0 ? "#22C55E" : "#EF4444"}
               />
             ))}
           </Card>
@@ -587,12 +587,12 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card>
               <div className="text-xs font-medium uppercase tracking-wider text-mute">Rule-following trades</div>
-              <div className={`mt-2 font-mono text-2xl font-semibold ${signColor(cleanStats.netRR)}`}>{fmtR(cleanStats.netRR)}</div>
+              <div className={`mt-2 font-mono text-2xl font-semibold ${signColor(cleanStats.netPnl)}`}>{fmtMoney(cleanStats.netPnl, currency)}</div>
               <div className="mt-1 text-xs text-mute">{cleanStats.total} trades · {fmtPct(cleanStats.winRate)} win rate · {cleanStats.avgRR.toFixed(2)}R expectancy</div>
             </Card>
             <Card>
               <div className="text-xs font-medium uppercase tracking-wider text-mute">Trades with violations</div>
-              <div className={`mt-2 font-mono text-2xl font-semibold ${signColor(dirtyStats.netRR)}`}>{fmtR(dirtyStats.netRR)}</div>
+              <div className={`mt-2 font-mono text-2xl font-semibold ${signColor(dirtyStats.netPnl)}`}>{fmtMoney(dirtyStats.netPnl, currency)}</div>
               <div className="mt-1 text-xs text-mute">{dirtyStats.total} trades · {fmtPct(dirtyStats.winRate)} win rate · {dirtyStats.avgRR.toFixed(2)}R expectancy</div>
             </Card>
           </div>

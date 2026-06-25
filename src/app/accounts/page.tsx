@@ -111,7 +111,7 @@ export default function AccountsPage() {
         <div className="mt-4 flex items-center justify-between rounded-xl border border-edge bg-surface/50 px-3 py-2 text-xs text-mute">
           <span>{st.total} trades</span>
           <span>{st.total ? fmtPct(st.winRate) : "—"} WR</span>
-          <span className={`font-mono ${signColor(st.netRR)}`}>{fmtR(st.netRR)}</span>
+          <span className={`font-mono ${signColor(st.netPnl)}`}>{fmtMoney(st.netPnl, a.currency)}</span>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="ghost" className="flex-1" onClick={() => setSelected(a.id)}>Review</Button>

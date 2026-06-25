@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useApp, useVisibleTrades } from "@/stores/useApp";
+import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
 import { Trade } from "@/lib/types";
-import { computeStats, fmtPct, fmtR, signColor } from "@/lib/metrics";
+import { computeStats, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, Modal, OutcomePill, Tabs } from "@/components/ui/primitives";
 import { TradeDetail } from "@/components/trades/TradeDetail";
 import { DayReviewModal } from "@/components/trades/DayReviewModal";
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-function DayTradesModal({ date, trades, onClose, onSelect, onReview }: { date: string; trades: Trade[]; onClose: () => void; onSelect: (t: Trade) => void; onReview: () => void }) {
+function DayTradesModal({ date, trades, onClose, onSelect, onReview, currency }: { date: string; trades: Trade[]; onClose: () => void; onSelect: (t: Trade) => void; onReview: () => void; currency: string }) {
   const s = computeStats(trades);
   return (
     <Modal open onClose={onClose} title={new Date(date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}>
@@ -18,7 +18,7 @@ function DayTradesModal({ date, trades, onClose, onSelect, onReview }: { date: s
         <div className="flex gap-4 text-sm text-mute">
           <span>{s.total} trades</span>
           <span>{fmtPct(s.winRate)} WR</span>
-          <span className={`font-mono ${signColor(s.netRR)}`}>{fmtR(s.netRR)}</span>
+          <span className={`font-mono ${signColor(s.netPnl)}`}>{fmtMoney(s.netPnl, currency)}</span>
         </div>
         <Button variant="ghost" onClick={onReview}>Review this day</Button>
       </div>
@@ -30,7 +30,7 @@ function DayTradesModal({ date, trades, onClose, onSelect, onReview }: { date: s
               <span className="ml-2 text-xs text-mute">{t.session} · {t.direction}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`font-mono text-sm ${signColor(t.rr)}`}>{fmtR(t.rr)}</span>
+              <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
               <OutcomePill rr={t.rr} pnl={t.pnl} />
             </div>
           </button>
@@ -43,6 +43,7 @@ function DayTradesModal({ date, trades, onClose, onSelect, onReview }: { date: s
 export default function CalendarPage() {
   const trades = useVisibleTrades();
   const reviews = useApp((s) => s.reviews);
+  const currency = useDisplayCurrency();
   const [view, setView] = useState("Monthly");
   const [cursor, setCursor] = useState(() => new Date());
   const [openDay, setOpenDay] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export default function CalendarPage() {
   const DayCell = ({ date, tall }: { date: Date; tall?: boolean }) => {
     const k = dayKey(date);
     const dayTrades = byDay.get(k) ?? [];
-    const net = dayTrades.reduce((a, t) => a + t.rr, 0);
+    const net = dayTrades.reduce((a, t) => a + t.pnl, 0);
     const inMonth = date.getMonth() === cursor.getMonth();
     const isToday = k === dayKey(new Date());
     const reviewed = reviewedDays.has(k);
@@ -92,7 +93,7 @@ export default function CalendarPage() {
         </div>
         {dayTrades.length > 0 && (
           <>
-            <span className={`mt-auto font-mono text-sm font-medium ${signColor(net)}`}>{fmtR(net)}</span>
+            <span className={`mt-auto font-mono text-sm font-medium ${signColor(net)}`}>{fmtMoney(net, currency)}</span>
             <span className="text-[10px] text-mute">{dayTrades.length} trade{dayTrades.length === 1 ? "" : "s"}</span>
           </>
         )}
@@ -150,7 +151,7 @@ export default function CalendarPage() {
           <div className="flex gap-5 text-sm text-mute">
             <span>{s.total} trades</span>
             <span>{dayTrades.length ? fmtPct(s.winRate) + " WR" : "—"}</span>
-            <span className={`font-mono ${signColor(s.netRR)}`}>{fmtR(s.netRR)}</span>
+            <span className={`font-mono ${signColor(s.netPnl)}`}>{fmtMoney(s.netPnl, currency)}</span>
           </div>
           <Button variant="ghost" onClick={() => setReviewDay(k)}>{dayReview ? "Edit review" : "Review this day"}</Button>
         </div>
@@ -175,7 +176,7 @@ export default function CalendarPage() {
                   <span className="text-sm font-medium text-ink">{t.pair}</span>
                   <span className="ml-2 text-xs text-mute">{t.session} · {t.direction}</span>
                 </div>
-                <span className={`font-mono text-sm ${signColor(t.rr)}`}>{fmtR(t.rr)}</span>
+                <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
               </button>
             ))}
           </div>
@@ -201,6 +202,7 @@ export default function CalendarPage() {
         <DayTradesModal
           date={openDay}
           trades={byDay.get(openDay) ?? []}
+          currency={currency}
           onClose={() => setOpenDay(null)}
           onSelect={(t) => {
             setOpenDay(null);
