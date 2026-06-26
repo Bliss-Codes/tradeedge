@@ -1,12 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useApp, useVisibleTrades, uid, useDisplayCurrency } from "@/stores/useApp";
 import { Strategy, CustomFieldDef, FieldType } from "@/lib/types";
 import { computeStats, fmtPF, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, EmptyState, Field, Input, Modal, Select, TagChip, Textarea } from "@/components/ui/primitives";
 import { useAllTags } from "@/stores/useApp";
 import { STRATEGY_TEMPLATES } from "@/lib/data/templates";
+
+function OptionsInput({ value, onChange, className = "" }: { value: string[]; onChange: (arr: string[]) => void; className?: string }) {
+  const [text, setText] = useState(value.join(", "));
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focused.current) setText(value.join(", "));
+  }, [value]);
+  return (
+    <Input
+      className={className}
+      value={text}
+      onFocus={() => (focused.current = true)}
+      onBlur={() => (focused.current = false)}
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(e.target.value.split(",").map((o) => o.trim()).filter(Boolean));
+      }}
+      placeholder="Options, comma-separated (e.g. Bullish, Bearish)"
+    />
+  );
+}
 
 function FieldBuilder({ fields, onChange }: { fields: CustomFieldDef[]; onChange: (f: CustomFieldDef[]) => void }) {
   const update = (id: string, patch: Partial<CustomFieldDef>) => onChange(fields.map((f) => (f.id === id ? { ...f, ...patch } : f)));
@@ -36,11 +57,10 @@ function FieldBuilder({ fields, onChange }: { fields: CustomFieldDef[]; onChange
             </button>
           </div>
           {f.type === "select" && (
-            <Input
+            <OptionsInput
               className="mt-2"
-              value={(f.options ?? []).join(", ")}
-              onChange={(e) => update(f.id, { options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })}
-              placeholder="Options, comma-separated (e.g. Bullish, Bearish)"
+              value={f.options ?? []}
+              onChange={(arr) => update(f.id, { options: arr })}
             />
           )}
         </div>
@@ -85,7 +105,7 @@ function StrategyModal({ open, onClose, existing }: { open: boolean; onClose: ()
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit strategy" : "Create strategy"} wide>
+    <Modal open={open} onClose={onClose} title={existing ? "Edit strategy" : "Create strategy"} wide persistent>
       <div className="space-y-4">
         {!existing && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-edge bg-surface/40 p-3">

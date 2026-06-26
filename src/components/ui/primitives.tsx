@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState, useRef } from "react";
 import { signColor } from "@/lib/metrics";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -117,6 +117,51 @@ export function Field({ label, children, className = "" }: { label: string; chil
 export const inputCls =
   "w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-ink placeholder:text-mute focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/40 transition-colors";
 
+/**
+ * Number input that keeps the user's raw keystrokes (so "0.02", "1.", "-" mid-typing
+ * survive) and only emits a parsed number. Re-syncs when the external value changes
+ * to something different from what's typed (e.g. auto-calculated fields).
+ */
+export function NumberInput({
+  value,
+  onChange,
+  placeholder,
+  className = "",
+}: {
+  value: number | undefined;
+  onChange: (n: number | undefined) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [text, setText] = useState(value === undefined || Number.isNaN(value) ? "" : String(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (focused.current) return; // don't fight the user mid-type
+    const parsed = text === "" ? undefined : parseFloat(text);
+    if (parsed !== value) setText(value === undefined || Number.isNaN(value) ? "" : String(value));
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={`${inputCls} ${className}`}
+      placeholder={placeholder}
+      value={text}
+      onFocus={() => (focused.current = true)}
+      onBlur={() => (focused.current = false)}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw !== "" && !/^-?\d*\.?\d*$/.test(raw)) return; // allow only number-ish input
+        setText(raw);
+        const n = raw === "" || raw === "-" || raw === "." ? undefined : parseFloat(raw);
+        onChange(Number.isNaN(n as number) ? undefined : n);
+      }}
+    />
+  );
+}
+
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${props.className ?? ""}`} />;
 }
@@ -215,27 +260,29 @@ export function Modal({
   title,
   children,
   wide,
+  persistent,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   wide?: boolean;
+  persistent?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !persistent && onClose();
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, onClose, persistent]);
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:p-8" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:p-8" onClick={persistent ? undefined : onClose}>
       <div
         className={`mt-4 w-full ${wide ? "max-w-4xl" : "max-w-2xl"} rounded-2xl border border-edge bg-card shadow-2xl`}
         onClick={(e) => e.stopPropagation()}

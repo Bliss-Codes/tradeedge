@@ -19,9 +19,9 @@ import {
   Violation,
 } from "@/lib/types";
 import { useApp, useAllTags, uid } from "@/stores/useApp";
-import { Button, Field, Input, Modal, Select, TagChip, Textarea, OptionCards } from "@/components/ui/primitives";
+import { Button, Field, Input, Modal, NumberInput, Select, TagChip, Textarea, OptionCards } from "@/components/ui/primitives";
 import { ImageUploader } from "@/components/trades/Images";
-import { plannedRR } from "@/lib/metrics";
+import { plannedRR, fmtMoney, signColor } from "@/lib/metrics";
 
 const num = (v: string) => (v.trim() === "" ? undefined : parseFloat(v));
 const str = (v?: number) => (v === undefined || v === null || Number.isNaN(v) ? "" : String(v));
@@ -136,6 +136,30 @@ export function TradeModal({
 
   const set = <K extends keyof Trade>(key: K, value: Trade[K]) => setT((prev) => ({ ...prev, [key]: value }));
 
+  // Auto-calc: realized RR from entry/SL/exit, then PnL from RR × risk amount.
+  const derive = (n: Trade): Trade => {
+    const out = { ...n };
+    if (out.entry != null && out.stopLoss != null && out.exit != null) {
+      const risk = out.direction === "long" ? out.entry - out.stopLoss : out.stopLoss - out.entry;
+      if (risk > 0) {
+        const reward = out.direction === "long" ? out.exit - out.entry : out.entry - out.exit;
+        out.rr = +(reward / risk).toFixed(2);
+      }
+    }
+    if (out.riskAmount != null && out.rr != null && !Number.isNaN(out.rr)) {
+      out.pnl = +(out.rr * out.riskAmount).toFixed(2);
+    }
+    return out;
+  };
+  const setPrice = <K extends keyof Trade>(key: K, value: Trade[K]) => setT((prev) => derive({ ...prev, [key]: value }));
+  const setRiskAmount = (v: number | undefined) => setT((prev) => derive({ ...prev, riskAmount: v }));
+  const setRR = (v: number | undefined) =>
+    setT((prev) => {
+      const rr = v ?? 0;
+      const pnl = prev.riskAmount != null ? +(rr * prev.riskAmount).toFixed(2) : prev.pnl;
+      return { ...prev, rr, pnl };
+    });
+
   const selectedStrategy = strategies.find((s) => s.id === t.strategyId);
   const planned = plannedRR(t);
   const strategyFields = selectedStrategy?.fields ?? [];
@@ -211,7 +235,7 @@ export function TradeModal({
   const dateValue = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit trade" : "Log trade"} wide>
+    <Modal open={open} onClose={onClose} title={existing ? "Edit trade" : "Log trade"} wide persistent>
       <div className="space-y-6">
         {/* Core */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -331,18 +355,31 @@ export function TradeModal({
 
         {/* Prices & risk */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Field label="Entry"><Input type="number" step="any" value={str(t.entry)} onChange={(e) => set("entry", num(e.target.value))} /></Field>
-          <Field label="Exit"><Input type="number" step="any" value={str(t.exit)} onChange={(e) => set("exit", num(e.target.value))} /></Field>
-          <Field label="Stop loss"><Input type="number" step="any" value={str(t.stopLoss)} onChange={(e) => set("stopLoss", num(e.target.value))} /></Field>
-          <Field label="Take profit"><Input type="number" step="any" value={str(t.takeProfit)} onChange={(e) => set("takeProfit", num(e.target.value))} /></Field>
-          <Field label="Risk %"><Input type="number" step="any" value={str(t.riskPercent)} onChange={(e) => set("riskPercent", num(e.target.value))} /></Field>
-          <Field label="Risk amount"><Input type="number" step="any" value={str(t.riskAmount)} onChange={(e) => set("riskAmount", num(e.target.value))} /></Field>
-          <Field label="Lot size"><Input type="number" step="any" value={str(t.lotSize)} onChange={(e) => set("lotSize", num(e.target.value))} /></Field>
+          <Field label="Entry"><NumberInput value={t.entry} onChange={(v) => setPrice("entry", v)} /></Field>
+          <Field label="Stop loss"><NumberInput value={t.stopLoss} onChange={(v) => setPrice("stopLoss", v)} /></Field>
+          <Field label="Take profit"><NumberInput value={t.takeProfit} onChange={(v) => setPrice("takeProfit", v)} /></Field>
+          <Field label="Exit"><NumberInput value={t.exit} onChange={(v) => setPrice("exit", v)} /></Field>
+          <Field label="Risk %"><NumberInput value={t.riskPercent} onChange={(v) => set("riskPercent", v)} /></Field>
+          <Field label="Risk amount ($)"><NumberInput value={t.riskAmount} onChange={setRiskAmount} /></Field>
+          <Field label="Lot size"><NumberInput value={t.lotSize} onChange={(v) => set("lotSize", v)} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="RR"><Input type="number" step="any" value={str(t.rr)} onChange={(e) => set("rr", num(e.target.value) ?? 0)} /></Field>
-            <Field label="PnL"><Input type="number" step="any" value={str(t.pnl)} onChange={(e) => set("pnl", num(e.target.value) ?? 0)} /></Field>
+            <Field label="RR"><NumberInput value={t.rr} onChange={setRR} /></Field>
+            <Field label="PnL"><NumberInput value={t.pnl} onChange={(v) => set("pnl", v ?? 0)} /></Field>
           </div>
         </div>
+        {(plannedRR(t) !== undefined || (t.entry != null && t.stopLoss != null && t.exit != null)) && (
+          <div className="-mt-1 flex flex-wrap gap-4 rounded-xl border border-edge bg-surface/40 px-4 py-2 text-xs">
+            {plannedRR(t) !== undefined && (
+              <span className="text-mute">Planned RR (entry→TP): <span className="font-mono font-semibold text-ink">{plannedRR(t)!.toFixed(2)}R</span></span>
+            )}
+            {t.entry != null && t.stopLoss != null && t.exit != null && (
+              <span className="text-mute">Realized RR (entry→exit): <span className={`font-mono font-semibold ${signColor(t.rr)}`}>{t.rr.toFixed(2)}R</span></span>
+            )}
+            {t.riskAmount != null && (
+              <span className="text-mute">PnL: <span className={`font-mono font-semibold ${signColor(t.pnl)}`}>{fmtMoney(t.pnl)}</span> <span className="text-mute">(RR × risk)</span></span>
+            )}
+          </div>
+        )}
 
         {/* One-tap outcome — fills RR + exit reason + PnL */}
         <div className="flex flex-wrap items-center gap-2">
