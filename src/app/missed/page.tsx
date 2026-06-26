@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useApp, useAllTags, uid } from "@/stores/useApp";
 import { MissedTrade, SESSIONS, Session, MISSED_REASONS } from "@/lib/types";
 import { fmtDate } from "@/lib/metrics";
-import { Button, Card, EmptyState, Field, Input, Modal, SectionTitle, Select, Stat, TagChip, Textarea } from "@/components/ui/primitives";
+import { Button, Card, EmptyState, Field, Input, Modal, NumberInput, SectionTitle, Select, Stat, TagChip, Textarea } from "@/components/ui/primitives";
 import { ImageUploader } from "@/components/trades/Images";
 import { BarRow } from "@/components/charts/EquityCurve";
 
@@ -28,14 +28,14 @@ function MissedModal({ open, onClose, existing }: { open: boolean; onClose: () =
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit missed trade" : "Log missed trade"} wide>
+    <Modal open={open} onClose={onClose} title={existing ? "Edit missed trade" : "Log missed trade"} wide persistent>
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Field label="Pair"><Input value={m.pair} onChange={(e) => setM({ ...m, pair: e.target.value })} placeholder="XAUUSD" autoFocus /></Field>
           <Field label="Date">
             <Input type="date" value={m.date.slice(0, 10)} onChange={(e) => setM({ ...m, date: new Date(e.target.value).toISOString() })} />
           </Field>
-          <Field label="Expected RR"><Input type="number" step="any" value={m.expectedRR} onChange={(e) => setM({ ...m, expectedRR: parseFloat(e.target.value) || 0 })} /></Field>
+          <Field label="Expected RR"><NumberInput value={m.expectedRR || undefined} onChange={(v) => setM({ ...m, expectedRR: v ?? 0 })} /></Field>
           <Field label="Session">
             <Select value={m.session} onChange={(e) => setM({ ...m, session: e.target.value as Session })}>
               {SESSIONS.map((s) => <option key={s}>{s}</option>)}

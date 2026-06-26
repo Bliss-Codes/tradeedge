@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApp, uid } from "@/stores/useApp";
 import { Account, ACCOUNT_TYPES, AccountType } from "@/lib/types";
 import { computeStats, fmtMoney, fmtPct, fmtR, signColor } from "@/lib/metrics";
-import { Button, Card, EmptyState, Field, Input, Modal, Select } from "@/components/ui/primitives";
+import { Button, Card, EmptyState, Field, Input, Modal, NumberInput, Select } from "@/components/ui/primitives";
 
 function AccountModal({ open, onClose, existing }: { open: boolean; onClose: () => void; existing?: Account | null }) {
   const addAccount = useApp((s) => s.addAccount);
@@ -21,7 +21,7 @@ function AccountModal({ open, onClose, existing }: { open: boolean; onClose: () 
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit account" : "Create account"}>
+    <Modal open={open} onClose={onClose} title={existing ? "Edit account" : "Create account"} persistent>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Name"><Input value={a.name} onChange={(e) => setA({ ...a, name: e.target.value })} placeholder="FundingPips 10K" autoFocus /></Field>
         <Field label="Type">
@@ -31,28 +31,16 @@ function AccountModal({ open, onClose, existing }: { open: boolean; onClose: () 
         </Field>
         <Field label="Broker"><Input value={a.broker ?? ""} onChange={(e) => setA({ ...a, broker: e.target.value || undefined })} placeholder="IC Markets" /></Field>
         <Field label="Prop firm"><Input value={a.propFirm ?? ""} onChange={(e) => setA({ ...a, propFirm: e.target.value || undefined })} placeholder="Optional" /></Field>
-        <Field label="Starting balance"><Input type="number" step="any" value={a.balance} onChange={(e) => setA({ ...a, balance: parseFloat(e.target.value) || 0 })} /></Field>
+        <Field label="Starting balance"><NumberInput value={a.balance || undefined} onChange={(v) => setA({ ...a, balance: v ?? 0 })} placeholder="e.g. 100000" /></Field>
         <Field label="Currency"><Input value={a.currency} onChange={(e) => setA({ ...a, currency: e.target.value.toUpperCase() })} placeholder="USD" /></Field>
         <div className="rounded-xl border border-edge bg-surface/40 p-3">
           <div className="mb-2 text-xs font-medium uppercase tracking-wider text-mute">Prop-firm risk limits (optional)</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Daily loss limit">
-              <Input
-                type="number"
-                step="any"
-                value={a.dailyLossLimit ?? ""}
-                onChange={(e) => setA({ ...a, dailyLossLimit: e.target.value === "" ? undefined : parseFloat(e.target.value) })}
-                placeholder={`e.g. 500 ${a.currency}`}
-              />
+              <NumberInput value={a.dailyLossLimit} onChange={(v) => setA({ ...a, dailyLossLimit: v })} placeholder={`e.g. 500 ${a.currency}`} />
             </Field>
             <Field label="Max drawdown limit">
-              <Input
-                type="number"
-                step="any"
-                value={a.maxDrawdownLimit ?? ""}
-                onChange={(e) => setA({ ...a, maxDrawdownLimit: e.target.value === "" ? undefined : parseFloat(e.target.value) })}
-                placeholder={`e.g. 1000 ${a.currency}`}
-              />
+              <NumberInput value={a.maxDrawdownLimit} onChange={(v) => setA({ ...a, maxDrawdownLimit: v })} placeholder={`e.g. 1000 ${a.currency}`} />
             </Field>
           </div>
           <p className="mt-2 text-[11px] text-mute">When set, the dashboard warns you as you approach these on this account.</p>

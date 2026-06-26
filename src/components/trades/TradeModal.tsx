@@ -62,7 +62,7 @@ function StrategyFieldInput({
   if (def.type === "number") {
     return (
       <Field label={label}>
-        <Input type="number" step="any" value={value === undefined ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))} />
+        <NumberInput value={value === undefined ? undefined : Number(value)} onChange={(v) => onChange(v)} />
       </Field>
     );
   }
@@ -106,26 +106,29 @@ export function TradeModal({
   const addCustomTag = useApp((s) => s.addCustomTag);
   const allTags = useAllTags();
 
-  const blank = useMemo<Trade>(
-    () => ({
+  const blank = useMemo<Trade>(() => {
+    // Inherit your usual setup from the most recent trade so logging is mostly pre-filled.
+    const last = [...allTrades].sort((a, b) => b.date.localeCompare(a.date))[0];
+    return {
       id: uid(),
-      accountId: selectedAccount !== "all" ? selectedAccount : accounts[0]?.id ?? "",
+      accountId: selectedAccount !== "all" ? selectedAccount : last?.accountId ?? accounts[0]?.id ?? "",
       type: defaultType,
       pair: "",
       direction: "long",
       date: new Date().toISOString().slice(0, 16) + ":00.000Z",
       rr: 0,
       pnl: 0,
-      session: "London",
+      session: last?.session ?? "London",
+      strategyId: last?.strategyId,
+      riskPercent: last?.riskPercent,
       tags: [],
       violations: [],
       beforeImageIds: [],
       afterImageIds: [],
       createdAt: new Date().toISOString(),
-    }),
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open]
-  );
+  }, [open]);
 
   const [t, setT] = useState<Trade>(existing ?? seed ?? blank);
   const [newTag, setNewTag] = useState("");
@@ -136,9 +139,14 @@ export function TradeModal({
 
   const set = <K extends keyof Trade>(key: K, value: Trade[K]) => setT((prev) => ({ ...prev, [key]: value }));
 
-  // Auto-calc: realized RR from entry/SL/exit, then PnL from RR × risk amount.
+  // Auto-calc chain: risk% × balance → risk amount; entry/SL/exit → RR; RR × risk → PnL.
   const derive = (n: Trade): Trade => {
     const out = { ...n };
+    const acct = accounts.find((a) => a.id === out.accountId);
+    // Risk amount from account balance × risk % (so you only set a percentage).
+    if (out.riskPercent != null && acct && acct.balance > 0) {
+      out.riskAmount = +((acct.balance * out.riskPercent) / 100).toFixed(2);
+    }
     if (out.entry != null && out.stopLoss != null && out.exit != null) {
       const risk = out.direction === "long" ? out.entry - out.stopLoss : out.stopLoss - out.entry;
       if (risk > 0) {
@@ -152,7 +160,8 @@ export function TradeModal({
     return out;
   };
   const setPrice = <K extends keyof Trade>(key: K, value: Trade[K]) => setT((prev) => derive({ ...prev, [key]: value }));
-  const setRiskAmount = (v: number | undefined) => setT((prev) => derive({ ...prev, riskAmount: v }));
+  const setRiskPercent = (v: number | undefined) => setT((prev) => derive({ ...prev, riskPercent: v }));
+  const setRiskAmount = (v: number | undefined) => setT((prev) => derive({ ...prev, riskAmount: v, riskPercent: undefined }));
   const setRR = (v: number | undefined) =>
     setT((prev) => {
       const rr = v ?? 0;
@@ -182,8 +191,7 @@ export function TradeModal({
     setT((prev) => {
       const rr = kind === "tp" ? plannedRR(prev) ?? (prev.rr > 0 ? prev.rr : 2) : kind === "sl" ? -1 : 0;
       const exitReason = kind === "tp" ? "Take Profit" : kind === "sl" ? "Stop Loss" : "Breakeven";
-      const pnl = prev.riskAmount ? +(rr * prev.riskAmount).toFixed(2) : prev.pnl;
-      return { ...prev, rr, exitReason, pnl };
+      return derive({ ...prev, rr, exitReason });
     });
 
   const setFieldValue = (fid: string, v: string | number | boolean | undefined) =>
@@ -268,7 +276,7 @@ export function TradeModal({
             <div className="flex gap-1.5">
               <button
                 type="button"
-                onClick={() => set("direction", "long")}
+                onClick={() => setPrice("direction", "long")}
                 className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors ${
                   t.direction === "long" ? "border-pos/50 bg-pos/20 text-pos" : "border-edge bg-surface text-mute hover:text-sub"
                 }`}
@@ -277,7 +285,7 @@ export function TradeModal({
               </button>
               <button
                 type="button"
-                onClick={() => set("direction", "short")}
+                onClick={() => setPrice("direction", "short")}
                 className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors ${
                   t.direction === "short" ? "border-neg/50 bg-neg/20 text-neg" : "border-edge bg-surface text-mute hover:text-sub"
                 }`}
@@ -359,7 +367,7 @@ export function TradeModal({
           <Field label="Stop loss"><NumberInput value={t.stopLoss} onChange={(v) => setPrice("stopLoss", v)} /></Field>
           <Field label="Take profit"><NumberInput value={t.takeProfit} onChange={(v) => setPrice("takeProfit", v)} /></Field>
           <Field label="Exit"><NumberInput value={t.exit} onChange={(v) => setPrice("exit", v)} /></Field>
-          <Field label="Risk %"><NumberInput value={t.riskPercent} onChange={(v) => set("riskPercent", v)} /></Field>
+          <Field label="Risk %"><NumberInput value={t.riskPercent} onChange={setRiskPercent} /></Field>
           <Field label="Risk amount ($)"><NumberInput value={t.riskAmount} onChange={setRiskAmount} /></Field>
           <Field label="Lot size"><NumberInput value={t.lotSize} onChange={(v) => set("lotSize", v)} /></Field>
           <div className="grid grid-cols-2 gap-3">
