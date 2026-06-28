@@ -394,6 +394,46 @@ export function dailyPnl(trades: Trade[]): DayPnl[] {
     .map(([date, v]) => ({ date, ...v }));
 }
 
+export interface MonthlyYearRow {
+  year: number;
+  months: (number | null)[]; // 12 entries, net P&L per month (null = no trades)
+  pctMonths: (number | null)[]; // % return per month vs starting balance
+  total: number; // net P&L for the year
+  totalPct: number; // % return for the year
+}
+
+/**
+ * Net P&L per month, grouped by year (Jan→Dec), plus % return against a starting balance.
+ * Pass the account's starting balance for the % column; defaults to making % null.
+ */
+export function monthlyPerformance(trades: Trade[], startingBalance?: number): MonthlyYearRow[] {
+  const byYear = new Map<number, number[]>();
+  for (const t of trades) {
+    const d = new Date(t.date);
+    const y = d.getFullYear();
+    if (!byYear.has(y)) byYear.set(y, Array(12).fill(0));
+    byYear.get(y)![d.getMonth()] += t.pnl;
+  }
+  // track which months actually had trades (so 0 shows as a real 0, not blank)
+  const hadTrade = new Map<number, boolean[]>();
+  for (const t of trades) {
+    const d = new Date(t.date);
+    const y = d.getFullYear();
+    if (!hadTrade.has(y)) hadTrade.set(y, Array(12).fill(false));
+    hadTrade.get(y)![d.getMonth()] = true;
+  }
+  return Array.from(byYear.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, months]) => {
+      const had = hadTrade.get(year)!;
+      const cells = months.map((v, i) => (had[i] ? v : null));
+      const pct = cells.map((v) => (v === null || !startingBalance ? null : (v / startingBalance) * 100));
+      const total = cells.reduce((s: number, v) => s + (v ?? 0), 0);
+      const totalPct = startingBalance ? (total / startingBalance) * 100 : 0;
+      return { year, months: cells, pctMonths: pct, total, totalPct };
+    });
+}
+
 // ── prop-firm risk guardrails ─────────────────────────────────────────
 
 export interface RiskStatus {

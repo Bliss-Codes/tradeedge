@@ -18,8 +18,10 @@ import {
   statsByHour,
   distribution,
   winLossSummary,
+  monthlyPerformance,
   signColor,
 } from "@/lib/metrics";
+import type { MonthlyYearRow } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
@@ -41,6 +43,51 @@ const TABS = [
   "Execution",
   "Violations",
 ];
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function MonthlyGrid({ rows, currency, startingBalance }: { rows: MonthlyYearRow[]; currency: string; startingBalance?: number }) {
+  const [mode, setMode] = useState<"money" | "pct">(startingBalance ? "pct" : "money");
+  if (rows.length === 0) return <div className="py-8 text-center text-sm text-mute">No trades to chart by month yet.</div>;
+
+  const cell = (val: number | null, pct: number | null) => {
+    if (val === null) return <div className="rounded-lg border border-edge/60 bg-surface/30 px-2 py-2 text-center text-xs text-mute">—</div>;
+    const show = mode === "pct" && pct !== null ? `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%` : fmtMoney(val, currency);
+    const tone = val > 0 ? "bg-pos/10 text-pos" : val < 0 ? "bg-neg/10 text-neg" : "bg-surface/40 text-mute";
+    return <div className={`rounded-lg px-2 py-2 text-center text-xs font-medium ${tone}`}>{show}</div>;
+  };
+
+  return (
+    <div>
+      {startingBalance ? (
+        <div className="mb-3 flex gap-1 text-xs">
+          <button onClick={() => setMode("pct")} className={`rounded-lg px-2.5 py-1 transition-colors ${mode === "pct" ? "bg-accent text-bg" : "border border-edge text-mute hover:text-sub"}`}>% return</button>
+          <button onClick={() => setMode("money")} className={`rounded-lg px-2.5 py-1 transition-colors ${mode === "money" ? "bg-accent text-bg" : "border border-edge text-mute hover:text-sub"}`}>{currency}</button>
+        </div>
+      ) : (
+        <p className="mb-3 text-[11px] text-mute">Set a starting balance on the account to see % returns.</p>
+      )}
+      <div className="overflow-x-auto">
+        <div className="min-w-[760px]">
+          <div className="mb-1.5 grid grid-cols-[56px_repeat(12,1fr)_72px] gap-1.5">
+            <div />
+            {MONTH_LABELS.map((m) => <div key={m} className="text-center text-[10px] font-medium uppercase tracking-wider text-mute">{m}</div>)}
+            <div className="text-center text-[10px] font-medium uppercase tracking-wider text-mute">Year</div>
+          </div>
+          {rows.map((r) => (
+            <div key={r.year} className="mb-1.5 grid grid-cols-[56px_repeat(12,1fr)_72px] items-stretch gap-1.5">
+              <div className="flex items-center justify-center rounded-lg border border-edge bg-surface/40 text-xs font-semibold text-ink">{r.year}</div>
+              {r.months.map((v, i) => <div key={i}>{cell(v, r.pctMonths[i])}</div>)}
+              <div className={`flex items-center justify-center rounded-lg text-xs font-semibold ${r.total > 0 ? "bg-pos/15 text-pos" : r.total < 0 ? "bg-neg/15 text-neg" : "bg-surface/40 text-mute"}`}>
+                {mode === "pct" && startingBalance ? `${r.totalPct >= 0 ? "+" : ""}${r.totalPct.toFixed(1)}%` : fmtMoney(r.total, currency)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function WLList({ rows }: { rows: [string, string][] }) {
   return (
@@ -86,6 +133,18 @@ export default function AnalyticsPage() {
   const stats = useMemo(() => computeStats(trades), [trades]);
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const wl = useMemo(() => winLossSummary(trades), [trades]);
+  const startingBalance = useMemo(() => {
+    const active = accounts.filter((a) => !a.archived);
+    if (fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "") {
+      // when not filtered down, balance = selected account or sum of active accounts
+      const sel = useApp.getState().selectedAccountId;
+      if (sel !== "all") return accounts.find((a) => a.id === sel)?.balance;
+      return active.reduce((s, a) => s + (a.balance || 0), 0) || undefined;
+    }
+    return undefined;
+  }, [accounts, fStrategy, fSession, fSide, fOutcome]);
+  const monthly = useMemo(() => monthlyPerformance(trades, startingBalance), [trades, startingBalance]);
+  const monthlyCurrency = useDisplayCurrency();
   const bySide = useMemo(
     () => statsByGroup(trades, (t) => (t.direction === "long" ? "Long" : "Short")),
     [trades]
@@ -251,6 +310,11 @@ export default function AnalyticsPage() {
               <GroupTable rows={bySide} keyLabel="Side" currency={currency} />
             </Card>
           </div>
+
+          <Card>
+            <SectionTitle>Performance by month</SectionTitle>
+            <MonthlyGrid rows={monthly} currency={monthlyCurrency} startingBalance={startingBalance} />
+          </Card>
 
           {/* Winners vs losers */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
