@@ -5,6 +5,11 @@ import AppShell from "@/components/layout/AppShell";
 export const metadata: Metadata = {
   title: "TradeEdge — Trading Journal & Analytics",
   description: "A personal trading journal and analytics workstation.",
+  manifest: "/manifest.json",
+};
+
+export const viewport = {
+  themeColor: "#0A0B0A",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
