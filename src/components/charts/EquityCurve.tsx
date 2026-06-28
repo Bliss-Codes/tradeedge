@@ -62,7 +62,7 @@ export function EquityCurve({ points, height = 280, mode = "R", currency = "USD"
 
   const { coords, path, area, ticks, y, zeroY, xLabels, last } = model;
   const positive = last >= 0;
-  const stroke = positive ? "#22C55E" : "#EF4444";
+  const stroke = positive ? "rgb(var(--pos))" : "rgb(var(--neg))";
   const hoverPoint = hover !== null && hover > 0 ? points[hover - 1] : null;
 
   return (
@@ -102,8 +102,8 @@ export function EquityCurve({ points, height = 280, mode = "R", currency = "USD"
           >
             <defs>
               <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
-                <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+                <stop offset="0%" style={{ stopColor: stroke }} stopOpacity="0.22" />
+                <stop offset="100%" style={{ stopColor: stroke }} stopOpacity="0" />
               </linearGradient>
             </defs>
             {/* gridlines */}
@@ -112,14 +112,31 @@ export function EquityCurve({ points, height = 280, mode = "R", currency = "USD"
             ))}
             {zeroY !== null && <line x1="0" x2={W} y1={zeroY} y2={zeroY} className="stroke-mute" strokeOpacity="0.4" />}
             <path d={area} fill={`url(#${gid})`} />
-            <path d={path} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <path d={path} fill="none" style={{ stroke }} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
             {hover !== null && (
-              <g>
-                <line x1={coords[hover][0]} x2={coords[hover][0]} y1={PAD_T} y2={H - PAD_B} className="stroke-mute" strokeOpacity="0.5" />
-                <circle cx={coords[hover][0]} cy={coords[hover][1]} r="4" fill={stroke} className="stroke-bg" strokeWidth="2" />
-              </g>
+              <line x1={coords[hover][0]} x2={coords[hover][0]} y1={PAD_T} y2={H - PAD_B} className="stroke-mute" strokeOpacity="0.5" />
             )}
           </svg>
+          {/* Per-trade dot markers (HTML so they stay round under non-uniform SVG scaling) */}
+          {coords.map(([cx, cy], i) => {
+            const isHover = i === hover;
+            return (
+              <span
+                key={i}
+                className="pointer-events-none absolute rounded-full"
+                style={{
+                  left: `${(cx / W) * 100}%`,
+                  top: `${(cy / H) * 100}%`,
+                  width: isHover ? 9 : 5,
+                  height: isHover ? 9 : 5,
+                  transform: "translate(-50%, -50%)",
+                  background: isHover ? stroke : "rgb(var(--bg))",
+                  border: `1.5px solid ${stroke}`,
+                  transition: "width 0.1s, height 0.1s",
+                }}
+              />
+            );
+          })}
           {/* X axis labels */}
           {xLabels.map((l, i) => (
             <span
@@ -188,7 +205,7 @@ export function DailyPnlBars({ days, height = 220, currency = "USD" }: { days: {
   );
 }
 
-export function BarRow({ label, value, max, display, color = "#A3E635" }: { label: string; value: number; max: number; display: string; color?: string }) {
+export function BarRow({ label, value, max, display, color = "rgb(var(--accent))" }: { label: string; value: number; max: number; display: string; color?: string }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-3 py-1.5">
