@@ -23,21 +23,21 @@
 }
 
 :root[data-theme="light"] {
-  --bg: 240 241 238;
-  --surface: 236 238 233;
+  --bg: 233 236 232;
+  --surface: 238 240 235;
   --card: 255 255 255;
-  --edge: 220 224 216;
-  --ink: 24 30 22;
-  --sub: 64 72 60;
-  --mute: 110 120 106;
-  --accent: 77 124 15;
-  --pos: 21 152 70;
-  --neg: 211 38 38;
-  --warn: 194 104 8;
-  --card-shadow: 0 6px 20px -10px rgba(20, 30, 15, 0.14);
-  --card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 42%);
-  --card-line: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
-  --ambient: radial-gradient(1000px 560px at 50% -10%, rgba(77, 124, 15, 0.05), transparent 60%);
+  --edge: 221 226 218;
+  --ink: 22 28 20;
+  --sub: 66 76 62;
+  --mute: 116 126 112;
+  --accent: 21 122 62;
+  --pos: 21 140 70;
+  --neg: 209 44 44;
+  --warn: 190 108 10;
+  --card-shadow: 0 8px 24px -12px rgba(18, 40, 20, 0.16);
+  --card-sheen: none;
+  --card-line: 0 0 0 0 transparent;
+  --ambient: linear-gradient(transparent, transparent);
 }
 
 /* Premium card: subtle top sheen + soft shadow + hairline highlight for depth */
