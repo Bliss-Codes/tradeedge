@@ -46,6 +46,22 @@
   box-shadow: var(--card-shadow), var(--card-line);
 }
 
+/* Hero KPI card — emerald in light, deep green in dark */
+:root {
+  --kpi-hero-bg: linear-gradient(135deg, rgb(26 58 30), rgb(14 32 16));
+  --kpi-hero-ink: 244 247 243;
+  --kpi-hero-sub: 170 200 150;
+}
+:root[data-theme="light"] {
+  --kpi-hero-bg: linear-gradient(135deg, rgb(24 128 66), rgb(17 96 50));
+  --kpi-hero-ink: 248 252 246;
+  --kpi-hero-sub: 200 226 200;
+}
+.kpi-hero {
+  background: var(--kpi-hero-bg);
+  box-shadow: var(--card-shadow);
+}
+
 @layer base {
   /* Type system: Montserrat Medium body, SemiBold headings, JetBrains Mono Medium metrics */
   body { font-weight: 500; }

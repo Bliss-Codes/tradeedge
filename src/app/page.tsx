@@ -37,6 +37,46 @@ function startOfMonth(d: Date) {
   return x;
 }
 
+function KpiIcon({ d, className = "" }: { d: string; className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {d.split(" M").map((seg, i) => (
+        <path key={i} d={(i === 0 ? "" : "M") + seg} />
+      ))}
+    </svg>
+  );
+}
+
+function KpiCard({ icon, label, value, sub, tone = 0, hero = false }: { icon: string; label: string; value: string; sub?: string; tone?: number; hero?: boolean }) {
+  if (hero) {
+    return (
+      <div className="kpi-hero relative overflow-hidden rounded-2xl p-5" style={{ color: "rgb(var(--kpi-hero-ink))" }}>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+            <KpiIcon d={icon} />
+          </div>
+        </div>
+        <div className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{label}</div>
+        <div className="mt-1 font-mono text-2xl font-bold tabular-nums">{value}</div>
+        {sub && <div className="mt-1 text-xs" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{sub}</div>}
+      </div>
+    );
+  }
+  const valTone = tone > 0 ? "text-pos" : tone < 0 ? "text-neg" : "text-ink";
+  return (
+    <div className="premium-card relative overflow-hidden rounded-2xl border border-edge bg-card p-5">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface text-sub">
+          <KpiIcon d={icon} />
+        </div>
+      </div>
+      <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
+      <div className={`mt-1 font-mono text-2xl font-bold tabular-nums ${valTone}`}>{value}</div>
+      {sub && <div className="mt-1 text-xs text-mute">{sub}</div>}
+    </div>
+  );
+}
+
 function PeriodCard({ label, trades, currency }: { label: string; trades: Trade[]; currency: string }) {
   const s = computeStats(trades);
   return (
@@ -106,23 +146,28 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <RiskBanner />
-      {/* Headline stats — hero panel */}
-      <div className="relative overflow-hidden rounded-2xl border border-edge bg-gradient-to-br from-accent/[0.06] via-card to-bg p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.55)]">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
-        <div className="relative grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <Stat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
-          <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
-          <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-          <Stat label="Expectancy" value={fmtMoney(money.expectancy, currency)} tone={money.expectancy} hint={`${stats.avgRR.toFixed(2)}R/trade`} />
-          <Stat label="Rule adherence" value={fmtPct(adherence)} tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} hint="followed plan" />
-          <Stat
-            label="Current streak"
-            value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "wins" : "losses"}`}
-            tone={stats.currentStreak}
-          />
-        </div>
+      {/* Headline KPIs */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <KpiCard
+          hero
+          icon="M3 17l6-6 4 4 8-8 M21 7v5h-5"
+          label="Net P&L"
+          value={fmtMoney(stats.netPnl, currency)}
+          sub={`${fmtR(stats.netRR)} · ${stats.total} trades`}
+        />
+        <KpiCard icon="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z" label="Win rate" value={fmtPct(stats.winRate)} sub={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
+        <KpiCard icon="M4 20V10 M10 20V4 M16 20v-7 M22 20H2" label="Profit factor" value={fmtPF(stats.profitFactor)} sub="gross win ÷ loss" />
+        <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} tone={money.expectancy} />
+        <KpiCard icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" label="Rule adherence" value={fmtPct(adherence)} sub="followed plan" tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} />
+        <KpiCard
+          icon="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"
+          label="Current streak"
+          value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "W" : "L"}`}
+          sub={stats.currentStreak > 0 ? "winning" : stats.currentStreak < 0 ? "losing" : "flat"}
+          tone={stats.currentStreak}
+        />
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />

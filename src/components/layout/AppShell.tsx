@@ -9,19 +9,35 @@ import { fmtR } from "@/lib/metrics";
 import { AuthScreen } from "@/components/layout/AuthScreen";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
-const NAV = [
-  { href: "/", label: "Dashboard", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zm10-18v6h8V3h-8z" },
-  { href: "/journal", label: "Journal", icon: "M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5" },
-  { href: "/analytics", label: "Analytics", icon: "M4 20V10 M10 20V4 M16 20v-7 M22 20H2" },
-  { href: "/backtesting", label: "Backtesting", icon: "M12 8v4l3 3 M21 12a9 9 0 11-9-9c2.5 0 4.8 1 6.4 2.6L21 8" },
-  { href: "/missed", label: "Missed Trades", icon: "M12 9v4 M12 17h.01 M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" },
-  { href: "/accounts", label: "Accounts", icon: "M21 12V7H5a2 2 0 010-4h14v4 M3 5v14a2 2 0 002 2h16v-5 M18 12a2 2 0 000 4h4v-4h-4z" },
-  { href: "/strategies", label: "Strategies", icon: "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" },
-  { href: "/psychology", label: "Psychology", icon: "M9.5 2a5.5 5.5 0 00-5.5 5.5c0 1.6.7 3 1.8 4A5.5 5.5 0 009 21h6a5.5 5.5 0 003.2-9.5c1.1-1 1.8-2.4 1.8-4A5.5 5.5 0 0014.5 2c-1 0-1.9.3-2.5.7A4.5 4.5 0 009.5 2z" },
-  { href: "/calendar", label: "Calendar", icon: "M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18" },
-  { href: "/reviews", label: "Reviews", icon: "M9 11l3 3 8-8 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h9" },
-  { href: "/settings", label: "Settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" },
+const NAV_GROUPS: { heading: string; items: { href: string; label: string; icon: string }[] }[] = [
+  {
+    heading: "Menu",
+    items: [
+      { href: "/", label: "Dashboard", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zm10-18v6h8V3h-8z" },
+      { href: "/journal", label: "Journal", icon: "M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5" },
+      { href: "/analytics", label: "Analytics", icon: "M4 20V10 M10 20V4 M16 20v-7 M22 20H2" },
+      { href: "/calendar", label: "Calendar", icon: "M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18" },
+    ],
+  },
+  {
+    heading: "Trading",
+    items: [
+      { href: "/backtesting", label: "Backtesting", icon: "M12 8v4l3 3 M21 12a9 9 0 11-9-9c2.5 0 4.8 1 6.4 2.6L21 8" },
+      { href: "/missed", label: "Missed Trades", icon: "M12 9v4 M12 17h.01 M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" },
+      { href: "/accounts", label: "Accounts", icon: "M21 12V7H5a2 2 0 010-4h14v4 M3 5v14a2 2 0 002 2h16v-5 M18 12a2 2 0 000 4h4v-4h-4z" },
+      { href: "/strategies", label: "Strategies", icon: "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" },
+    ],
+  },
+  {
+    heading: "Review",
+    items: [
+      { href: "/psychology", label: "Psychology", icon: "M9.5 2a5.5 5.5 0 00-5.5 5.5c0 1.6.7 3 1.8 4A5.5 5.5 0 009 21h6a5.5 5.5 0 003.2-9.5c1.1-1 1.8-2.4 1.8-4A5.5 5.5 0 0014.5 2c-1 0-1.9.3-2.5.7A4.5 4.5 0 009.5 2z" },
+      { href: "/reviews", label: "Reviews", icon: "M9 11l3 3 8-8 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h9" },
+      { href: "/settings", label: "Settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" },
+    ],
+  },
 ];
+const NAV = NAV_GROUPS.flatMap((g) => g.items);
 
 function Icon({ d }: { d: string }) {
   return (
@@ -36,35 +52,47 @@ function Icon({ d }: { d: string }) {
 function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-edge bg-surface lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-edge bg-card lg:flex">
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 font-mono text-sm font-bold text-accent">TE</div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-mono text-sm font-bold text-bg">TE</div>
         <div>
           <div className="text-sm font-semibold tracking-tight text-ink">TradeEdge</div>
-          <div className="text-[10px] uppercase tracking-widest text-mute">Journal & Analytics</div>
+          <div className="text-[10px] uppercase tracking-widest text-mute">Journal &amp; Analytics</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
-        {NAV.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-accent text-bg shadow-[0_4px_20px_-4px_rgba(163,230,53,0.5)]"
-                  : "text-mute hover:bg-card/60 hover:text-sub"
-              }`}
-            >
-              <span className={active ? "text-bg" : ""}>
-                <Icon d={item.icon} />
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.heading}>
+            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-mute/70">{group.heading}</div>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                      active ? "bg-accent text-bg shadow-[0_4px_16px_-6px_rgb(var(--accent)/0.55)]" : "text-mute hover:bg-surface hover:text-ink"
+                    }`}
+                  >
+                    <Icon d={item.icon} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
+      <div className="px-3 pb-4">
+        <div className="rounded-2xl bg-gradient-to-br from-ink/95 to-ink p-4 text-bg" style={{ background: "linear-gradient(135deg, rgb(var(--ink)), rgb(var(--ink)/0.85))" }}>
+          <div className="text-sm font-semibold" style={{ color: "rgb(var(--card))" }}>Log faster</div>
+          <div className="mt-0.5 text-[11px]" style={{ color: "rgb(var(--mute))" }}>Record a trade in a few taps.</div>
+          <Link href="/journal" className="mt-3 flex items-center justify-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-bg">
+            + New trade
+          </Link>
+        </div>
+      </div>
     </aside>
   );
 }
@@ -230,7 +258,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-bg text-ink">
       <Sidebar />
-      <div className="lg:pl-56">
+      <div className="lg:pl-60">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-edge bg-bg/80 px-5 py-3 backdrop-blur lg:px-8">
           <div className="flex items-center gap-3">
             <span className="font-mono text-xs text-accent lg:hidden">TE</span>
