@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
 import {
   computeStats,
+  type Stats,
   equityCurve,
   fmtPF,
   fmtPct,
@@ -25,6 +26,7 @@ import type { MonthlyYearRow } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
+import { SessionRadar } from "@/components/charts/SessionRadar";
 import { GRADES, EXIT_REASONS, QUALITY_LABELS, SESSIONS, outcomeOf } from "@/lib/types";
 import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/fields";
 
@@ -152,6 +154,13 @@ export default function AnalyticsPage() {
 
   const byPair = useMemo(() => statsByGroup(trades, (t) => t.pair), [trades]);
   const bySession = useMemo(() => statsByGroup(trades, (t) => t.session), [trades]);
+  const radarPoints = (pick: (st: Stats) => number, fmt: (v: number) => string) =>
+    SESSIONS.map((s) => {
+      const row = bySession.find((r) => r.key === s);
+      const st = row?.stats;
+      const value = st ? pick(st) : 0;
+      return { session: s, value, label: fmt(value), total: st?.total ?? 0 };
+    });
   const byStrategy = useMemo(
     () => statsByGroup(trades, (t) => (t.strategyId ? strategies.find((s) => s.id === t.strategyId)?.name ?? "Unknown" : "No strategy")),
     [trades, strategies]
@@ -498,6 +507,16 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           <Card>
             <SectionTitle>Performance by session</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <SessionRadar title="Win Rate" points={radarPoints((st) => st.winRate, (v) => fmtPct(v))} />
+              <SessionRadar title="Total Trades" points={radarPoints((st) => st.total, (v) => String(Math.round(v)))} />
+              <SessionRadar title="Avg RR" points={radarPoints((st) => st.avgRR, (v) => `${v.toFixed(2)}R`)} />
+              <SessionRadar title="Profit" points={radarPoints((st) => st.netPnl, (v) => fmtMoney(v, currency))} />
+            </div>
+            <p className="mt-3 text-[11px] text-mute">Sessions are set from each trade&apos;s time (UTC = your Accra local time): London 08:00–13:00, Overlap 13:00–16:00, New York 16:00–22:00, Asia 22:00–08:00.</p>
+          </Card>
+          <Card>
+            <SectionTitle>Session breakdown</SectionTitle>
             <GroupTable rows={bySession} keyLabel="Session" currency={currency} />
           </Card>
           <Card>

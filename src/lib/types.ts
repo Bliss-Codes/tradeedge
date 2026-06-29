@@ -7,6 +7,21 @@ export type TradeType = "live" | "backtest" | "forward";
 export const SESSIONS = ["London", "New York", "Asia", "Overlap"] as const;
 export type Session = (typeof SESSIONS)[number];
 
+/**
+ * Map a timestamp to a forex session by UTC hour (the global convention):
+ *  - Asia        22:00–08:00 UTC
+ *  - London      08:00–13:00 UTC
+ *  - Overlap     13:00–16:00 UTC  (London/New York both open — the busiest window)
+ *  - New York    16:00–22:00 UTC
+ */
+export function sessionFromDate(d: Date): Session {
+  const h = d.getUTCHours();
+  if (h >= 8 && h < 13) return "London";
+  if (h >= 13 && h < 16) return "Overlap";
+  if (h >= 16 && h < 22) return "New York";
+  return "Asia";
+}
+
 // `market` is legacy — the pair identifies the market now. Kept optional so
 // older records remain valid; no longer collected on new trades.
 export const MARKETS = ["Forex", "Indices", "Crypto", "Commodities", "Stocks"] as const;

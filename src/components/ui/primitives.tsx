@@ -6,7 +6,7 @@ import { signColor } from "@/lib/metrics";
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-edge bg-card p-5 shadow-[var(--card-shadow)] transition-colors ${className}`}
+      className={`premium-card relative overflow-hidden rounded-2xl border border-edge bg-card p-5 transition-colors ${className}`}
     >
       {children}
     </div>
@@ -51,7 +51,7 @@ export function Button({
   type?: "button" | "submit";
 }) {
   const styles = {
-    primary: "bg-accent text-bg font-semibold hover:bg-accent/90",
+    primary: "bg-accent text-bg font-semibold hover:bg-accent/90 shadow-[0_4px_20px_-6px_rgb(var(--accent)/0.5)]",
     ghost: "text-sub border border-edge hover:bg-surface hover:text-ink",
     danger: "text-neg border border-neg/30 hover:bg-neg/10",
     subtle: "text-mute hover:text-ink",

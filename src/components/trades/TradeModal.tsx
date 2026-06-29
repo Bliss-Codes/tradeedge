@@ -13,6 +13,7 @@ import {
   COMMON_PAIRS,
   CustomFieldDef,
   Session,
+  sessionFromDate,
   Emotion,
   Grade,
   ExitReason,
@@ -118,7 +119,7 @@ export function TradeModal({
       date: new Date().toISOString().slice(0, 16) + ":00.000Z",
       rr: 0,
       pnl: 0,
-      session: last?.session ?? "London",
+      session: sessionFromDate(new Date()),
       strategyId: last?.strategyId,
       riskPercent: last?.riskPercent,
       tags: [],
@@ -295,7 +296,7 @@ export function TradeModal({
             </div>
           </div>
           <Field label="Entry date & time">
-            <Input type="datetime-local" value={dateValue} onChange={(e) => set("date", new Date(e.target.value).toISOString())} />
+            <Input type="datetime-local" value={dateValue} onChange={(e) => { const iso = new Date(e.target.value).toISOString(); setT((prev) => ({ ...prev, date: iso, session: sessionFromDate(new Date(iso)) })); }} />
           </Field>
         </div>
 

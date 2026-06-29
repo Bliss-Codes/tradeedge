@@ -1,4 +1,4 @@
-import { Snapshot, Trade, TradeType, Session, SESSIONS } from "@/lib/types";
+import { Snapshot, Trade, TradeType, Session, SESSIONS, sessionFromDate } from "@/lib/types";
 import { uid } from "@/stores/useApp";
 
 // ── tiny CSV parser (handles quoted fields) ───────────────────────────
@@ -116,7 +116,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
     }
     const dirRaw = get("direction").toLowerCase();
     const sessionRaw = get("session");
-    const session = (SESSIONS as readonly string[]).includes(sessionRaw) ? (sessionRaw as Session) : "London";
+    const session = (SESSIONS as readonly string[]).includes(sessionRaw) ? (sessionRaw as Session) : sessionFromDate(date);
     // Strip exchange prefix like "OANDA:XAUUSD" → "XAUUSD".
     const rawPair = get("pair").toUpperCase();
     const pair = (rawPair.includes(":") ? rawPair.split(":").pop()! : rawPair) || "UNKNOWN";
