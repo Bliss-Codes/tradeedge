@@ -54,7 +54,8 @@ function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-edge bg-card lg:flex">
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-mono text-sm font-bold text-bg">TE</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="TradeEdge" className="h-9 w-9 rounded-xl object-cover" />
         <div>
           <div className="text-sm font-semibold tracking-tight text-ink">TradeEdge</div>
           <div className="text-[10px] uppercase tracking-widest text-mute">Journal &amp; Analytics</div>
@@ -261,7 +262,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <div className="lg:pl-60">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-edge bg-bg/80 px-5 py-3 backdrop-blur lg:px-8">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xs text-accent lg:hidden">TE</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="TradeEdge" className="h-7 w-7 rounded-lg object-cover lg:hidden" />
             <h1 className="text-base font-semibold tracking-tight">{title}</h1>
           </div>
           <div className="flex items-center gap-2">

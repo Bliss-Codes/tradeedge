@@ -48,6 +48,12 @@ const TABS = [
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+function hourLabel(h: number): string {
+  const ampm = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(h).padStart(2, "0")}:00 · ${h12} ${ampm}`;
+}
+
 function MonthlyGrid({ rows, currency, startingBalance }: { rows: MonthlyYearRow[]; currency: string; startingBalance?: number }) {
   const [mode, setMode] = useState<"money" | "pct">(startingBalance ? "pct" : "money");
   if (rows.length === 0) return <div className="py-8 text-center text-sm text-mute">No trades to chart by month yet.</div>;
@@ -325,6 +331,17 @@ export default function AnalyticsPage() {
             <MonthlyGrid rows={monthly} currency={monthlyCurrency} startingBalance={startingBalance} />
           </Card>
 
+          <Card>
+            <SectionTitle>Performance by session</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <SessionRadar title="Win Rate" points={radarPoints((st) => st.winRate, (v) => fmtPct(v))} />
+              <SessionRadar title="Total Trades" points={radarPoints((st) => st.total, (v) => String(Math.round(v)))} />
+              <SessionRadar title="Avg RR" points={radarPoints((st) => st.avgRR, (v) => `${v.toFixed(2)}R`)} />
+              <SessionRadar title="Profit" points={radarPoints((st) => st.netPnl, (v) => fmtMoney(v, currency))} />
+            </div>
+            <p className="mt-3 text-[11px] text-mute">Sessions set from each trade&apos;s time (UTC = your Accra local time). Full breakdown in the Sessions tab.</p>
+          </Card>
+
           {/* Winners vs losers */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card className="border-pos/20">
@@ -405,7 +422,7 @@ export default function AnalyticsPage() {
                 <GroupTable rows={byField} keyLabel={activeField} />
                 {byField.length > 0 && (
                   <div className="mt-5">
-                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-mute">Net RR by {activeField}</div>
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-mute">Net P&L by {activeField}</div>
                     {byField.map((r) => (
                       <BarRow
                         key={r.key}
@@ -431,28 +448,29 @@ export default function AnalyticsPage() {
           ) : (
             <>
               <Card>
-                <SectionTitle>Net RR by entry hour</SectionTitle>
+                <SectionTitle>Net P&L by entry hour</SectionTitle>
                 {byHour.map((h) => (
                   <BarRow
                     key={h.hour}
-                    label={`${String(h.hour).padStart(2, "0")}:00`}
+                    label={hourLabel(h.hour)}
                     value={Math.abs(h.stats.netPnl)}
                     max={Math.max(...byHour.map((x) => Math.abs(x.stats.netPnl)), 1)}
                     display={`${fmtMoney(h.stats.netPnl, currency)} · ${h.stats.total}t`}
-                    color={h.stats.netPnl >= 0 ? "#22C55E" : "#EF4444"}
+                    color={h.stats.netPnl >= 0 ? "rgb(var(--pos))" : "rgb(var(--neg))"}
                   />
                 ))}
+                <p className="mt-3 text-[11px] text-mute">Hours shown in your local time (Accra, UTC+0) — e.g. 14:00 is 2:00 PM.</p>
               </Card>
               <Card>
                 <SectionTitle>Win rate by entry hour</SectionTitle>
                 {byHour.map((h) => (
                   <BarRow
                     key={h.hour}
-                    label={`${String(h.hour).padStart(2, "0")}:00`}
+                    label={hourLabel(h.hour)}
                     value={h.stats.winRate}
                     max={100}
                     display={`${fmtPct(h.stats.winRate)} · ${h.stats.total}t`}
-                    color="#A3E635"
+                    color="rgb(var(--accent))"
                   />
                 ))}
               </Card>
@@ -520,7 +538,7 @@ export default function AnalyticsPage() {
             <GroupTable rows={bySession} keyLabel="Session" currency={currency} />
           </Card>
           <Card>
-            <SectionTitle>Net RR by session</SectionTitle>
+            <SectionTitle>Net P&L by session</SectionTitle>
             {bySession.map((r) => (
               <BarRow
                 key={r.key}

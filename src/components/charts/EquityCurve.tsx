@@ -209,11 +209,13 @@ export function BarRow({ label, value, max, display, color = "rgb(var(--accent))
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <div className="w-28 shrink-0 truncate text-sm text-sub">{label}</div>
+      <div className="w-36 shrink-0 text-sm leading-tight text-sub sm:w-44" title={label} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+        {label}
+      </div>
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
-      <div className="w-20 shrink-0 text-right font-mono text-sm text-ink">{display}</div>
+      <div className="w-24 shrink-0 whitespace-nowrap text-right font-mono text-xs text-ink sm:text-sm" title={display}>{display}</div>
     </div>
   );
 }
