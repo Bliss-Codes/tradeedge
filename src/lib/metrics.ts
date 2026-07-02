@@ -150,7 +150,7 @@ export function tagCombos(trades: Trade[], min = 1): GroupRow[] {
 export function plannedRR(t: Trade): number | undefined {
   const { entry, stopLoss: sl, takeProfit: tp, direction } = t;
   if (entry === undefined || sl === undefined || tp === undefined) return undefined;
-  const risk = direction === "long" ? entry - sl : sl - entry;
+  const risk = Math.abs(entry - sl);
   const reward = direction === "long" ? tp - entry : entry - tp;
   if (risk <= 0) return undefined;
   return reward / risk;

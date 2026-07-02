@@ -97,7 +97,7 @@ function JournalInner() {
   const [sort, setSort] = useState<SortKey>("date");
   const [dir, setDir] = useState<1 | -1>(-1);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [logOpen, setLogOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(params.get("new") !== null);
   const [editing, setEditing] = useState<Trade | null>(null);
   const [seed, setSeed] = useState<Trade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null);

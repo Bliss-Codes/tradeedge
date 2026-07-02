@@ -115,12 +115,48 @@ export default function CalendarPage() {
       d.setDate(start.getDate() + i);
       cells.push(d);
     }
+    // week rows of 7 + stats per week (count only current-month days)
+    const weekRows = Array.from({ length: 6 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+    const weekStats = weekRows.map((row) => {
+      let pnl = 0;
+      let count = 0;
+      for (const d of row) {
+        if (d.getMonth() !== cursor.getMonth()) continue;
+        const dayTrades = byDay.get(dayKey(d)) ?? [];
+        pnl += dayTrades.reduce((a, t) => a + t.pnl, 0);
+        count += dayTrades.length;
+      }
+      return { pnl, count };
+    });
+    const monthPnl = weekStats.reduce((a, w) => a + w.pnl, 0);
+    const monthCount = weekStats.reduce((a, w) => a + w.count, 0);
+    const weekTone = (v: number, c: number) =>
+      c === 0 ? "border-edge bg-surface/30 text-mute" : v > 0 ? "border-pos/40 bg-pos/10 text-pos" : v < 0 ? "border-neg/40 bg-neg/10 text-neg" : "border-edge bg-surface/40 text-mute";
     body = (
       <>
-        <div className="mb-2 grid grid-cols-7 gap-2 text-center text-xs uppercase tracking-wider text-mute">
+        <div className="mb-2 grid grid-cols-[repeat(7,1fr)_88px] gap-2 text-center text-xs uppercase tracking-wider text-mute">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d}>{d}</div>)}
+          <div>Total</div>
         </div>
-        <div className="grid grid-cols-7 gap-2">{cells.map((d) => <DayCell key={d.toISOString()} date={d} />)}</div>
+        <div className="space-y-2">
+          {weekRows.map((row, w) => (
+            <div key={w} className="grid grid-cols-[repeat(7,1fr)_88px] gap-2">
+              {row.map((d) => <DayCell key={d.toISOString()} date={d} />)}
+              <div className={`flex flex-col items-start justify-between rounded-xl border p-2 ${weekTone(weekStats[w].pnl, weekStats[w].count)}`}>
+                <div className="flex w-full items-center justify-between text-[10px] text-mute">
+                  <span>{weekStats[w].count} trade{weekStats[w].count === 1 ? "" : "s"}</span>
+                  <span>w{w + 1}</span>
+                </div>
+                <span className="font-mono text-sm font-semibold">{weekStats[w].count > 0 ? fmtMoney(weekStats[w].pnl, currency) : "—"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className={`mt-3 flex items-center justify-end gap-3 rounded-xl border px-4 py-2.5 ${weekTone(monthPnl, monthCount)}`}>
+          <span className="text-xs text-mute">Month total:</span>
+          <span className="font-mono text-base font-bold">{fmtMoney(monthPnl, currency)}</span>
+          <span className="text-xs text-mute">{monthCount} trade{monthCount === 1 ? "" : "s"}</span>
+        </div>
       </>
     );
   } else if (view === "Weekly") {

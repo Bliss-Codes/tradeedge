@@ -149,7 +149,7 @@ export function TradeModal({
       out.riskAmount = +((acct.balance * out.riskPercent) / 100).toFixed(2);
     }
     if (out.entry != null && out.stopLoss != null && out.exit != null) {
-      const risk = out.direction === "long" ? out.entry - out.stopLoss : out.stopLoss - out.entry;
+      const risk = Math.abs(out.entry - out.stopLoss);
       if (risk > 0) {
         const reward = out.direction === "long" ? out.exit - out.entry : out.entry - out.exit;
         out.rr = +(reward / risk).toFixed(2);
@@ -387,6 +387,16 @@ export function TradeModal({
             {t.riskAmount != null && (
               <span className="text-mute">PnL: <span className={`font-mono font-semibold ${signColor(t.pnl)}`}>{fmtMoney(t.pnl)}</span> <span className="text-mute">(RR × risk)</span></span>
             )}
+            {t.entry != null && t.stopLoss != null && t.entry !== t.stopLoss &&
+              (t.stopLoss > t.entry ? "short" : "long") !== t.direction && (
+                <button
+                  type="button"
+                  onClick={() => setPrice("direction", t.stopLoss! > t.entry! ? "short" : "long")}
+                  className="rounded-lg border border-warn/40 bg-warn/10 px-2 py-0.5 text-warn transition-colors hover:bg-warn/20"
+                >
+                  Stop is {t.stopLoss > t.entry ? "above" : "below"} entry — looks like a {t.stopLoss > t.entry ? "Short" : "Long"}. Switch?
+                </button>
+              )}
           </div>
         )}
 

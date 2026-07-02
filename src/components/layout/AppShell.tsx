@@ -89,7 +89,7 @@ function Sidebar() {
         <div className="rounded-2xl bg-gradient-to-br from-ink/95 to-ink p-4 text-bg" style={{ background: "linear-gradient(135deg, rgb(var(--ink)), rgb(var(--ink)/0.85))" }}>
           <div className="text-sm font-semibold" style={{ color: "rgb(var(--card))" }}>Log faster</div>
           <div className="mt-0.5 text-[11px]" style={{ color: "rgb(var(--mute))" }}>Record a trade in a few taps.</div>
-          <Link href="/journal" className="mt-3 flex items-center justify-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-bg">
+          <Link href="/journal?new=1" className="mt-3 flex items-center justify-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-bg">
             + New trade
           </Link>
         </div>
