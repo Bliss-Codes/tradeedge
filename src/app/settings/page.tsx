@@ -40,6 +40,25 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <Card>
+        <SectionTitle>MT5 auto-sync</SectionTitle>
+        <p className="mb-3 text-sm text-mute">
+          The TradeEdgeSync EA (in the repo&apos;s <span className="font-mono text-sub">mt5/</span> folder) logs every closed MT5 trade here automatically. Paste these IDs into the EA inputs — full steps in <span className="font-mono text-sub">mt5/SETUP.md</span>.
+        </p>
+        <div className="space-y-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-edge bg-surface/40 px-3 py-2">
+            <span className="text-mute">Your user ID</span>
+            <span className="font-mono text-xs text-ink">{state.user?.id ?? "— sign in to see it —"}</span>
+          </div>
+          {state.accounts.filter((a) => !a.archived).map((a) => (
+            <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-edge bg-surface/40 px-3 py-2">
+              <span className="text-mute">Account ID — {a.name}</span>
+              <span className="font-mono text-xs text-ink">{a.id}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
         <SectionTitle>Export</SectionTitle>
         <p className="mb-4 text-sm text-mute">Your data is yours. Take it anywhere, any time.</p>
         <div className="flex flex-wrap gap-2">
