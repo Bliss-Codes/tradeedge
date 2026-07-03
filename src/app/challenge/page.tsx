@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/stores/useApp";
 import { Account } from "@/lib/types";
 import { fmtMoney, fmtPct, signColor } from "@/lib/metrics";
@@ -129,7 +129,7 @@ function ConfigModal({ account, open, onClose }: { account: Account; open: boole
 
 // ── per-account dashboard ─────────────────────────────────────────────
 
-function ChallengeCard({ account, state, onEdit }: { account: Account; state: ChallengeState; onEdit: () => void }) {
+function ChallengeCard({ account, state, onEdit, collapsed, onToggle }: { account: Account; state: ChallengeState; onEdit: () => void; collapsed: boolean; onToggle: () => void }) {
   const tone = LEVEL_TONE[state.level];
   const ccy = account.currency;
   const c = state.config;
@@ -139,23 +139,38 @@ function ChallengeCard({ account, state, onEdit }: { account: Account; state: Ch
     <div className="space-y-4">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-base font-semibold text-ink">{account.name}</div>
-            <div className="mt-1 text-xs text-mute">
-              {[account.propFirm, c.phase, c.drawdownMode === "trailing" ? "Trailing DD" : "Static DD"].filter(Boolean).join(" · ")}
+          <button onClick={onToggle} className="group flex min-w-0 items-center gap-3 text-left" aria-expanded={!collapsed}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={`h-4 w-4 shrink-0 text-mute transition-transform group-hover:text-ink ${collapsed ? "" : "rotate-90"}`}>
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+            <div className="min-w-0">
+              <div className="truncate text-base font-semibold text-ink">{account.name}</div>
+              <div className="mt-1 truncate text-xs text-mute">
+                {[account.propFirm, c.phase, c.drawdownMode === "trailing" ? "Trailing DD" : "Static DD"].filter(Boolean).join(" · ")}
+              </div>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-2">
+            {collapsed && (
+              <div className="hidden items-center gap-4 font-mono text-xs sm:flex">
+                <span className="text-sub">{fmtMoney(state.equity, ccy)}</span>
+                <span className={signColor(state.netPnl)}>{state.netPnl >= 0 ? "+" : ""}{fmtMoney(state.netPnl, ccy)}</span>
+                <span className="text-mute">{funded ? `${state.benchmark?.daysHit ?? 0} days` : `${fmtMoney(state.toTarget, ccy)} to go`}</span>
+              </div>
+            )}
             <span className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wider ${tone.chip}`}>{tone.label}</span>
-            <Button variant="ghost" onClick={onEdit}>Edit rules</Button>
+            {!collapsed && <Button variant="ghost" onClick={onEdit}>Edit rules</Button>}
           </div>
         </div>
-        {state.messages.length > 0 && (
+        {!collapsed && state.messages.length > 0 && (
           <div className="mt-3 space-y-1">
             {state.messages.map((m) => <div key={m} className="text-xs text-sub">{m}</div>)}
           </div>
         )}
       </Card>
+
+      {!collapsed && (<>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Equity" value={fmtMoney(state.equity, ccy)} tone={state.netPnl} hint={`${state.netPnl >= 0 ? "+" : ""}${fmtMoney(state.netPnl, ccy)} net`} />
@@ -240,6 +255,7 @@ function ChallengeCard({ account, state, onEdit }: { account: Account; state: Ch
           </div>
         </Card>
       )}
+      </>)}
     </div>
   );
 }
@@ -251,6 +267,16 @@ export default function ChallengePage() {
   const trades = useApp((s) => s.trades);
   const selectedAccountId = useApp((s) => s.selectedAccountId);
   const [editing, setEditing] = useState<Account | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try { const raw = localStorage.getItem("te-challenge-collapsed"); if (raw) setCollapsed(JSON.parse(raw)); } catch {}
+  }, []);
+  const toggle = (id: string) =>
+    setCollapsed((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem("te-challenge-collapsed", JSON.stringify(next)); } catch {}
+      return next;
+    });
 
   const eligible = useMemo(
     () => accounts.filter((a) => !a.archived && (a.type === "Challenge" || a.type === "Funded")),
@@ -265,7 +291,9 @@ export default function ChallengePage() {
     <div className="space-y-6">
       {active.map((a) => {
         const state = computeChallengeState(a, trades);
-        return state ? <ChallengeCard key={a.id} account={a} state={state} onEdit={() => setEditing(a)} /> : null;
+        return state ? (
+          <ChallengeCard key={a.id} account={a} state={state} onEdit={() => setEditing(a)} collapsed={!!collapsed[a.id]} onToggle={() => toggle(a.id)} />
+        ) : null;
       })}
 
       {inactive.length > 0 && (
