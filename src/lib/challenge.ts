@@ -56,7 +56,19 @@ export const CHALLENGE_PRESETS: ChallengePreset[] = [
     config: { phase: "Phase 1", profitTargetPct: 10, maxDrawdownPct: 6, dailyLossPct: 3, drawdownMode: "trailing" },
   },
   {
-    name: "FundedNext · Funded (payout tracking)",
+    name: "FundedNext CFD · Funded (Stellar)",
+    config: {
+      phase: "Funded",
+      profitTargetPct: 0,
+      maxDrawdownPct: 10,
+      dailyLossPct: 5,
+      drawdownMode: "static",
+      // CFD Stellar: payouts gate on trading days/cycles — no per-day profit
+      // minimum and no consistency rule, so both are left unset.
+    },
+  },
+  {
+    name: "FundedNext Futures · Funded (Legacy-style)",
     config: {
       phase: "Funded",
       profitTargetPct: 0,
@@ -76,10 +88,10 @@ export function defaultChallengeConfig(): ChallengeConfig {
 export type ChallengeLevel = "passed" | "ok" | "warn" | "daily-stop" | "breached";
 
 export interface BenchmarkInfo {
-  target: number;
-  daysHit: number; // distinct days with closed profit ≥ target
+  target: number; // 0 = trading-day mode (CFD): any traded day counts
+  daysHit: number; // trading days, or days with closed profit ≥ target
   minForPayout: number; // 5
-  fullPayoutAt: number; // 30 — below this, withdrawals capped at 50%
+  fullPayoutAt?: number; // Futures only: 30 — below this, withdrawals capped at 50%
   bestDayPct?: number; // best day's share of total profit
   consistencyCapPct?: number;
   consistencyOk?: boolean;
@@ -209,26 +221,29 @@ export function computeChallengeState(account: Account, allTrades: Trade[]): Cha
     }
   }
 
-  // Funded phase: benchmark days + consistency toward payout eligibility.
+  // Funded phase: payout eligibility. CFD Stellar accounts gate payouts on
+  // trading days / cycles, so with no benchmarkDayTarget set we count any
+  // traded day. A target (Futures Legacy/Rapid style) switches to
+  // profit-qualified benchmark days.
   let benchmark: BenchmarkInfo | undefined;
   if (config.phase === "Funded") {
-    const target = config.benchmarkDayTarget ?? (start >= 50000 ? 200 : 100);
+    const target = config.benchmarkDayTarget && config.benchmarkDayTarget > 0 ? config.benchmarkDayTarget : undefined;
     let daysHit = 0;
     let bestDay = 0;
     for (const pnl of dailyPnl.values()) {
-      if (pnl >= target) daysHit++;
+      if (target === undefined || pnl >= target) daysHit++;
       if (pnl > bestDay) bestDay = pnl;
     }
     const bestDayPct = netPnl > 0 ? (bestDay / netPnl) * 100 : undefined;
     benchmark = {
-      target,
+      target: target ?? 0,
       daysHit,
       minForPayout: 5,
-      fullPayoutAt: 30,
+      fullPayoutAt: target !== undefined ? 30 : undefined,
       bestDayPct,
-      consistencyCapPct: config.consistencyCapPct,
+      consistencyCapPct: config.consistencyCapPct && config.consistencyCapPct > 0 ? config.consistencyCapPct : undefined,
       consistencyOk:
-        config.consistencyCapPct !== undefined && bestDayPct !== undefined
+        config.consistencyCapPct && config.consistencyCapPct > 0 && bestDayPct !== undefined
           ? bestDayPct <= config.consistencyCapPct
           : undefined,
     };

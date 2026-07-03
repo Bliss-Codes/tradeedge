@@ -103,11 +103,11 @@ function ConfigModal({ account, open, onClose }: { account: Account; open: boole
         </Field>
         {c.phase === "Funded" && (
           <>
-            <Field label="Benchmark day target">
-              <NumberInput value={c.benchmarkDayTarget} onChange={(v) => setC({ ...c, benchmarkDayTarget: v })} placeholder="200 for 50K+, 100 for 25K" />
+            <Field label="Benchmark day target (Futures only)">
+              <NumberInput value={c.benchmarkDayTarget} onChange={(v) => setC({ ...c, benchmarkDayTarget: v })} placeholder="blank for CFD — counts trading days" />
             </Field>
-            <Field label="Consistency cap % (optional)">
-              <NumberInput value={c.consistencyCapPct} onChange={(v) => setC({ ...c, consistencyCapPct: v })} placeholder="e.g. 40" />
+            <Field label="Consistency cap % (Futures only)">
+              <NumberInput value={c.consistencyCapPct} onChange={(v) => setC({ ...c, consistencyCapPct: v })} placeholder="blank for CFD · 40 for Futures" />
             </Field>
           </>
         )}
@@ -162,7 +162,11 @@ function ChallengeCard({ account, state, onEdit }: { account: Account; state: Ch
         {!funded ? (
           <Stat label="To target" value={fmtMoney(state.toTarget, ccy)} hint={`${fmtPct(state.progressPct)} of ${fmtMoney(state.targetAmount, ccy)}`} />
         ) : (
-          <Stat label="Benchmark days" value={`${state.benchmark?.daysHit ?? 0} / ${state.benchmark?.fullPayoutAt ?? 30}`} hint={`min ${state.benchmark?.minForPayout ?? 5} to withdraw · 30 for full payouts`} />
+          <Stat
+            label={state.benchmark?.target ? "Benchmark days" : "Trading days"}
+            value={state.benchmark?.fullPayoutAt ? `${state.benchmark.daysHit} / ${state.benchmark.fullPayoutAt}` : `${state.benchmark?.daysHit ?? 0}`}
+            hint={state.benchmark?.target ? `min ${state.benchmark.minForPayout} to withdraw · 30 for full payouts` : `min ${state.benchmark?.minForPayout ?? 5} for first payout (CFD)`}
+          />
         )}
         <Stat label="DD buffer left" value={fmtMoney(state.ddRemaining, ccy)} hint={`of ${fmtMoney(state.ddLimit, ccy)} max`} />
         <Stat label="Today" value={fmtMoney(state.todayPnl, ccy)} tone={state.todayPnl} hint={`${state.wins}W · ${state.losses}L · ${state.breakevens}BE overall`} />
@@ -207,10 +211,12 @@ function ChallengeCard({ account, state, onEdit }: { account: Account; state: Ch
           <SectionTitle>Payout eligibility</SectionTitle>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div>
-              <div className="text-xs font-medium uppercase tracking-wider text-mute">Benchmark days</div>
+              <div className="text-xs font-medium uppercase tracking-wider text-mute">{state.benchmark.target ? "Benchmark days" : "Trading days"}</div>
               <div className="mt-2 font-mono text-2xl font-semibold text-ink">{state.benchmark.daysHit}</div>
               <div className="mt-1 text-xs text-mute">
-                Days with ≥ {fmtMoney(state.benchmark.target, ccy)} closed profit · {state.benchmark.minForPayout} unlocks withdrawals, {state.benchmark.fullPayoutAt} unlocks 100%
+                {state.benchmark.target
+                  ? `Days with ≥ ${fmtMoney(state.benchmark.target, ccy)} closed profit · ${state.benchmark.minForPayout} unlocks withdrawals, ${state.benchmark.fullPayoutAt} unlocks 100%`
+                  : `Any traded day counts (CFD) · ${state.benchmark.minForPayout} needed before your first payout — cycles are set by your firm dashboard`}
               </div>
             </div>
             {state.benchmark.bestDayPct !== undefined && (
@@ -220,9 +226,9 @@ function ChallengeCard({ account, state, onEdit }: { account: Account; state: Ch
                   {fmtPct(state.benchmark.bestDayPct)}
                 </div>
                 <div className="mt-1 text-xs text-mute">
-                  {state.benchmark.consistencyCapPct !== undefined
+                  {state.benchmark.consistencyCapPct
                     ? `of total profit · cap ${state.benchmark.consistencyCapPct}%`
-                    : "of total profit"}
+                    : "of total profit — no consistency rule on CFD"}
                 </div>
               </div>
             )}
