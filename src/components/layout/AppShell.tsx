@@ -22,6 +22,8 @@ const NAV_GROUPS: { heading: string; items: { href: string; label: string; icon:
   {
     heading: "Trading",
     items: [
+      { href: "/challenge", label: "Challenge", icon: "M12 22a10 10 0 100-20 10 10 0 000 20z M12 18a6 6 0 100-12 6 6 0 000 12z M12 14a2 2 0 100-4 2 2 0 000 4z" },
+      { href: "/calculator", label: "Calculator", icon: "M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z M7 7h10 M7 12h.01 M12 12h.01 M17 12h.01 M7 16h.01 M12 16h.01 M17 16h.01" },
       { href: "/backtesting", label: "Backtesting", icon: "M12 8v4l3 3 M21 12a9 9 0 11-9-9c2.5 0 4.8 1 6.4 2.6L21 8" },
       { href: "/missed", label: "Missed Trades", icon: "M12 9v4 M12 17h.01 M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" },
       { href: "/accounts", label: "Accounts", icon: "M21 12V7H5a2 2 0 010-4h14v4 M3 5v14a2 2 0 002 2h16v-5 M18 12a2 2 0 000 4h4v-4h-4z" },

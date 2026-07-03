@@ -133,6 +133,8 @@ export interface Account {
   archived?: boolean; // hidden from active views; trades preserved for review
   dailyLossLimit?: number; // max loss allowed in one day (account currency)
   maxDrawdownLimit?: number; // max peak-to-trough drawdown (account currency)
+  /** Challenge Mode config (see lib/challenge.ts) — rides along in the jsonb snapshot. */
+  challenge?: import("@/lib/challenge").ChallengeConfig;
   createdAt: string;
 }
 
