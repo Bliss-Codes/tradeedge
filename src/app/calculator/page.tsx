@@ -73,8 +73,22 @@ export default function CalculatorPage() {
             </Field>
           )}
           <Field label="Pair">
-            <Input value={pair} onChange={(e) => setPair(e.target.value.toUpperCase())} list="calc-pairs" placeholder="EURUSD" />
-            <datalist id="calc-pairs">{COMMON_PAIRS.map((p) => <option key={p} value={p} />)}</datalist>
+            <Select
+              value={COMMON_PAIRS.includes(pair) ? pair : "custom"}
+              onChange={(e) => { if (e.target.value === "custom") setPair(""); else setPair(e.target.value); }}
+            >
+              <option value="XAUUSD">XAUUSD — Gold</option>
+              <option value="XAGUSD">XAGUSD — Silver</option>
+              {COMMON_PAIRS.filter((p) => p !== "XAUUSD" && p !== "XAGUSD").map((p) => <option key={p} value={p}>{p}</option>)}
+              <option value="custom">Custom…</option>
+            </Select>
+            {!COMMON_PAIRS.includes(pair) && (
+              <div className="mt-2">
+                <Input value={pair} onChange={(e) => setPair(e.target.value.toUpperCase())} placeholder="Type a symbol, e.g. CADJPY" autoFocus />
+              </div>
+            )}
+            {pair === "XAUUSD" && <p className="mt-1 text-[11px] text-mute">1 lot = 100 oz · a $1.00 move = 10 pips = $100/lot · stops entered as prices work directly</p>}
+            {pair === "XAGUSD" && <p className="mt-1 text-[11px] text-mute">1 lot = 5,000 oz · a $0.01 move = 1 pip = $50/lot</p>}
           </Field>
         </div>
       </Card>
