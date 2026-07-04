@@ -16,7 +16,6 @@ const NAV_GROUPS: { heading: string; items: { href: string; label: string; icon:
       { href: "/", label: "Dashboard", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zm10-18v6h8V3h-8z" },
       { href: "/journal", label: "Journal", icon: "M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5" },
       { href: "/analytics", label: "Analytics", icon: "M4 20V10 M10 20V4 M16 20v-7 M22 20H2" },
-      { href: "/calendar", label: "Calendar", icon: "M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18" },
     ],
   },
   {
@@ -25,7 +24,6 @@ const NAV_GROUPS: { heading: string; items: { href: string; label: string; icon:
       { href: "/challenge", label: "Challenge", icon: "M12 22a10 10 0 100-20 10 10 0 000 20z M12 18a6 6 0 100-12 6 6 0 000 12z M12 14a2 2 0 100-4 2 2 0 000 4z" },
       { href: "/calculator", label: "Calculator", icon: "M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z M7 7h10 M7 12h.01 M12 12h.01 M17 12h.01 M7 16h.01 M12 16h.01 M17 16h.01" },
       { href: "/backtesting", label: "Backtesting", icon: "M12 8v4l3 3 M21 12a9 9 0 11-9-9c2.5 0 4.8 1 6.4 2.6L21 8" },
-      { href: "/missed", label: "Missed Trades", icon: "M12 9v4 M12 17h.01 M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" },
       { href: "/accounts", label: "Accounts", icon: "M21 12V7H5a2 2 0 010-4h14v4 M3 5v14a2 2 0 002 2h16v-5 M18 12a2 2 0 000 4h4v-4h-4z" },
       { href: "/strategies", label: "Strategies", icon: "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" },
     ],
@@ -237,6 +235,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const initAuth = useApp((s) => s.initAuth);
   const hydrate = useApp((s) => s.hydrate);
   const hydrated = useApp((s) => s.hydrated);
+  const syncError = useApp((s) => s.syncError);
+  const clearSyncError = useApp((s) => s.clearSyncError);
   const setSearchOpen = useApp((s) => s.setSearchOpen);
   const cloud = useApp((s) => s.cloud);
   const authReady = useApp((s) => s.authReady);
@@ -302,7 +302,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">{hydrated ? children : <div className="py-24 text-center text-sm text-mute">Loading your journal…</div>}</main>
+        <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+          {syncError && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-neg/40 bg-neg/10 px-4 py-2.5 text-xs text-neg">
+              <span>Cloud save failed: {syncError} — your change is only on this device. Check your connection or Supabase setup, then retry.</span>
+              <button onClick={clearSyncError} className="shrink-0 rounded-lg border border-neg/40 px-2 py-1 hover:bg-neg/15">Dismiss</button>
+            </div>
+          )}
+          {hydrated ? children : <div className="py-24 text-center text-sm text-mute">Loading your journal…</div>}
+        </main>
       </div>
       <GlobalSearch />
     </div>

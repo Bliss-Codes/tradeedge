@@ -8,7 +8,7 @@ import { buildInsights } from "@/lib/insights";
 import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/components/ui/primitives";
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
 import { EquityCurve, DailyPnlBars } from "@/components/charts/EquityCurve";
-import { MonthCalendar } from "@/components/charts/MonthCalendar";
+import { CalendarPanel } from "@/components/calendar/CalendarPanel";
 import { RiskBanner } from "@/components/layout/RiskBanner";
 import { TradeModal } from "@/components/trades/TradeModal";
 import { TradeDetail } from "@/components/trades/TradeDetail";
@@ -190,8 +190,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Trading calendar */}
-      <MonthCalendar trades={trades} reviews={reviews} onSelectTrade={setSelected} currency={currency} />
+      {/* Trading calendar — full monthly/weekly view (moved from the old Calendar page) */}
+      <CalendarPanel />
 
       {/* Periods */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

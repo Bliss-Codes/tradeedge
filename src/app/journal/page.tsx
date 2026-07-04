@@ -7,6 +7,7 @@ import { Trade, SESSIONS, outcomeOf } from "@/lib/types";
 import { fmtDate, fmtMoney, fmtR, signColor } from "@/lib/metrics";
 import { Button, Card, EmptyState, Input, Modal, OutcomePill, Select, TagChip, Tabs } from "@/components/ui/primitives";
 import { TradeModal } from "@/components/trades/TradeModal";
+import { MissedPanel } from "@/components/trades/MissedPanel";
 import { TradeDetail } from "@/components/trades/TradeDetail";
 import { RiskBanner } from "@/components/layout/RiskBanner";
 import { useImageUrl } from "@/components/trades/Images";
@@ -79,8 +80,15 @@ function GalleryCard({ trade, onOpen }: { trade: Trade; onOpen: () => void }) {
   );
 }
 
+const JOURNAL_TABS = ["Live", "Backtest", "Missed"] as const;
+
 function JournalInner() {
-  const trades = useVisibleTrades();
+  const params0 = useSearchParams();
+  const [tab, setTab] = useState<string>(() => {
+    const t = params0.get("tab");
+    return t && (JOURNAL_TABS as readonly string[]).includes(t) ? t : "Live";
+  });
+  const trades = useVisibleTrades(tab === "Backtest" ? "backtest" : "live");
   const strategies = useApp((s) => s.strategies);
   const deleteTrades = useApp((s) => s.deleteTrades);
   const allTags = useAllTags();
@@ -164,7 +172,14 @@ function JournalInner() {
 
   return (
     <div className="space-y-5">
-      <RiskBanner />
+      <Tabs tabs={[...JOURNAL_TABS]} active={tab} onChange={setTab} />
+      {tab === "Missed" ? (
+        <MissedPanel />
+      ) : (<>
+      {tab === "Live" && <RiskBanner />}
+      {tab === "Backtest" && (
+        <p className="text-xs text-mute">Backtest journal — these trades stay out of live stats, risk limits, and Challenge Mode.</p>
+      )}
       {/* Toolbar */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -326,7 +341,7 @@ function JournalInner() {
         Tip: open a trade from the gallery to enter replay mode — the result stays hidden until you reveal it.
       </p>
 
-      <TradeModal open={logOpen} onClose={() => setLogOpen(false)} />
+      <TradeModal open={logOpen} onClose={() => setLogOpen(false)} defaultType={tab === "Backtest" ? "backtest" : "live"} />
       {seed && <TradeModal open onClose={() => setSeed(null)} seed={seed} />}
       {editing && <TradeModal open onClose={() => setEditing(null)} existing={editing} />}
       {detail && !editing && (
@@ -362,6 +377,7 @@ function JournalInner() {
           </div>
         </Modal>
       )}
+      </>)}
     </div>
   );
 }

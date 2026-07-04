@@ -58,13 +58,17 @@ function ReviewJournal({ periodKey, scope, label }: { periodKey: string; scope: 
   const [discipline, setDiscipline] = useState<number | undefined>(undefined);
   const [saved, setSaved] = useState(false);
 
+  // Reset the form only when the period changes or a different stored review
+  // appears — NOT on every background hydrate (auth refresh / MT5 sync), which
+  // previously wiped in-progress drafts.
   useEffect(() => {
     setWentWell(existing?.wentWell ?? "");
     setToImprove(existing?.toImprove ?? "");
     setFocusNext(existing?.focusNext ?? "");
     setDiscipline(existing?.disciplineRating);
-    setSaved(false);
-  }, [periodKey, existing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodKey, existing?.id]);
+  useEffect(() => setSaved(false), [periodKey]);
 
   const dirty =
     wentWell !== (existing?.wentWell ?? "") ||

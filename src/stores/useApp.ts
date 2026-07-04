@@ -15,6 +15,8 @@ export interface AuthUser {
 
 interface AppState extends Snapshot {
   hydrated: boolean;
+  syncError: string | null;
+  clearSyncError: () => void;
   selectedAccountId: string; // "all" or an account id
   searchOpen: boolean;
 
@@ -59,9 +61,20 @@ interface AppState extends Snapshot {
   clearAll: () => Promise<void>;
 }
 
+/** Fire-and-forget cloud writes: log + surface failures instead of swallowing them. */
+function reportSync(p: Promise<unknown>) {
+  p.catch((e: unknown) => {
+    const msg = e instanceof Error ? e.message : "Cloud save failed";
+    console.error("TradeEdge cloud sync failed:", e);
+    useApp.setState({ syncError: msg });
+  });
+}
+
 export const useApp = create<AppState>((set, get) => ({
   ...EMPTY_SNAPSHOT,
   hydrated: false,
+  syncError: null,
+  clearSyncError: () => set({ syncError: null }),
   selectedAccountId: "all",
   searchOpen: false,
 
@@ -125,29 +138,29 @@ export const useApp = create<AppState>((set, get) => ({
 
   addTrade: (t) => {
     set((s) => ({ trades: [t, ...s.trades] }));
-    void backend.upsertTrade(t);
+    reportSync(backend.upsertTrade(t));
   },
   updateTrade: (t) => {
     set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? t : x)) }));
-    void backend.upsertTrade(t);
+    reportSync(backend.upsertTrade(t));
   },
   deleteTrades: (ids) => {
     const drop = new Set(ids);
     set((s) => ({ trades: s.trades.filter((x) => !drop.has(x.id)) }));
-    void backend.deleteTrades(ids);
+    reportSync(backend.deleteTrades(ids));
   },
   importTrades: (ts) => {
     set((s) => ({ trades: [...ts, ...s.trades] }));
-    void backend.upsertTrades(ts);
+    reportSync(backend.upsertTrades(ts));
   },
 
   addAccount: (a) => {
     set((s) => ({ accounts: [...s.accounts, a] }));
-    void backend.upsertAccount(a);
+    reportSync(backend.upsertAccount(a));
   },
   updateAccount: (a) => {
     set((s) => ({ accounts: s.accounts.map((x) => (x.id === a.id ? a : x)) }));
-    void backend.upsertAccount(a);
+    reportSync(backend.upsertAccount(a));
   },
   deleteAccount: (id) => {
     const removedTradeIds = get().trades.filter((t) => t.accountId === id).map((t) => t.id);
@@ -156,17 +169,17 @@ export const useApp = create<AppState>((set, get) => ({
       trades: s.trades.filter((t) => t.accountId !== id),
       selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId,
     }));
-    void backend.deleteTrades(removedTradeIds);
-    void backend.deleteAccount(id);
+    reportSync(backend.deleteTrades(removedTradeIds));
+    reportSync(backend.deleteAccount(id));
   },
 
   addStrategy: (st) => {
     set((s) => ({ strategies: [...s.strategies, st] }));
-    void backend.upsertStrategy(st);
+    reportSync(backend.upsertStrategy(st));
   },
   updateStrategy: (st) => {
     set((s) => ({ strategies: s.strategies.map((x) => (x.id === st.id ? st : x)) }));
-    void backend.upsertStrategy(st);
+    reportSync(backend.upsertStrategy(st));
   },
   deleteStrategy: (id) => {
     const changed = get()
@@ -176,21 +189,21 @@ export const useApp = create<AppState>((set, get) => ({
       strategies: s.strategies.filter((x) => x.id !== id),
       trades: s.trades.map((t) => (t.strategyId === id ? { ...t, strategyId: undefined } : t)),
     }));
-    void backend.deleteStrategy(id);
-    if (changed.length) void backend.upsertTrades(changed);
+    reportSync(backend.deleteStrategy(id));
+    if (changed.length) reportSync(backend.upsertTrades(changed));
   },
 
   addMissed: (m) => {
     set((s) => ({ missed: [m, ...s.missed] }));
-    void backend.upsertMissed(m);
+    reportSync(backend.upsertMissed(m));
   },
   updateMissed: (m) => {
     set((s) => ({ missed: s.missed.map((x) => (x.id === m.id ? m : x)) }));
-    void backend.upsertMissed(m);
+    reportSync(backend.upsertMissed(m));
   },
   deleteMissed: (id) => {
     set((s) => ({ missed: s.missed.filter((x) => x.id !== id) }));
-    void backend.deleteMissed(id);
+    reportSync(backend.deleteMissed(id));
   },
 
   upsertReview: (r) => {
@@ -203,11 +216,11 @@ export const useApp = create<AppState>((set, get) => ({
           : [stamped, ...s.reviews],
       };
     });
-    void backend.upsertReview(stamped);
+    reportSync(backend.upsertReview(stamped));
   },
   deleteReview: (id) => {
     set((s) => ({ reviews: s.reviews.filter((x) => x.id !== id) }));
-    void backend.deleteReview(id);
+    reportSync(backend.deleteReview(id));
   },
 
   addCustomTag: (tag) => {
@@ -216,19 +229,19 @@ export const useApp = create<AppState>((set, get) => ({
     if (get().customTags.includes(clean) || DEFAULT_TAGS.includes(clean)) return;
     const next = [...get().customTags, clean];
     set({ customTags: next });
-    void backend.setCustomTags(next);
+    reportSync(backend.setCustomTags(next));
   },
 
   loadSampleData: () => {
     const snap = buildSampleData();
     set({ ...snap, selectedAccountId: "all" });
-    void backend.replaceAll(snap);
+    reportSync(backend.replaceAll(snap));
   },
 
   restoreBackup: (snap) => {
     const full = { ...EMPTY_SNAPSHOT, ...snap };
     set({ ...full, selectedAccountId: "all" });
-    void backend.replaceAll(full);
+    reportSync(backend.replaceAll(full));
   },
 
   clearAll: async () => {
@@ -251,7 +264,7 @@ export function useDisplayCurrency(): string {
 }
 
 /** Trades visible under the global account selector (live trades only). */
-export function useVisibleTrades(): Trade[] {
+export function useVisibleTrades(type: Trade["type"] = "live"): Trade[] {
   const trades = useApp((s) => s.trades);
   const accounts = useApp((s) => s.accounts);
   const selected = useApp((s) => s.selectedAccountId);
@@ -259,7 +272,7 @@ export function useVisibleTrades(): Trade[] {
   const activeIds = new Set(accounts.filter((a) => !a.archived).map((a) => a.id));
   return trades.filter(
     (t) =>
-      t.type === "live" &&
+      t.type === type &&
       (effective === "all" ? activeIds.has(t.accountId) : t.accountId === effective)
   );
 }
