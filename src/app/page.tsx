@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
 import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
@@ -9,6 +8,8 @@ import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/com
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
 import { EquityCurve, DailyPnlBars } from "@/components/charts/EquityCurve";
 import { CalendarPanel } from "@/components/calendar/CalendarPanel";
+import { isoWeekKey } from "@/lib/metrics";
+import Link from "next/link";
 import { RiskBanner } from "@/components/layout/RiskBanner";
 import { TradeModal } from "@/components/trades/TradeModal";
 import { TradeDetail } from "@/components/trades/TradeDetail";
@@ -90,6 +91,28 @@ function PeriodCard({ label, trades, currency }: { label: string; trades: Trade[
   );
 }
 
+
+/** Surfaces last week's "focus for next week" all through the current week. */
+function WeeklyFocusBanner() {
+  const reviews = useApp((s) => s.reviews);
+  const focus = useMemo(() => {
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const key = isoWeekKey(lastWeek);
+    return reviews.find((r) => r.date === key && r.scope === "week")?.focusNext;
+  }, [reviews]);
+  if (!focus) return null;
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-3.5">
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-accent">This week&apos;s focus</div>
+        <div className="mt-1 whitespace-pre-line text-sm leading-relaxed text-sub">{focus}</div>
+      </div>
+      <Link href="/reviews" className="shrink-0 text-xs text-mute hover:text-sub">from last week&apos;s reflection →</Link>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const trades = useVisibleTrades();
   const currency = useDisplayCurrency();
@@ -147,6 +170,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <WeeklyFocusBanner />
       <RiskBanner />
       {/* Headline KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
+import { isoWeekKey } from "@/lib/metrics";
 import {
   computeStats,
   type Stats,
@@ -107,6 +108,63 @@ function WLList({ rows }: { rows: [string, string][] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+
+/** Weekly discipline rating (1–5, from Reviews) side by side with that week's R. */
+function DisciplineTrend() {
+  const reviews = useApp((s) => s.reviews);
+  const trades = useVisibleTrades();
+
+  const rows = useMemo(() => {
+    const weekly = reviews.filter((r) => r.scope === "week" && r.disciplineRating !== undefined);
+    if (weekly.length === 0) return [];
+    const rByWeek = new Map<string, number>();
+    for (const t of trades) {
+      const k = isoWeekKey(new Date(t.date));
+      rByWeek.set(k, (rByWeek.get(k) ?? 0) + t.rr);
+    }
+    return weekly
+      .map((r) => ({ week: r.date, rating: r.disciplineRating as number, r: rByWeek.get(r.date) ?? 0 }))
+      .sort((a, b) => a.week.localeCompare(b.week))
+      .slice(-12);
+  }, [reviews, trades]);
+
+  if (rows.length === 0) return null;
+  const maxAbsR = Math.max(1, ...rows.map((x) => Math.abs(x.r)));
+
+  return (
+    <Card>
+      <SectionTitle action={<span className="text-xs text-mute">last {rows.length} rated week{rows.length === 1 ? "" : "s"}</span>}>
+        Discipline vs performance
+      </SectionTitle>
+      <div className="space-y-1">
+        {rows.map((x) => (
+          <div key={x.week} className="flex items-center gap-3 py-1">
+            <div className="w-20 shrink-0 font-mono text-xs text-mute">{x.week}</div>
+            <div className="flex w-24 shrink-0 gap-1" title={`Discipline ${x.rating}/5`}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span key={n} className={`h-2.5 w-2.5 rounded-sm ${n <= x.rating ? (x.rating >= 4 ? "bg-pos" : x.rating >= 3 ? "bg-warn" : "bg-neg") : "bg-surface"}`} />
+              ))}
+            </div>
+            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-surface">
+              <div
+                className="absolute top-0 h-full rounded-full"
+                style={{
+                  left: x.r >= 0 ? "50%" : `${50 - (Math.abs(x.r) / maxAbsR) * 50}%`,
+                  width: `${(Math.abs(x.r) / maxAbsR) * 50}%`,
+                  backgroundColor: x.r >= 0 ? "rgb(var(--pos))" : "rgb(var(--neg))",
+                }}
+              />
+              <div className="absolute left-1/2 top-0 h-full w-px bg-edge" />
+            </div>
+            <div className={`w-16 shrink-0 text-right font-mono text-xs ${signColor(x.r)}`}>{fmtR(x.r)}</div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] text-mute">Rate each week in Reviews — over time this shows whether your green weeks are also your disciplined ones.</p>
+    </Card>
   );
 }
 
@@ -302,6 +360,8 @@ export default function AnalyticsPage() {
             <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl, currency)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
             <EquityCurve points={curve} mode="money" currency={currency} />
           </Card>
+
+          <DisciplineTrend />
 
           {/* Expectancy & profit factor + winners/losers */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

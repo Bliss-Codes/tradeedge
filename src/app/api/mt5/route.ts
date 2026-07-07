@@ -40,6 +40,22 @@ function cleanSymbol(s: string): string {
   return s.replace(/[._-](r|pro|raw|ecn|m|c)$/i, "").toUpperCase();
 }
 
+/**
+ * Health check: open https://your-app.vercel.app/api/mt5 in a browser.
+ * Shows which pieces are configured without leaking any secrets.
+ */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    endpoint: "POST deals here from the TradeEdgeSync EA",
+    configured: {
+      MT5_SYNC_SECRET: Boolean(process.env.MT5_SYNC_SECRET),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   const secret = process.env.MT5_SYNC_SECRET;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
