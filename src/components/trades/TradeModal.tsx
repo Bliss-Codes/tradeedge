@@ -132,10 +132,15 @@ export function TradeModal({
   }, [open]);
 
   const [t, setT] = useState<Trade>(existing ?? seed ?? blank);
+  /** Extra accounts this same setup was executed on (multi-account logging). */
+  const [alsoOn, setAlsoOn] = useState<Set<string>>(new Set());
   const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
-    if (open) setT(existing ? { ...existing } : seed ? { ...seed } : blank);
+    if (open) {
+      setT(existing ? { ...existing } : seed ? { ...seed } : blank);
+      setAlsoOn(new Set());
+    }
   }, [open, existing, seed, blank]);
 
   const set = <K extends keyof Trade>(key: K, value: Trade[K]) => setT((prev) => ({ ...prev, [key]: value }));
@@ -230,8 +235,42 @@ export function TradeModal({
   const save = () => {
     if (missing.length > 0) return;
     const final: Trade = { ...t, pair: t.pair.trim().toUpperCase() };
-    if (existing) updateTrade(final);
-    else addTrade(final);
+
+    if (existing) {
+      updateTrade(final);
+      onClose();
+      return;
+    }
+
+    const extras = [...alsoOn].filter((id) => id && id !== final.accountId);
+    if (extras.length === 0) {
+      addTrade(final);
+      onClose();
+      return;
+    }
+
+    // Same idea, multiple accounts: link them with one setupId so edge metrics
+    // count the SETUP once, while each account keeps its own real money/DD.
+    const setupId = crypto.randomUUID();
+    addTrade({ ...final, setupId });
+    for (const accountId of extras) {
+      const acct = accounts.find((a) => a.id === accountId);
+      // Re-derive risk/PnL against THIS account's balance — 0.75% means a
+      // different dollar amount (and different lots) on a 5K vs a 50K.
+      const scaled = derive({
+        ...final,
+        id: crypto.randomUUID(),
+        accountId,
+        setupId,
+        riskAmount: undefined,
+        pnl: 0,
+        createdAt: new Date().toISOString(),
+        beforeImageIds: [],
+        afterImageIds: [],
+      });
+      if (!acct) continue;
+      addTrade(scaled);
+    }
     onClose();
   };
 
@@ -299,6 +338,39 @@ export function TradeModal({
             <Input type="datetime-local" value={dateValue} onChange={(e) => { const iso = new Date(e.target.value).toISOString(); setT((prev) => ({ ...prev, date: iso, session: sessionFromDate(new Date(iso)) })); }} />
           </Field>
         </div>
+
+        {/* Same setup on several accounts? Link them so edge stats stay honest. */}
+        {!existing && accounts.length > 1 && (
+          <div className="rounded-xl border border-edge bg-surface/40 px-4 py-3">
+            <div className="text-xs font-medium uppercase tracking-wider text-mute">Also taken on</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {accounts.filter((a) => a.id !== t.accountId).map((a) => {
+                const on = alsoOn.has(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() =>
+                      setAlsoOn((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(a.id)) next.delete(a.id); else next.add(a.id);
+                        return next;
+                      })
+                    }
+                    className={`rounded-full border px-3 py-1 text-xs transition ${on ? "border-accent bg-accent/15 text-accent" : "border-edge text-mute hover:text-sub"}`}
+                  >
+                    {on ? "✓ " : "+ "}{a.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-mute">
+              {alsoOn.size > 0
+                ? `Logs ${alsoOn.size + 1} linked trades — each sized to its own account balance. Analytics counts this as ONE setup, so your sample size stays honest.`
+                : "Took this same idea on other accounts? Tick them — each gets its own P&L, but edge stats count the setup once."}
+            </p>
+          </div>
+        )}
 
         {/* Quick pairs — one tap */}
         {quickPairs.length > 0 && (

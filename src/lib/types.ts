@@ -210,6 +210,13 @@ export interface Trade {
   violations: Violation[];
   beforeImageIds: string[];
   afterImageIds: string[];
+  /**
+   * Groups executions of the SAME idea taken across multiple accounts.
+   * Money and drawdown stay per-account (each fill is real), but edge stats
+   * (expectancy, win rate, sample size) must count one setup once — otherwise
+   * running 3 accounts inflates your sample 3x and overstates confidence.
+   */
+  setupId?: string;
   createdAt: string;
 }
 

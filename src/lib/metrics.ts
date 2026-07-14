@@ -521,3 +521,39 @@ export function isoWeekKey(d: Date): string {
   const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
+
+
+/**
+ * Collapse multi-account executions of one setup into a single representative
+ * trade, so edge metrics (win rate, expectancy, R) reflect IDEAS, not fills.
+ *
+ * - Trades sharing a setupId become one entry.
+ * - R is averaged across the executions (they should be near-identical).
+ * - P&L is summed (the money really was made on every account) — but P&L is
+ *   not what edge stats key on, so this stays honest either way.
+ * - Trades without a setupId are untouched.
+ */
+export function dedupeBySetup(trades: Trade[]): Trade[] {
+  const groups = new Map<string, Trade[]>();
+  const singles: Trade[] = [];
+  for (const t of trades) {
+    if (!t.setupId) { singles.push(t); continue; }
+    const g = groups.get(t.setupId);
+    if (g) g.push(t); else groups.set(t.setupId, [t]);
+  }
+  const merged: Trade[] = [];
+  for (const g of groups.values()) {
+    const first = [...g].sort((a, b) => a.date.localeCompare(b.date))[0];
+    const avgR = g.reduce((s, t) => s + t.rr, 0) / g.length;
+    merged.push({ ...first, rr: avgR, pnl: g.reduce((s, t) => s + t.pnl, 0) });
+  }
+  return [...singles, ...merged].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** How many raw executions map to how many distinct setups. */
+export function setupCounts(trades: Trade[]): { executions: number; setups: number } {
+  const ids = new Set<string>();
+  let loose = 0;
+  for (const t of trades) { if (t.setupId) ids.add(t.setupId); else loose++; }
+  return { executions: trades.length, setups: ids.size + loose };
+}

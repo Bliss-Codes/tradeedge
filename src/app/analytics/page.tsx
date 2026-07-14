@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
-import { isoWeekKey } from "@/lib/metrics";
+import { isoWeekKey, dedupeBySetup, setupCounts } from "@/lib/metrics";
 import {
   computeStats,
   type Stats,
@@ -26,6 +26,7 @@ import {
 import type { MonthlyYearRow } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
+import { EdgeCheck } from "@/components/analytics/EdgeCheck";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
 import { SessionRadar } from "@/components/charts/SessionRadar";
 import { GRADES, EXIT_REASONS, QUALITY_LABELS, SESSIONS, outcomeOf } from "@/lib/types";
@@ -168,8 +169,19 @@ function DisciplineTrend() {
   );
 }
 
+type CountMode = "By setup" | "By execution";
+
 export default function AnalyticsPage() {
-  const visible = useVisibleTrades();
+  const [countMode, setCountMode] = useState<CountMode>("By setup");
+  const rawVisible = useVisibleTrades();
+  const counts = useMemo(() => setupCounts(rawVisible), [rawVisible]);
+  const hasLinked = counts.executions !== counts.setups;
+  // Edge metrics must count IDEAS, not fills — otherwise the same setup taken on
+  // 3 accounts inflates the sample 3x and overstates confidence in the edge.
+  const visible = useMemo(
+    () => (countMode === "By setup" ? dedupeBySetup(rawVisible) : rawVisible),
+    [rawVisible, countMode]
+  );
   const currency = useDisplayCurrency();
   const strategies = useApp((s) => s.strategies);
   const accounts = useApp((s) => s.accounts);
@@ -338,7 +350,22 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs tabs={TABS} active={tab} onChange={setTab} />
+        {hasLinked && (
+          <div className="flex items-center gap-2">
+            <Tabs tabs={["By setup", "By execution"]} active={countMode} onChange={(v) => setCountMode(v as CountMode)} />
+            <span className="text-[11px] text-mute">
+              {counts.setups} setups · {counts.executions} fills
+            </span>
+          </div>
+        )}
+      </div>
+      {hasLinked && countMode === "By setup" && (
+        <p className="-mt-2 text-[11px] text-mute">
+          Counting each idea once. The same setup taken on multiple accounts is one data point — money totals still count every fill.
+        </p>
+      )}
 
       {trades.length === 0 ? (
         <EmptyState title="No trades match these filters" body="Adjust or clear the filters above." />
@@ -355,6 +382,8 @@ export default function AnalyticsPage() {
             <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
             <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} hint="per trade" />
           </div>
+
+          <EdgeCheck trades={rawVisible} />
 
           <Card>
             <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl, currency)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
