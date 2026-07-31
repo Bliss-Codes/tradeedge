@@ -223,6 +223,9 @@ export function TradeModal({
     if (!t.accountId) m.push("Account");
     if (!t.pair.trim()) m.push("Pair");
     if (t.rr === undefined || Number.isNaN(t.rr)) m.push("RR");
+    // No thesis, no entry. Your own data: documented setups +1.00R, blank -0.56R.
+    // Backtests are exempt — they're practice, not live decisions.
+    if (t.type === "live" && !(t.thesis ?? "").trim()) m.push("Thesis");
     for (const f of strategyFields) {
       if (f.required) {
         const v = t.fieldValues?.[f.id];
@@ -285,6 +288,23 @@ export function TradeModal({
   return (
     <Modal open={open} onClose={onClose} title={existing ? "Edit trade" : "Log trade"} wide persistent>
       <div className="space-y-6">
+        {/* Thesis gate — the decision, before the numbers. Required for live trades. */}
+        {!existing && t.type === "live" && (
+          <div className="rounded-xl border border-accent/30 bg-accent/5 p-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Thesis — why this trade?</span>
+              {!(t.thesis ?? "").trim() && <span className="text-[11px] text-mute">required</span>}
+            </div>
+            <Textarea
+              rows={2}
+              value={t.thesis ?? ""}
+              onChange={(e) => set("thesis", e.target.value || undefined)}
+              placeholder="Liquidity taken, structure, POI, invalidation — before you enter."
+              autoFocus
+            />
+            <p className="mt-1.5 text-[11px] text-mute">If you can&apos;t name the setup, it isn&apos;t one. This field is the trade filter, not paperwork.</p>
+          </div>
+        )}
         {/* Core */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Field label="Account">
@@ -303,7 +323,6 @@ export function TradeModal({
               value={t.pair}
               onChange={(e) => set("pair", e.target.value.toUpperCase())}
               placeholder="Type or pick"
-              autoFocus
             />
             <datalist id="pair-options">
               {pairOptions.map((p) => (
@@ -657,7 +676,9 @@ export function TradeModal({
 
         {/* Narrative */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Field label="Trade thesis"><Textarea rows={3} value={t.thesis ?? ""} onChange={(e) => set("thesis", e.target.value || undefined)} placeholder="Why this trade, before entry." /></Field>
+          {(existing || t.type === "backtest") && (
+            <Field label="Trade thesis"><Textarea rows={3} value={t.thesis ?? ""} onChange={(e) => set("thesis", e.target.value || undefined)} placeholder="Why this trade, before entry." /></Field>
+          )}
           <Field label="Notes"><Textarea rows={3} value={t.notes ?? ""} onChange={(e) => set("notes", e.target.value || undefined)} placeholder="Execution notes." /></Field>
           <Field label="Lessons learned"><Textarea rows={3} value={t.lessons ?? ""} onChange={(e) => set("lessons", e.target.value || undefined)} placeholder="After review." /></Field>
         </div>
