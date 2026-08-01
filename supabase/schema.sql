@@ -47,7 +47,8 @@ create table if not exists public.day_reviews (
 
 create table if not exists public.profiles (
   user_id      uuid primary key references auth.users(id) on delete cascade,
-  custom_tags  text[] not null default '{}'
+  custom_tags  text[] not null default '{}',
+  profile      jsonb not null default '{}'::jsonb
 );
 
 -- indexes for per-user reads
@@ -115,3 +116,6 @@ create policy "screenshots_delete" on storage.objects
   );
 
 -- Done.
+
+-- Added later: profile column for existing installs (safe to re-run).
+alter table public.profiles add column if not exists profile jsonb not null default '{}'::jsonb;

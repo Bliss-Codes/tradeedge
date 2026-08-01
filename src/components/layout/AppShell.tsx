@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/stores/useApp";
 import { Modal } from "@/components/ui/primitives";
 import { fmtR } from "@/lib/metrics";
@@ -50,6 +50,86 @@ function Icon({ d }: { d: string }) {
   );
 }
 
+
+/** Sidebar profile: avatar, name, and plan chip. Click the avatar to change it. */
+function SidebarProfile() {
+  const profile = useApp((s) => s.profile);
+  const setProfile = useApp((s) => s.setProfile);
+  const user = useApp((s) => s.user);
+  const accounts = useApp((s) => s.accounts);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const name = profile?.displayName?.trim() || user?.email?.split("@")[0] || "Trader";
+  const funded = accounts.filter((a) => !a.archived && a.type === "Funded").length;
+  const chip = funded > 0 ? `${funded} funded` : "Free";
+
+  const pickAvatar = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 512 * 1024) return; // keep the snapshot small
+    const reader = new FileReader();
+    reader.onload = () => setProfile({ avatarDataUrl: String(reader.result) });
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="border-b border-edge px-5 pb-5">
+      <div className="flex flex-col items-center text-center">
+        <div className="relative">
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="group relative h-16 w-16 overflow-hidden rounded-full border border-edge bg-surface"
+            title="Change photo"
+          >
+            {profile?.avatarDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.avatarDataUrl} alt={name} className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-mute">
+                {name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <span className="absolute inset-0 hidden items-center justify-center bg-bg/70 text-[10px] text-ink group-hover:flex">
+              Change
+            </span>
+          </button>
+          <span className="absolute -right-2 -top-1 rounded-full bg-accent px-2 py-0.5 text-[9px] font-semibold text-bg">
+            {chip}
+          </span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => pickAvatar(e.target.files?.[0])}
+          />
+        </div>
+
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => { setProfile({ displayName: draft.trim() || undefined }); setEditing(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            className="mt-2.5 w-full rounded-lg border border-edge bg-surface px-2 py-1 text-center text-sm text-ink outline-none"
+          />
+        ) : (
+          <button
+            onClick={() => { setDraft(profile?.displayName ?? ""); setEditing(true); }}
+            className="mt-2.5 max-w-full truncate text-sm font-semibold text-ink hover:text-accent"
+            title="Rename"
+          >
+            {name}
+          </button>
+        )}
+        {user?.email && <div className="mt-0.5 max-w-full truncate text-[10px] text-mute">{user.email}</div>}
+      </div>
+    </div>
+  );
+}
+
 function Sidebar() {
   const pathname = usePathname();
   return (
@@ -62,7 +142,8 @@ function Sidebar() {
           <div className="text-[10px] uppercase tracking-widest text-mute">Journal &amp; Analytics</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+      <SidebarProfile />
+      <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4 pt-4">
         {NAV_GROUPS.map((group) => (
           <div key={group.heading}>
             <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-mute/70">{group.heading}</div>
@@ -74,7 +155,7 @@ function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                      active ? "bg-accent text-bg shadow-[0_4px_16px_-6px_rgb(var(--accent)/0.55)]" : "text-mute hover:bg-surface hover:text-ink"
+                      active ? "bg-accent text-bg shadow-[0_4px_16px_-6px_rgb(var(--accent)/0.55)]" : "text-ink hover:bg-surface"
                     }`}
                   >
                     <Icon d={item.icon} />
@@ -297,7 +378,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {NAV.map((n) => {
             const active = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
             return (
-              <Link key={n.href} href={n.href} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs ${active ? "bg-card text-ink" : "text-mute"}`}>
+              <Link key={n.href} href={n.href} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs ${active ? "bg-card text-ink" : "text-ink/70"}`}>
                 {n.label}
               </Link>
             );

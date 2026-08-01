@@ -557,3 +557,42 @@ export function setupCounts(trades: Trade[]): { executions: number; setups: numb
   for (const t of trades) { if (t.setupId) ids.add(t.setupId); else loose++; }
   return { executions: trades.length, setups: ids.size + loose };
 }
+
+
+export interface BreakevenMiss {
+  /** Losing trades that ran at least `threshold` R in profit first. */
+  count: number;
+  /** How many losers have MFE data at all (denominator for honesty). */
+  withData: number;
+  /** Average peak R reached by those trades before they turned. */
+  avgPeakR: number;
+  /** The best one that got away. */
+  maxPeakR: number;
+  /** R that would have been saved by moving to breakeven at the threshold. */
+  rSaved: number;
+}
+
+/**
+ * "Could have been breakeven": losing trades that first ran `threshold` R in
+ * profit. Each one is a full R lost that a breakeven stop would have saved —
+ * usually the cheapest available improvement in a trading system.
+ */
+export function breakevenMisses(trades: Trade[], threshold = 1): BreakevenMiss {
+  const losers = trades.filter((t) => t.pnl < 0);
+  const withData = losers.filter((t) => t.maxFavorableR !== undefined);
+  const missed = withData.filter((t) => (t.maxFavorableR as number) >= threshold);
+  const peaks = missed.map((t) => t.maxFavorableR as number);
+  return {
+    count: missed.length,
+    withData: withData.length,
+    avgPeakR: peaks.length ? peaks.reduce((a, b) => a + b, 0) / peaks.length : 0,
+    maxPeakR: peaks.length ? Math.max(...peaks) : 0,
+    rSaved: missed.reduce((s, t) => s + Math.abs(t.rr), 0),
+  };
+}
+
+/** Average planned RR across trades that have entry, stop and target set. */
+export function avgPlannedRR(trades: Trade[]): { avg: number; n: number } {
+  const vals = trades.map(plannedRR).filter((v): v is number => v !== undefined && v > 0);
+  return { avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0, n: vals.length };
+}

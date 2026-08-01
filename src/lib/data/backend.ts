@@ -1,6 +1,6 @@
 "use client";
 
-import { Account, DayReview, MissedTrade, Snapshot, Strategy, Trade, EMPTY_SNAPSHOT } from "@/lib/types";
+import { Account, DayReview, MissedTrade, Snapshot, Strategy, Trade, EMPTY_SNAPSHOT, Profile } from "@/lib/types";
 import { isSupabaseEnabled } from "@/lib/supabase/client";
 import { SupabaseBackend } from "@/lib/supabase/backend";
 
@@ -34,6 +34,7 @@ export interface Backend {
   deleteReview(id: string): Promise<void>;
 
   setCustomTags(tags: string[]): Promise<void>;
+  setProfile(profile: Profile): Promise<void>;
 
   replaceAll(snapshot: Snapshot): Promise<void>; // sample load / backup restore
   clearAll(): Promise<void>;
@@ -136,6 +137,11 @@ class LocalBackend implements Backend {
   async setCustomTags(tags: string[]) {
     this.mutate((s) => {
       s.customTags = tags;
+    });
+  }
+  async setProfile(profile: Profile) {
+    this.mutate((s) => {
+      s.profile = profile;
     });
   }
   async replaceAll(snapshot: Snapshot) {

@@ -20,6 +20,8 @@ import {
   statsByHour,
   distribution,
   winLossSummary,
+  avgPlannedRR,
+  breakevenMisses,
   monthlyPerformance,
   signColor,
 } from "@/lib/metrics";
@@ -331,12 +333,14 @@ function MiniMetric({
   rightLabel,
   rightValue,
   series,
+  note,
 }: {
   label: string;
   value: string;
   rightLabel: string;
   rightValue: string;
   series: number[];
+  note?: string;
 }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-edge bg-card pt-4">
@@ -350,12 +354,13 @@ function MiniMetric({
           <div className="mt-1 font-mono text-sm text-sub">{rightValue}</div>
         </div>
       </div>
+      {note && <div className="mt-2 px-4 text-[11px] leading-snug text-mute">{note}</div>}
       {series.length > 1 && (
         <div className="mt-2">
           <MiniArea values={series} />
         </div>
       )}
-      {series.length <= 1 && <div className="h-6" />}
+      {series.length <= 1 && <div className="h-4" />}
     </div>
   );
 }
@@ -373,6 +378,33 @@ function MiniArea({ values, height = 46 }: { values: number[]; height?: number }
     <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" className="block w-full" style={{ height }}>
       <polygon points={area} fill="rgb(var(--accent) / 0.12)" />
       <polyline points={line} fill="none" stroke="rgb(var(--accent))" strokeWidth={1.75} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+
+/** Profit-factor ring. Fills proportionally up to 3.0 so the arc means something
+ *  (the reference's version was an empty circle showing nothing). */
+function PFRing({ value, size = 74 }: { value: number; size?: number }) {
+  const R = (size - 9) / 2;
+  const C = 2 * Math.PI * R;
+  const frac = Math.max(0, Math.min(1, (Number.isFinite(value) ? value : 3) / 3));
+  const color = value >= 1.5 ? "rgb(var(--pos))" : value >= 1 ? "rgb(var(--warn))" : "rgb(var(--neg))";
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label="profit factor">
+      <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="rgb(var(--surface))" strokeWidth={7} />
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={R}
+          fill="none"
+          stroke={color}
+          strokeWidth={7}
+          strokeLinecap="round"
+          strokeDasharray={`${frac * C} ${C}`}
+        />
+      </g>
     </svg>
   );
 }
@@ -419,7 +451,9 @@ export default function AnalyticsPage() {
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   /** Running series + averages powering the RR strip. */
-  const { rrSeries, winSeries, avgWinR, avgLossR, beWinRate } = useMemo(() => {
+  const planned = useMemo(() => avgPlannedRR(trades), [trades]);
+  const beMiss = useMemo(() => breakevenMisses(trades), [trades]);
+  const { rrSeries, winSeries, avgWinR, avgLossR } = useMemo(() => {
     const ordered = [...trades].sort((a, b) => a.date.localeCompare(b.date));
     const rrSeries: number[] = [];
     let sum = 0;
@@ -430,11 +464,28 @@ export default function AnalyticsPage() {
     const avgLossR = losses.length ? losses.reduce((a, t) => a + Math.abs(t.rr), 0) / losses.length : 1;
     let ws = 0;
     const winSeries = wins.map((t, i) => { ws += Math.abs(t.rr); return ws / (i + 1); });
-    const beWinRate = avgWinR > 0 ? (1 / (1 + avgWinR / avgLossR)) * 100 : 50;
-    return { rrSeries, winSeries, avgWinR, avgLossR, beWinRate };
+    return { rrSeries, winSeries, avgWinR, avgLossR };
   }, [trades]);
   const curve = useMemo(() => equityCurve(trades, curveMode === "R" ? "rr" : "pnl"), [trades, curveMode]);
   const wl = useMemo(() => winLossSummary(trades), [trades]);
+  const expectancyMoney = useMemo(
+    () => (trades.length ? trades.reduce((a, t) => a + t.pnl, 0) / trades.length : 0),
+    [trades]
+  );
+  const grossSplit = useMemo(() => {
+    const total = wl.grossWinPnl - wl.grossLossPnl;
+    return total > 0 ? (wl.grossWinPnl / total) * 100 : 50;
+  }, [wl]);
+  /** Long/short counts and win rates, shared by the by-side visuals. */
+  const sideSplit = useMemo(() => {
+    const wr = (list: typeof trades) => {
+      const decided = list.filter((t) => t.pnl !== 0);
+      return decided.length ? (decided.filter((t) => t.pnl > 0).length / decided.length) * 100 : 0;
+    };
+    const longs = trades.filter((t) => t.direction === "long");
+    const shorts = trades.filter((t) => t.direction === "short");
+    return { longN: longs.length, shortN: shorts.length, longWR: wr(longs), shortWR: wr(shorts) };
+  }, [trades]);
   const winMoney = useMemo(() => trades.filter((t) => t.pnl > 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const lossMoney = useMemo(() => trades.filter((t) => t.pnl < 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const startingBalance = useMemo(() => {
@@ -611,9 +662,80 @@ export default function AnalyticsPage() {
 
           {/* RR analytics strip — mirrors the inspiration's compact metric row. */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <MiniMetric label="Average RR" value={stats.avgRR.toFixed(2)} rightLabel="Best" rightValue={stats.largestWin.toFixed(2)} series={rrSeries} />
-            <MiniMetric label="Avg winner" value={`${avgWinR.toFixed(2)}R`} rightLabel="Avg loser" rightValue={`${avgLossR.toFixed(2)}R`} series={winSeries} />
-            <MiniMetric label="Breakeven win rate" value={`${beWinRate.toFixed(0)}%`} rightLabel="Actual" rightValue={fmtPct(stats.winRate)} series={[]} />
+            <MiniMetric
+              label="Avg planned RR"
+              value={planned.n ? planned.avg.toFixed(2) : "—"}
+              rightLabel="Realized"
+              rightValue={`${stats.avgRR.toFixed(2)}R`}
+              series={rrSeries}
+              note={planned.n ? `${planned.n} trades with a target set` : "Set entry, stop and target to track this"}
+            />
+            <MiniMetric
+              label="Avg winner"
+              value={`${avgWinR.toFixed(2)}R`}
+              rightLabel="Avg loser"
+              rightValue={`${avgLossR.toFixed(2)}R`}
+              series={winSeries}
+              note={`best ${stats.largestWin.toFixed(2)}R`}
+            />
+            <MiniMetric
+              label="Could have been BE"
+              value={beMiss.withData ? String(beMiss.count) : "—"}
+              rightLabel="Peak reached"
+              rightValue={beMiss.count ? `${beMiss.maxPeakR.toFixed(2)}R` : "—"}
+              series={[]}
+              note={
+                beMiss.withData === 0
+                  ? "Log peak R on losing trades to track this"
+                  : beMiss.count
+                  ? `${beMiss.rSaved.toFixed(1)}R lost that a BE stop would have saved · avg peak ${beMiss.avgPeakR.toFixed(2)}R`
+                  : "No loser ran 1R in profit first — stops are placed well"
+              }
+            />
+          </div>
+
+          {/* Expectancy & profit factor — sits directly under the RR strip so the
+              headline edge numbers stay together. */}
+          <div>
+            <SectionTitle>Expectancy &amp; profit factor</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Card>
+                <div className="flex items-center justify-between gap-5">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-mute">Expectancy</div>
+                    <div className={`mt-1 font-mono text-2xl font-semibold ${signColor(expectancyMoney)}`}>
+                      {fmtMoney(expectancyMoney, currency)}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-mute">per trade · {stats.avgRR.toFixed(2)}R</div>
+                  </div>
+                  <div className="w-1/2 shrink-0">
+                    <div className="flex h-2.5 overflow-hidden rounded-full bg-surface">
+                      <div className="h-full rounded-l-full" style={{ width: `${grossSplit}%`, background: "linear-gradient(90deg, rgb(var(--pos)/0.6), rgb(var(--pos)))" }} />
+                      <div className="h-full rounded-r-full bg-neg" style={{ width: `${100 - grossSplit}%` }} />
+                    </div>
+                    <div className="mt-1.5 flex justify-between font-mono text-[11px]">
+                      <span className="text-pos">{fmtMoney(wl.grossWinPnl, currency)}</span>
+                      <span className="text-neg">{fmtMoney(wl.grossLossPnl, currency)}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card>
+                <div className="flex items-center justify-between gap-5">
+                  <div>
+                    <div className="text-[11px] text-mute">Profit factor</div>
+                    <div className={`mt-1 font-mono text-2xl font-semibold ${stats.profitFactor >= 1.5 ? "text-pos" : stats.profitFactor >= 1 ? "text-warn" : "text-neg"}`}>
+                      {fmtPF(stats.profitFactor)}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-mute">
+                      {stats.profitFactor >= 2 ? "strong" : stats.profitFactor >= 1.5 ? "good" : stats.profitFactor >= 1 ? "marginal" : "losing"} · target 1.5+
+                    </div>
+                  </div>
+                  <PFRing value={stats.profitFactor} />
+                </div>
+              </Card>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -623,26 +745,37 @@ export default function AnalyticsPage() {
 
           <EdgeCheck trades={rawVisible} />
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <SectionTitle>Long vs short</SectionTitle>
-              <RingCompare
-                rings={[
-                  {
-                    label: "Long win rate",
-                    value: (() => { const l = visible.filter((t) => t.direction === "long"); const d = l.filter((t) => t.pnl !== 0); return d.length ? (d.filter((t) => t.pnl > 0).length / d.length) * 100 : 0; })(),
-                    max: 100,
-                    color: "rgb(var(--pos))",
-                  },
-                  {
-                    label: "Short win rate",
-                    value: (() => { const l = visible.filter((t) => t.direction === "short"); const d = l.filter((t) => t.pnl !== 0); return d.length ? (d.filter((t) => t.pnl > 0).length / d.length) * 100 : 0; })(),
-                    max: 100,
-                    color: "rgb(var(--accent))",
-                  },
-                ]}
-                center={`${visible.filter((t) => t.direction === "long").length}L / ${visible.filter((t) => t.direction === "short").length}S`}
-              />
+          <div>
+            <SectionTitle>Performance by side</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Card>
+                <div className="mb-3 text-sm font-medium text-sub">Trade split</div>
+                <Donut
+                  slices={[
+                    { label: "Long", value: sideSplit.longN, color: "rgb(var(--pos))" },
+                    { label: "Short", value: sideSplit.shortN, color: "rgb(var(--accent))" },
+                  ]}
+                  center={{ value: String(sideSplit.longN + sideSplit.shortN), label: "trades" }}
+                />
+              </Card>
+              <Card>
+                <div className="mb-3 text-sm font-medium text-sub">Win rate by side</div>
+                <RingCompare
+                  rings={[
+                    { label: "Long", value: sideSplit.longWR, max: 100, color: "rgb(var(--pos))" },
+                    { label: "Short", value: sideSplit.shortWR, max: 100, color: "rgb(var(--accent))" },
+                  ]}
+                  center={`${sideSplit.longN}L / ${sideSplit.shortN}S`}
+                />
+                <p className="mt-3 text-[11px] text-mute">
+                  {Math.abs(sideSplit.longWR - sideSplit.shortWR) >= 15 && sideSplit.longN >= 3 && sideSplit.shortN >= 3
+                    ? `${sideSplit.longWR > sideSplit.shortWR ? "Longs" : "Shorts"} are winning materially more — worth checking whether the weaker side is worth trading at all.`
+                    : "Both sides performing comparably."}
+                </p>
+              </Card>
+            </div>
+            <Card className="mt-4">
+              <GroupTable rows={bySide} keyLabel="Side" currency={currency} />
             </Card>
           </div>
 
@@ -655,29 +788,6 @@ export default function AnalyticsPage() {
           </Card>
 
           <DisciplineTrend />
-
-          {/* Expectancy & profit factor + winners/losers */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card>
-              <SectionTitle>Expectancy & profit factor</SectionTitle>
-              <div className="flex items-baseline gap-3">
-                <span className={`font-mono text-2xl font-semibold ${signColor(stats.avgRR)}`}>{fmtMoney(wl.avgWinPnl * (stats.winRate / 100) + wl.avgLossPnl * (1 - stats.winRate / 100), currency)}</span>
-                <span className="text-xs text-mute">expectancy / trade · PF {fmtPF(stats.profitFactor)}</span>
-              </div>
-              <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-surface">
-                <div className="h-full bg-pos" style={{ width: `${(wl.grossWinPnl / (wl.grossWinPnl - wl.grossLossPnl || 1)) * 100}%` }} />
-                <div className="h-full bg-neg" style={{ width: `${(-wl.grossLossPnl / (wl.grossWinPnl - wl.grossLossPnl || 1)) * 100}%` }} />
-              </div>
-              <div className="mt-1.5 flex justify-between font-mono text-xs">
-                <span className="text-pos">{fmtMoney(wl.grossWinPnl, currency)}</span>
-                <span className="text-neg">{fmtMoney(wl.grossLossPnl, currency)}</span>
-              </div>
-            </Card>
-            <Card>
-              <SectionTitle>Performance by side</SectionTitle>
-              <GroupTable rows={bySide} keyLabel="Side" currency={currency} />
-            </Card>
-          </div>
 
           <Card>
             <SectionTitle>Performance by month</SectionTitle>

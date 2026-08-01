@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { Account, MissedTrade, Snapshot, Strategy, Trade, DayReview, EMPTY_SNAPSHOT, DEFAULT_TAGS } from "@/lib/types";
+import { Account, MissedTrade, Snapshot, Strategy, Trade, DayReview, EMPTY_SNAPSHOT, DEFAULT_TAGS, Profile } from "@/lib/types";
 import { backend } from "@/lib/data/backend";
 import { buildSampleData } from "@/lib/data/sample";
 import { supabase, isSupabaseEnabled } from "@/lib/supabase/client";
@@ -55,6 +55,7 @@ interface AppState extends Snapshot {
   deleteReview: (id: string) => void;
 
   addCustomTag: (tag: string) => void;
+  setProfile: (patch: Partial<Profile>) => void;
 
   loadSampleData: () => void;
   restoreBackup: (s: Snapshot) => void;
@@ -221,6 +222,12 @@ export const useApp = create<AppState>((set, get) => ({
   deleteReview: (id) => {
     set((s) => ({ reviews: s.reviews.filter((x) => x.id !== id) }));
     reportSync(backend.deleteReview(id));
+  },
+
+  setProfile: (patch) => {
+    const next = { ...(get().profile ?? {}), ...patch };
+    set({ profile: next });
+    reportSync(backend.setProfile(next));
   },
 
   addCustomTag: (tag) => {

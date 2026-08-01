@@ -489,6 +489,13 @@ export function TradeModal({
           <Field label="Stop loss"><NumberInput value={t.stopLoss} onChange={(v) => setPrice("stopLoss", v)} /></Field>
           <Field label="Take profit"><NumberInput value={t.takeProfit} onChange={(v) => setPrice("takeProfit", v)} /></Field>
           <Field label="Exit"><NumberInput value={t.exit} onChange={(v) => setPrice("exit", v)} /></Field>
+          <Field label="Peak R reached">
+            <NumberInput
+              value={t.maxFavorableR}
+              onChange={(v) => set("maxFavorableR", v)}
+              placeholder="how far it ran in profit"
+            />
+          </Field>
           <Field label="Risk %"><NumberInput value={t.riskPercent} onChange={setRiskPercent} /></Field>
           <Field label="Risk amount ($)"><NumberInput value={t.riskAmount} onChange={setRiskAmount} /></Field>
           <Field label="Lot size"><NumberInput value={t.lotSize} onChange={(v) => set("lotSize", v)} /></Field>

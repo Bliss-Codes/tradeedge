@@ -1,6 +1,6 @@
 "use client";
 
-import { Account, DayReview, MissedTrade, Snapshot, Strategy, Trade, EMPTY_SNAPSHOT } from "@/lib/types";
+import { Account, DayReview, MissedTrade, Snapshot, Strategy, Trade, EMPTY_SNAPSHOT, Profile } from "@/lib/types";
 import { supabase, SCREENSHOT_BUCKET } from "@/lib/supabase/client";
 import type { Backend } from "@/lib/data/backend";
 
@@ -39,7 +39,7 @@ export class SupabaseBackend implements Backend {
       sb.from(TABLES.strategy).select("data"),
       sb.from(TABLES.missed).select("data"),
       sb.from(TABLES.review).select("data"),
-      sb.from("profiles").select("custom_tags").maybeSingle(),
+      sb.from("profiles").select("custom_tags, profile").maybeSingle(),
     ]);
     const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) => (r.data ?? []).map((x) => x.data);
     return {
@@ -49,6 +49,7 @@ export class SupabaseBackend implements Backend {
       missed: rows<MissedTrade>(missed),
       reviews: rows<DayReview>(reviews),
       customTags: (profile.data?.custom_tags as string[] | undefined) ?? [],
+      profile: (profile.data?.profile as Profile | undefined) ?? {},
     };
   }
 
@@ -89,6 +90,12 @@ export class SupabaseBackend implements Backend {
   async setCustomTags(tags: string[]) {
     const uid = await userId();
     const { error } = await db().from("profiles").upsert({ user_id: uid, custom_tags: tags });
+    if (error) throw error;
+  }
+
+  async setProfile(profile: Profile) {
+    const uid = await userId();
+    const { error } = await db().from("profiles").upsert({ user_id: uid, profile });
     if (error) throw error;
   }
 

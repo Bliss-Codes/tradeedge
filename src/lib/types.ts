@@ -170,6 +170,12 @@ export interface Trade {
   date: string; // ISO datetime — the exact entry timestamp
   entry?: number;
   exit?: number;
+  /**
+   * Max favourable excursion, in R — how far the trade ran in your favour
+   * before it closed. Needed to answer "could I have moved this to breakeven?"
+   * Comes free from MT5 sync; entered manually otherwise.
+   */
+  maxFavorableR?: number;
   stopLoss?: number;
   takeProfit?: number;
   riskPercent?: number;
@@ -251,7 +257,16 @@ export interface DayReview {
 }
 
 /** Everything the app persists, in one snapshot. */
+/** Lightweight user profile shown in the sidebar. Avatar is a data URL so it
+ *  rides along with the existing snapshot sync — no storage bucket needed. */
+export interface Profile {
+  displayName?: string;
+  avatarDataUrl?: string;
+  tagline?: string;
+}
+
 export interface Snapshot {
+  profile?: Profile;
   accounts: Account[];
   trades: Trade[];
   strategies: Strategy[];
@@ -261,6 +276,7 @@ export interface Snapshot {
 }
 
 export const EMPTY_SNAPSHOT: Snapshot = {
+  profile: {},
   accounts: [],
   trades: [],
   strategies: [],
