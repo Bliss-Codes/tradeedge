@@ -738,6 +738,36 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
+          {/* Winners vs losers */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Card className="border-pos/40 bg-pos/[0.03]">
+              <SectionTitle action={<span className="font-mono text-sm text-pos">{fmtMoney(winMoney, currency)}</span>}>Winners</SectionTitle>
+              <WLList
+                rows={[
+                  ["Total winners", String(wl.winners)],
+                  ["Best win", fmtR(wl.bestWinR)],
+                  ["Average win", `${wl.avgWinR.toFixed(2)}R`],
+                  ["Avg win P&L", fmtMoney(wl.avgWinPnl, currency)],
+                  ["Max consecutive wins", String(wl.maxConsecutiveWins)],
+                  ["Avg consecutive wins", wl.avgConsecutiveWins.toFixed(2)],
+                ]}
+              />
+            </Card>
+            <Card className="border-neg/40 bg-neg/[0.03]">
+              <SectionTitle action={<span className="font-mono text-sm text-neg">{fmtMoney(lossMoney, currency)}</span>}>Losers</SectionTitle>
+              <WLList
+                rows={[
+                  ["Total losers", String(wl.losers)],
+                  ["Worst loss", fmtR(wl.worstLossR)],
+                  ["Average loss", `${wl.avgLossR.toFixed(2)}R`],
+                  ["Avg loss P&L", fmtMoney(wl.avgLossPnl, currency)],
+                  ["Max consecutive losses", String(wl.maxConsecutiveLosses)],
+                  ["Avg consecutive losses", wl.avgConsecutiveLosses.toFixed(2)],
+                ]}
+              />
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <KpiScorecard />
             <DisciplineScatter />
@@ -804,36 +834,6 @@ export default function AnalyticsPage() {
             </div>
             <p className="mt-3 text-[11px] text-mute">Sessions set from each trade&apos;s time (UTC = your Accra local time). Full breakdown in the Sessions tab.</p>
           </Card>
-
-          {/* Winners vs losers */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card className="border-pos/40 bg-pos/[0.03]">
-              <SectionTitle action={<span className="font-mono text-sm text-pos">{fmtMoney(winMoney, currency)}</span>}>Winners</SectionTitle>
-              <WLList
-                rows={[
-                  ["Total winners", String(wl.winners)],
-                  ["Best win", fmtR(wl.bestWinR)],
-                  ["Average win", `${wl.avgWinR.toFixed(2)}R`],
-                  ["Avg win P&L", fmtMoney(wl.avgWinPnl, currency)],
-                  ["Max consecutive wins", String(wl.maxConsecutiveWins)],
-                  ["Avg consecutive wins", wl.avgConsecutiveWins.toFixed(2)],
-                ]}
-              />
-            </Card>
-            <Card className="border-neg/40 bg-neg/[0.03]">
-              <SectionTitle action={<span className="font-mono text-sm text-neg">{fmtMoney(lossMoney, currency)}</span>}>Losers</SectionTitle>
-              <WLList
-                rows={[
-                  ["Total losers", String(wl.losers)],
-                  ["Worst loss", fmtR(wl.worstLossR)],
-                  ["Average loss", `${wl.avgLossR.toFixed(2)}R`],
-                  ["Avg loss P&L", fmtMoney(wl.avgLossPnl, currency)],
-                  ["Max consecutive losses", String(wl.maxConsecutiveLosses)],
-                  ["Avg consecutive losses", wl.avgConsecutiveLosses.toFixed(2)],
-                ]}
-              />
-            </Card>
-          </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card>
