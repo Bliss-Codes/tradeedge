@@ -205,7 +205,7 @@ function KpiScorecard() {
   return (
     <Card>
       <SectionTitle action={<span className="text-xs text-mute">vs prop sweet spot</span>}>KPI scorecard</SectionTitle>
-      <div className="mx-auto max-w-sm">
+      <div className="mx-auto max-w-md">
         <KpiRadar axes={axes} />
       </div>
       <p className="mt-2 text-[11px] text-mute">
@@ -310,14 +310,14 @@ function HeadStat({
 }) {
   return (
     <div>
-      <div className="text-[11px] text-mute">{label}</div>
-      <div className="mt-0.5 flex items-baseline gap-1.5">
-        <span className={`font-mono text-xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>
+      <div className="text-xs text-mute">{label}</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className={`font-mono text-2xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>
           {value}
-          {sup && <span className="ml-1 align-super text-[10px] font-normal text-mute">{sup}</span>}
+          {sup && <span className="ml-1 align-super text-[11px] font-normal text-mute">{sup}</span>}
         </span>
         {delta !== undefined && Number.isFinite(delta) && (
-          <span className={`text-[11px] ${delta >= 0 ? "text-pos" : "text-neg"}`}>
+          <span className={`text-xs ${delta >= 0 ? "text-pos" : "text-neg"}`}>
             {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(2)}%
           </span>
         )}
@@ -650,8 +650,8 @@ export default function AnalyticsPage() {
                 boxes, and the numbers sit next to the shape that produced them. */}
             {/* Only headline account figures live here — profit factor,
                 expectancy and RR each have their own card below. */}
-            <div className="mb-5 grid grid-cols-2 gap-y-4 border-b border-edge/60 pb-5 sm:grid-cols-5">
-              <HeadStat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} delta={pctChange} />
+            <div className="mb-5 grid grid-cols-2 justify-items-start gap-x-4 gap-y-5 border-b border-edge/60 pb-5 sm:grid-cols-5">
+              <HeadStat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} delta={pctChange} />
               <HeadStat label="Account balance" value={balance !== undefined ? fmtMoney(balance, currency) : "—"} delta={pctChange} />
               <HeadStat label="Win rate" value={fmtPct(stats.winRate)} />
               <HeadStat label="Total trades" value={String(stats.total)} sup={`${stats.wins}/${stats.losses}`} />

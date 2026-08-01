@@ -20,9 +20,15 @@ export interface KpiAxis {
 }
 
 export function KpiRadar({ axes, size = 300 }: { axes: KpiAxis[]; size?: number }) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const R = size * 0.33;
+  // The canvas is wider than tall: axis labels sit outside the circle and the
+  // left/right ones need room for their full text, which a square viewBox clips.
+  const PAD_X = 82;
+  const PAD_Y = 30;
+  const W = size + PAD_X * 2;
+  const H = size + PAD_Y * 2;
+  const cx = W / 2;
+  const cy = H / 2;
+  const R = size * 0.32;
 
   const pts = useMemo(() => {
     const n = axes.length;
@@ -39,8 +45,8 @@ export function KpiRadar({ axes, size = 300 }: { axes: KpiAxis[]; size?: number 
         y: cy + Math.sin(angle) * R * norm,
         tx: cx + Math.cos(angle) * R * targetNorm,
         ty: cy + Math.sin(angle) * R * targetNorm,
-        lx: cx + Math.cos(angle) * (R + 26),
-        ly: cy + Math.sin(angle) * (R + 26),
+        lx: cx + Math.cos(angle) * (R + 22),
+        ly: cy + Math.sin(angle) * (R + 22),
         hit: a.value >= a.target,
       };
     });
@@ -52,7 +58,7 @@ export function KpiRadar({ axes, size = 300 }: { axes: KpiAxis[]; size?: number 
 
   return (
     <div>
-      <svg viewBox={`0 0 ${size} ${size}`} className="w-full" role="img" aria-label="KPI scorecard against targets">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="KPI scorecard against targets">
         {/* rings */}
         {[0.25, 0.5, 0.75, 1].map((r) => (
           <circle key={r} cx={cx} cy={cy} r={R * r} fill="none" stroke="rgb(var(--edge))" strokeWidth={0.5} />
@@ -74,7 +80,9 @@ export function KpiRadar({ axes, size = 300 }: { axes: KpiAxis[]; size?: number 
 
         {/* labels */}
         {pts.map((p) => {
-          const anchor = Math.abs(p.lx - cx) < 12 ? "middle" : p.lx > cx ? "start" : "end";
+          // Vertical-ish axes centre their text; side axes read outward so the
+          // longest labels grow into the padding instead of off the canvas.
+          const anchor = Math.abs(p.lx - cx) < 20 ? "middle" : p.lx > cx ? "start" : "end";
           return (
             <g key={p.key}>
               <text x={p.lx} y={p.ly - 3} fontSize={9} fill="rgb(var(--mute))" textAnchor={anchor}>

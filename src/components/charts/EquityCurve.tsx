@@ -20,6 +20,58 @@ function niceTicks(min: number, max: number, count = 4) {
   return { ticks, niceMin, niceMax };
 }
 
+
+/**
+ * Monotone cubic spline through the points.
+ *
+ * Deliberately monotone rather than a plain cardinal/Catmull-Rom curve: a
+ * standard spline overshoots between points, which on an equity curve would
+ * draw peaks and dips the account never actually reached. Monotone smoothing
+ * keeps every local extreme at a real data point, so the curve is prettier
+ * without ever lying about the numbers.
+ */
+function smoothPath(coords: [number, number][]): string {
+  const n = coords.length;
+  if (n === 0) return "";
+  if (n < 3) return coords.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+
+  // secant slopes
+  const dx: number[] = [];
+  const dy: number[] = [];
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const h = coords[i + 1][0] - coords[i][0];
+    const d = coords[i + 1][1] - coords[i][1];
+    dx.push(h);
+    dy.push(d);
+    slope.push(h === 0 ? 0 : d / h);
+  }
+
+  // tangents (Fritsch–Carlson)
+  const m: number[] = new Array(n).fill(0);
+  m[0] = slope[0];
+  m[n - 1] = slope[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (slope[i - 1] * slope[i] <= 0) m[i] = 0;
+    else {
+      const w1 = 2 * dx[i] + dx[i - 1];
+      const w2 = dx[i] + 2 * dx[i - 1];
+      m[i] = (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i]);
+    }
+  }
+
+  let d = `M${coords[0][0].toFixed(1)},${coords[0][1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i];
+    const c1x = coords[i][0] + h / 3;
+    const c1y = coords[i][1] + (m[i] * h) / 3;
+    const c2x = coords[i + 1][0] - h / 3;
+    const c2y = coords[i + 1][1] - (m[i + 1] * h) / 3;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${coords[i + 1][0].toFixed(1)},${coords[i + 1][1].toFixed(1)}`;
+  }
+  return d;
+}
+
 export function EquityCurve({ points, height = 280, mode = "R", currency = "USD" }: { points: EquityPoint[]; height?: number; mode?: "R" | "money"; currency?: string }) {
   const fmt = mode === "money" ? (v: number) => fmtMoney(v, currency) : fmtR;
   const gid = useId();
@@ -40,7 +92,7 @@ export function EquityCurve({ points, height = 280, mode = "R", currency = "USD"
     const x = (i: number) => (i / Math.max(n - 1, 1)) * W;
     const y = (v: number) => PAD_T + (1 - (v - niceMin) / span) * (H - PAD_T - PAD_B);
     const coords = values.map((v, i) => [x(i), y(v)] as [number, number]);
-    const path = coords.map(([cx, cy], i) => `${i === 0 ? "M" : "L"}${cx.toFixed(1)},${cy.toFixed(1)}`).join(" ");
+    const path = smoothPath(coords as [number, number][]);
     const area = `${path} L${W},${H - PAD_B} L0,${H - PAD_B} Z`;
     const zeroY = niceMin <= 0 && niceMax >= 0 ? y(0) : null;
     // x labels: sample ~6 dates (skip the synthetic start point at index 0)
