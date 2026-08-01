@@ -5,6 +5,7 @@ import { useApp, useVisibleTrades } from "@/stores/useApp";
 import { Trade } from "@/lib/types";
 import { isoWeekKey } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Tabs } from "@/components/ui/primitives";
+import { Gauge, Donut } from "@/components/charts/Primitives";
 
 /**
  * The anti-ledger view. Everything else in the app shows outcomes (P&L, R).
@@ -87,13 +88,19 @@ export default function DecisionsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
               <div className="text-xs font-medium uppercase tracking-wider text-mute">Adherence</div>
-              <div className={`mt-2 font-mono text-3xl font-semibold ${adherenceRate >= 90 ? "text-pos" : adherenceRate >= 70 ? "text-warn" : "text-neg"}`}>
-                {adherenceRate}%
+              <div className="mt-1 flex justify-center">
+                <Gauge value={adherenceRate} target={90} label="target 90%" />
               </div>
-              <div className="mt-1 text-xs text-mute">
-                {counts.clean} followed · {counts.loose} slipped · {counts.broken} broke
-              </div>
-              <p className="mt-2 text-[11px] text-mute">Target 90%+. This is your real scorecard — a disciplined loss still counts as followed.</p>
+              <Donut
+                size={92}
+                thickness={12}
+                slices={[
+                  { label: "Followed plan", value: counts.clean, color: "rgb(var(--pos))" },
+                  { label: "Slipped", value: counts.loose, color: "rgb(var(--warn))" },
+                  { label: "Broke plan", value: counts.broken, color: "rgb(var(--neg))" },
+                ]}
+              />
+              <p className="mt-3 text-[11px] text-mute">A disciplined loss still counts as followed.</p>
             </Card>
 
             <Card className="sm:col-span-2">

@@ -6,6 +6,7 @@ import { statsByGroup, computeStats, fmtR, fmtMoney, fmtPct, signColor } from "@
 import { Card, EmptyState, SectionTitle, Stat, Tabs } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { BarRow } from "@/components/charts/EquityCurve";
+import { DivergingBars, Donut, DivergingRow } from "@/components/charts/Primitives";
 
 export default function PsychologyPage() {
   const trades = useVisibleTrades();
@@ -35,6 +36,37 @@ export default function PsychologyPage() {
       <p className="max-w-2xl text-sm text-mute">
         Every trade can carry an emotion before entry and after exit. Over time this shows which mental states make you money — and which ones quietly bleed you.
       </p>
+
+      {tagged.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <SectionTitle>Calm vs reactive</SectionTitle>
+            <DivergingBars
+              rows={[
+                { label: "Calm states", value: disciplined.netPnl, sub: `${disciplined.total} trades` },
+                { label: "Reactive states", value: reactive.netPnl, sub: `${reactive.total} trades` },
+              ]}
+              format={(v) => fmtMoney(v, currency)}
+            />
+            <p className="mt-3 text-[11px] text-mute">
+              {reactive.netPnl < 0 && disciplined.netPnl > 0
+                ? "Your calm trades pay for your reactive ones. Removing the reactive column is a pay rise."
+                : "Log emotion on entry to see which mental states actually make you money."}
+            </p>
+          </Card>
+          <Card>
+            <SectionTitle>State mix</SectionTitle>
+            <Donut
+              slices={[
+                { label: "Calm (Neutral / Focused)", value: disciplined.total, color: "rgb(var(--pos))" },
+                { label: "Reactive (Fear / FOMO / Revenge)", value: reactive.total, color: "rgb(var(--neg))" },
+                { label: "Not logged", value: Math.max(0, trades.length - tagged.length), color: "rgb(var(--surface))" },
+              ]}
+              center={{ value: `${Math.round((disciplined.total / Math.max(1, disciplined.total + reactive.total)) * 100)}%`, label: "calm" }}
+            />
+          </Card>
+        </div>
+      )}
 
       {tagged.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

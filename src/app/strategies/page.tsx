@@ -5,6 +5,7 @@ import { useApp, useVisibleTrades, uid, useDisplayCurrency } from "@/stores/useA
 import { Strategy, CustomFieldDef, FieldType } from "@/lib/types";
 import { computeStats, fmtPF, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, EmptyState, Field, Input, Modal, Select, TagChip, Textarea } from "@/components/ui/primitives";
+import { Sparkline } from "@/components/charts/Primitives";
 import { useAllTags } from "@/stores/useApp";
 import { STRATEGY_TEMPLATES } from "@/lib/data/templates";
 
@@ -156,6 +157,22 @@ export default function StrategiesPage() {
     return map;
   }, [strategies, trades]);
 
+  /** Cumulative R per strategy, oldest→newest, for the inline sparklines. */
+  const curveFor = useMemo(() => {
+    const map = new Map<string, number[]>();
+    strategies.forEach((s) => {
+      const list = trades
+        .filter((t) => t.strategyId === s.id)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      let run = 0;
+      map.set(
+        s.id,
+        list.map((t) => (run += t.rr))
+      );
+    });
+    return map;
+  }, [strategies, trades]);
+
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
@@ -176,7 +193,12 @@ export default function StrategiesPage() {
                     <div className="text-base font-semibold text-ink">{s.name}</div>
                     {s.description && <p className="mt-1 text-sm text-mute">{s.description}</p>}
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-2">
+                    {(curveFor.get(s.id)?.length ?? 0) > 1 && (
+                      <div className="mr-1" title="cumulative R over time">
+                        <Sparkline values={curveFor.get(s.id) as number[]} />
+                      </div>
+                    )}
                     <Button variant="subtle" onClick={() => setEditing(s)}>Edit</Button>
                     <Button variant="subtle" onClick={() => deleteStrategy(s.id)}><span className="text-neg">Delete</span></Button>
                   </div>

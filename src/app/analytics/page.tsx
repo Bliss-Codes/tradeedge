@@ -28,6 +28,8 @@ import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components
 import { GroupTable } from "@/components/ui/GroupTable";
 import { EdgeCheck } from "@/components/analytics/EdgeCheck";
 import { KpiRadar, KpiAxis } from "@/components/charts/KpiRadar";
+import { RHistogram, Donut } from "@/components/charts/Primitives";
+import { WinnersLosers, ExpectancyBar, RingCompare } from "@/components/charts/WinnersLosers";
 import { DisciplineQuadrant, QuadrantPoint } from "@/components/charts/DisciplineQuadrant";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
 import { SessionRadar } from "@/components/charts/SessionRadar";
@@ -464,6 +466,49 @@ export default function AnalyticsPage() {
             <KpiScorecard />
             <DisciplineScatter />
           </div>
+
+          <div>
+            <SectionTitle>Winners and losers</SectionTitle>
+            <WinnersLosers trades={visible} currency={currency} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <SectionTitle>Expectancy breakdown</SectionTitle>
+              <ExpectancyBar trades={visible} currency={currency} />
+              <p className="mt-3 text-[11px] text-mute">
+                Green pull is what winners contribute, red is what losers take. A thin red band means your losses are controlled.
+              </p>
+            </Card>
+            <Card>
+              <SectionTitle>Long vs short</SectionTitle>
+              <RingCompare
+                rings={[
+                  {
+                    label: "Long win rate",
+                    value: (() => { const l = visible.filter((t) => t.direction === "long"); const d = l.filter((t) => t.pnl !== 0); return d.length ? (d.filter((t) => t.pnl > 0).length / d.length) * 100 : 0; })(),
+                    max: 100,
+                    color: "rgb(var(--pos))",
+                  },
+                  {
+                    label: "Short win rate",
+                    value: (() => { const l = visible.filter((t) => t.direction === "short"); const d = l.filter((t) => t.pnl !== 0); return d.length ? (d.filter((t) => t.pnl > 0).length / d.length) * 100 : 0; })(),
+                    max: 100,
+                    color: "rgb(var(--accent))",
+                  },
+                ]}
+                center={`${visible.filter((t) => t.direction === "long").length}L / ${visible.filter((t) => t.direction === "short").length}S`}
+              />
+            </Card>
+          </div>
+
+          <Card>
+            <SectionTitle action={<span className="text-xs text-mute">{visible.length} trades</span>}>Outcome distribution</SectionTitle>
+            <RHistogram rs={visible.map((t) => t.rr)} />
+            <p className="mt-2 text-[11px] text-mute">
+              A fat left tail past −1R means stops aren&apos;t holding. A healthy shape clusters losses at −1R and spreads winners right.
+            </p>
+          </Card>
 
           <DisciplineTrend />
 

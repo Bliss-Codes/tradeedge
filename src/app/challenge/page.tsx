@@ -14,6 +14,7 @@ import {
   defaultChallengeConfig,
 } from "@/lib/challenge";
 import { Button, Card, EmptyState, Field, Modal, NumberInput, SectionTitle, Select, Stat } from "@/components/ui/primitives";
+import { Gauge } from "@/components/charts/Primitives";
 
 // ── shared bits ───────────────────────────────────────────────────────
 
@@ -189,6 +190,27 @@ function ChallengeCard({ account, state, onEdit, collapsed, onToggle }: { accoun
 
       <Card>
         <SectionTitle>Next trade</SectionTitle>
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-8 border-b border-edge pb-4">
+          <div className="text-center">
+            <Gauge
+              value={state.ddLimit > 0 ? (state.ddRemaining / state.ddLimit) * 100 : 0}
+              target={50}
+              label="drawdown buffer left"
+            />
+          </div>
+          <div className="text-center">
+            <Gauge
+              value={state.personalDailyStop > 0 ? (state.personalRemaining / state.personalDailyStop) * 100 : 0}
+              target={50}
+              label="today's budget left"
+            />
+          </div>
+          {!funded && state.targetAmount > 0 && (
+            <div className="text-center">
+              <Gauge value={state.progressPct} max={100} target={100} label="progress to target" />
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div>
             <div className="text-xs font-medium uppercase tracking-wider text-mute">Suggested risk</div>
