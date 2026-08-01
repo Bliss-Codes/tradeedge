@@ -126,6 +126,12 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   const adherence = useMemo(() => ruleAdherence(trades), [trades]);
+  /** Share of trades that had a written thesis — the single strongest predictor
+   *  in this journal's own data (documented setups vastly outperform blanks). */
+  const thesisRate = useMemo(
+    () => (trades.length ? (trades.filter((t) => (t.thesis ?? "").trim()).length / trades.length) * 100 : 0),
+    [trades]
+  );
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const daily = useMemo(() => dailyPnl(trades), [trades]);
   const money = useMemo(() => {
@@ -174,17 +180,26 @@ export default function DashboardPage() {
       <RiskBanner />
       {/* Headline KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        {/* Adherence leads on purpose: what you see first is what you optimise for.
+            P&L is the outcome; adherence is the behaviour that produces it. */}
         <KpiCard
           hero
+          icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"
+          label="Rule adherence"
+          value={fmtPct(adherence)}
+          sub={thesisRate < 100 ? `${fmtPct(thesisRate)} had a thesis` : "every trade had a thesis"}
+          tone={adherence >= 90 ? 1 : adherence >= 70 ? 0 : -1}
+        />
+        <KpiCard
           icon="M3 17l6-6 4 4 8-8 M21 7v5h-5"
           label="Net P&L"
           value={fmtMoney(stats.netPnl, currency)}
           sub={`${fmtR(stats.netRR)} · ${stats.total} trades`}
+          tone={stats.netPnl}
         />
         <KpiCard icon="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z" label="Win rate" value={fmtPct(stats.winRate)} sub={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
         <KpiCard icon="M4 20V10 M10 20V4 M16 20v-7 M22 20H2" label="Profit factor" value={fmtPF(stats.profitFactor)} sub="gross win ÷ loss" />
         <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} tone={money.expectancy} />
-        <KpiCard icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" label="Rule adherence" value={fmtPct(adherence)} sub="followed plan" tone={adherence >= 70 ? 1 : adherence >= 50 ? 0 : -1} />
         <KpiCard
           icon="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"
           label="Current streak"

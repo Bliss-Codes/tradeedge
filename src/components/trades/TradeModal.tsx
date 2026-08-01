@@ -303,6 +303,36 @@ export function TradeModal({
               autoFocus
             />
             <p className="mt-1.5 text-[11px] text-mute">If you can&apos;t name the setup, it isn&apos;t one. This field is the trade filter, not paperwork.</p>
+            <div className="mt-3 border-t border-accent/20 pt-3">
+              <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">How do you feel entering?</div>
+              <div className="flex flex-wrap gap-1.5">
+                {EMOTIONS.map((e) => {
+                  const on = t.emotionBefore === e;
+                  const risky = e === "FOMO" || e === "Revenge" || e === "Frustrated";
+                  return (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => set("emotionBefore", on ? undefined : e)}
+                      className={`rounded-full border px-3 py-1 text-xs transition ${
+                        on
+                          ? risky
+                            ? "border-neg bg-neg/15 text-neg"
+                            : "border-pos bg-pos/15 text-pos"
+                          : "border-edge text-mute hover:text-sub"
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  );
+                })}
+              </div>
+              {(t.emotionBefore === "FOMO" || t.emotionBefore === "Revenge" || t.emotionBefore === "Frustrated") && (
+                <p className="mt-2 text-[11px] text-neg">
+                  You named it — that&apos;s the hard part. Trades entered on this feeling are the ones that cost you. Still a valid setup?
+                </p>
+              )}
+            </div>
           </div>
         )}
         {/* Core */}
@@ -660,7 +690,9 @@ export function TradeModal({
 
         {/* Psychology */}
         <div className="space-y-4">
-          <OptionCards label="Emotion before" value={t.emotionBefore} options={EMOTIONS} clearable onChange={(v) => set("emotionBefore", v as Emotion | undefined)} />
+          {(existing || t.type === "backtest") && (
+            <OptionCards label="Emotion before" value={t.emotionBefore} options={EMOTIONS} clearable onChange={(v) => set("emotionBefore", v as Emotion | undefined)} />
+          )}
           <OptionCards label="Emotion after" value={t.emotionAfter} options={EMOTIONS} clearable onChange={(v) => set("emotionAfter", v as Emotion | undefined)} />
         </div>
 
