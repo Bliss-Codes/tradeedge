@@ -29,7 +29,7 @@ import { GroupTable } from "@/components/ui/GroupTable";
 import { EdgeCheck } from "@/components/analytics/EdgeCheck";
 import { KpiRadar, KpiAxis } from "@/components/charts/KpiRadar";
 import { RHistogram, Donut } from "@/components/charts/Primitives";
-import { WinnersLosers, ExpectancyBar, RingCompare } from "@/components/charts/WinnersLosers";
+import { RingCompare } from "@/components/charts/WinnersLosers";
 import { TimeMatrix, DayOfWeek, TradeFrequency } from "@/components/charts/Timing";
 import { YearHeatmap } from "@/components/charts/YearHeatmap";
 import { DisciplineQuadrant, QuadrantPoint } from "@/components/charts/DisciplineQuadrant";
@@ -293,13 +293,32 @@ function FilterChip({ label, onClear }: { label: string; onClear: () => void }) 
 
 
 /** Inline stat for chart-card headers. */
-function HeadStat({ label, value, tone, sup }: { label: string; value: string; tone?: number; sup?: string }) {
+function HeadStat({
+  label,
+  value,
+  tone,
+  sup,
+  delta,
+}: {
+  label: string;
+  value: string;
+  tone?: number;
+  sup?: string;
+  delta?: number;
+}) {
   return (
     <div>
       <div className="text-[11px] text-mute">{label}</div>
-      <div className={`mt-0.5 font-mono text-xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>
-        {value}
-        {sup && <span className="ml-1 align-super text-[10px] font-normal text-mute">{sup}</span>}
+      <div className="mt-0.5 flex items-baseline gap-1.5">
+        <span className={`font-mono text-xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>
+          {value}
+          {sup && <span className="ml-1 align-super text-[10px] font-normal text-mute">{sup}</span>}
+        </span>
+        {delta !== undefined && Number.isFinite(delta) && (
+          <span className={`text-[11px] ${delta >= 0 ? "text-pos" : "text-neg"}`}>
+            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(2)}%
+          </span>
+        )}
       </div>
     </div>
   );
@@ -362,6 +381,7 @@ type CountMode = "By setup" | "By execution";
 
 export default function AnalyticsPage() {
   const [countMode, setCountMode] = useState<CountMode>("By setup");
+  const [curveMode, setCurveMode] = useState<"Money" | "R">("Money");
   const rawVisible = useVisibleTrades();
   const counts = useMemo(() => setupCounts(rawVisible), [rawVisible]);
   const hasLinked = counts.executions !== counts.setups;
@@ -413,8 +433,10 @@ export default function AnalyticsPage() {
     const beWinRate = avgWinR > 0 ? (1 / (1 + avgWinR / avgLossR)) * 100 : 50;
     return { rrSeries, winSeries, avgWinR, avgLossR, beWinRate };
   }, [trades]);
-  const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
+  const curve = useMemo(() => equityCurve(trades, curveMode === "R" ? "rr" : "pnl"), [trades, curveMode]);
   const wl = useMemo(() => winLossSummary(trades), [trades]);
+  const winMoney = useMemo(() => trades.filter((t) => t.pnl > 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
+  const lossMoney = useMemo(() => trades.filter((t) => t.pnl < 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const startingBalance = useMemo(() => {
     const active = accounts.filter((a) => !a.archived);
     if (fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "") {
@@ -425,6 +447,9 @@ export default function AnalyticsPage() {
     }
     return undefined;
   }, [accounts, fStrategy, fSession, fSide, fOutcome]);
+  /** Account balance and its % change, for the chart header. */
+  const balance = startingBalance !== undefined ? startingBalance + stats.netPnl : undefined;
+  const pctChange = startingBalance ? (stats.netPnl / startingBalance) * 100 : undefined;
   const monthly = useMemo(() => monthlyPerformance(trades, startingBalance), [trades, startingBalance]);
   const monthlyCurrency = useDisplayCurrency();
   const bySide = useMemo(
@@ -550,34 +575,38 @@ export default function AnalyticsPage() {
       <>
       {tab === "Overview" && (
         <div className="space-y-6">
-          {/* KPI strip */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <Stat label="Total P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} />
-            <Stat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} hint={fmtR(stats.netRR)} />
-            <Stat label="Win rate" value={fmtPct(stats.winRate)} hint={`${stats.wins}W · ${stats.losses}L`} />
-            <Stat label="Total trades" value={String(stats.total)} hint={`${stats.breakevens} breakeven`} />
-            <Stat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-            <Stat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} hint="per trade" />
-          </div>
-
-          <EdgeCheck trades={rawVisible} />
-
           <Card>
-            <div className="mb-5">
-              <h3 className="text-lg font-semibold text-ink">Profit and loss</h3>
-              <p className="text-xs text-mute">over time</p>
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-ink">Profit and loss</h3>
+                <p className="text-xs text-mute">over time</p>
+              </div>
+              <div className="flex rounded-lg border border-edge p-0.5">
+                {(["Money", "R"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setCurveMode(m)}
+                    className={`rounded-md px-3 py-1 text-xs transition ${
+                      curveMode === m ? "bg-surface text-ink" : "text-mute hover:text-sub"
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* Stats live in the chart header rather than separate cards — fewer
                 boxes, and the numbers sit next to the shape that produced them. */}
-            <div className="mb-5 flex flex-wrap gap-x-9 gap-y-4">
-              <HeadStat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} />
-              <HeadStat label="Total R" value={fmtR(stats.netRR)} tone={stats.netRR} />
+            {/* Only headline account figures live here — profit factor,
+                expectancy and RR each have their own card below. */}
+            <div className="mb-5 grid grid-cols-2 gap-y-4 border-b border-edge/60 pb-5 sm:grid-cols-5">
+              <HeadStat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} delta={pctChange} />
+              <HeadStat label="Account balance" value={balance !== undefined ? fmtMoney(balance, currency) : "—"} delta={pctChange} />
               <HeadStat label="Win rate" value={fmtPct(stats.winRate)} />
-              <HeadStat label="Trades" value={String(stats.total)} sup={`${stats.wins}/${stats.losses}`} />
-              <HeadStat label="Profit factor" value={fmtPF(stats.profitFactor)} />
-              <HeadStat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} />
+              <HeadStat label="Total trades" value={String(stats.total)} sup={`${stats.wins}/${stats.losses}`} />
+              <HeadStat label="Breakeven trades" value={String(stats.breakevens)} />
             </div>
-            <EquityCurve points={curve} mode="money" currency={currency} />
+            <EquityCurve points={curve} mode={curveMode === "R" ? "R" : "money"} currency={currency} />
           </Card>
 
           {/* RR analytics strip — mirrors the inspiration's compact metric row. */}
@@ -592,19 +621,9 @@ export default function AnalyticsPage() {
             <DisciplineScatter />
           </div>
 
-          <div>
-            <SectionTitle>Winners and losers</SectionTitle>
-            <WinnersLosers trades={visible} currency={currency} />
-          </div>
+          <EdgeCheck trades={rawVisible} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <SectionTitle>Expectancy breakdown</SectionTitle>
-              <ExpectancyBar trades={visible} currency={currency} />
-              <p className="mt-3 text-[11px] text-mute">
-                Green pull is what winners contribute, red is what losers take. A thin red band means your losses are controlled.
-              </p>
-            </Card>
             <Card>
               <SectionTitle>Long vs short</SectionTitle>
               <RingCompare
@@ -678,8 +697,8 @@ export default function AnalyticsPage() {
 
           {/* Winners vs losers */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card className="border-pos/20">
-              <SectionTitle>Winners</SectionTitle>
+            <Card className="border-pos/40 bg-pos/[0.03]">
+              <SectionTitle action={<span className="font-mono text-sm text-pos">{fmtMoney(winMoney, currency)}</span>}>Winners</SectionTitle>
               <WLList
                 rows={[
                   ["Total winners", String(wl.winners)],
@@ -691,8 +710,8 @@ export default function AnalyticsPage() {
                 ]}
               />
             </Card>
-            <Card className="border-neg/20">
-              <SectionTitle>Losers</SectionTitle>
+            <Card className="border-neg/40 bg-neg/[0.03]">
+              <SectionTitle action={<span className="font-mono text-sm text-neg">{fmtMoney(lossMoney, currency)}</span>}>Losers</SectionTitle>
               <WLList
                 rows={[
                   ["Total losers", String(wl.losers)],
