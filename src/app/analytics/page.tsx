@@ -27,6 +27,8 @@ import type { MonthlyYearRow } from "@/lib/metrics";
 import { Card, EmptyState, SectionTitle, Stat, Tabs, Select } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
 import { EdgeCheck } from "@/components/analytics/EdgeCheck";
+import { KpiRadar, KpiAxis } from "@/components/charts/KpiRadar";
+import { DisciplineQuadrant, QuadrantPoint } from "@/components/charts/DisciplineQuadrant";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
 import { SessionRadar } from "@/components/charts/SessionRadar";
 import { GRADES, EXIT_REASONS, QUALITY_LABELS, SESSIONS, outcomeOf } from "@/lib/types";
@@ -165,6 +167,74 @@ function DisciplineTrend() {
         ))}
       </div>
       <p className="mt-3 text-[11px] text-mute">Rate each week in Reviews — over time this shows whether your green weeks are also your disciplined ones.</p>
+    </Card>
+  );
+}
+
+
+/** The six KPIs that define the prop-trading sweet spot, as one shape. */
+function KpiScorecard() {
+  const trades = useVisibleTrades();
+  const stats = useMemo(() => computeStats(dedupeBySetup(trades)), [trades]);
+  const adherence = useMemo(() => ruleAdherence(trades), [trades]);
+  const thesisRate = useMemo(
+    () => (trades.length ? (trades.filter((t) => (t.thesis ?? "").trim()).length / trades.length) * 100 : 0),
+    [trades]
+  );
+
+  if (trades.length === 0) return null;
+
+  const wins = trades.filter((t) => t.pnl > 0);
+  const avgWinR = wins.length ? wins.reduce((s, t) => s + Math.abs(t.rr), 0) / wins.length : 0;
+
+  const axes: KpiAxis[] = [
+    { key: "exp", label: "Expectancy", value: Math.max(0, stats.avgRR), target: 0.3, max: 1.0, format: (v) => `${v.toFixed(2)}R` },
+    { key: "wr", label: "Win rate", value: stats.winRate, target: 45, max: 70, format: (v) => `${v.toFixed(0)}%` },
+    { key: "rr", label: "Avg winner", value: avgWinR, target: 2, max: 4, format: (v) => `${v.toFixed(1)}R` },
+    { key: "pf", label: "Profit factor", value: Math.min(stats.profitFactor, 4), target: 1.5, max: 3, format: (v) => v.toFixed(2) },
+    { key: "adh", label: "Adherence", value: adherence, target: 90, max: 100, format: (v) => `${v.toFixed(0)}%` },
+    { key: "th", label: "Thesis rate", value: thesisRate, target: 100, max: 100, format: (v) => `${v.toFixed(0)}%` },
+  ];
+
+  return (
+    <Card>
+      <SectionTitle action={<span className="text-xs text-mute">vs prop sweet spot</span>}>KPI scorecard</SectionTitle>
+      <div className="mx-auto max-w-sm">
+        <KpiRadar axes={axes} />
+      </div>
+      <p className="mt-2 text-[11px] text-mute">
+        Dashed ring is the target. Any point inside it is the KPI to work on next.
+      </p>
+    </Card>
+  );
+}
+
+
+/** Weekly discipline vs weekly R, quadrant-shaded. */
+function DisciplineScatter() {
+  const reviews = useApp((s) => s.reviews);
+  const trades = useVisibleTrades();
+  const points = useMemo<QuadrantPoint[]>(() => {
+    const rByWeek = new Map<string, number>();
+    for (const t of trades) {
+      const k = isoWeekKey(new Date(t.date));
+      rByWeek.set(k, (rByWeek.get(k) ?? 0) + t.rr);
+    }
+    return reviews
+      .filter((r) => r.scope === "week" && r.disciplineRating !== undefined)
+      .map((r) => ({ label: r.date, x: r.disciplineRating as number, y: rByWeek.get(r.date) ?? 0 }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [reviews, trades]);
+
+  if (points.length === 0) return null;
+
+  return (
+    <Card>
+      <SectionTitle action={<span className="text-xs text-mute">{points.length} rated weeks</span>}>Does discipline pay?</SectionTitle>
+      <DisciplineQuadrant points={points} />
+      <p className="mt-2 text-[11px] text-mute">
+        If the dots trend up-right, your process — not the market — is what pays you.
+      </p>
     </Card>
   );
 }
@@ -389,6 +459,11 @@ export default function AnalyticsPage() {
             <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl, currency)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
             <EquityCurve points={curve} mode="money" currency={currency} />
           </Card>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <KpiScorecard />
+            <DisciplineScatter />
+          </div>
 
           <DisciplineTrend />
 

@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/com
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
 import { EquityCurve, DailyPnlBars } from "@/components/charts/EquityCurve";
 import { CalendarPanel } from "@/components/calendar/CalendarPanel";
+import { YearHeatmap } from "@/components/charts/YearHeatmap";
 import { isoWeekKey } from "@/lib/metrics";
 import Link from "next/link";
 import { RiskBanner } from "@/components/layout/RiskBanner";
@@ -228,6 +229,11 @@ export default function DashboardPage() {
           <DailyPnlBars days={daily} currency={currency} />
         </Card>
       </div>
+
+      <Card>
+        <SectionTitle action={<span className="text-xs text-mute">daily net P&amp;L</span>}>Trading rhythm</SectionTitle>
+        <YearHeatmap trades={trades} currency={currency} />
+      </Card>
 
       {/* Trading calendar — full monthly/weekly view (moved from the old Calendar page) */}
       <CalendarPanel />
