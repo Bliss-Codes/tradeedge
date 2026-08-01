@@ -243,6 +243,121 @@ function DisciplineScatter() {
   );
 }
 
+
+/** Compact dropdown styled as a pill — quiet until active. */
+function FilterPill({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: [string, string][];
+  onChange: (v: string) => void;
+}) {
+  const active = Boolean(value);
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`appearance-none rounded-full border py-1.5 pl-3.5 pr-8 text-xs outline-none transition ${
+          active ? "border-accent/60 bg-accent/10 text-accent" : "border-edge bg-card text-sub hover:border-mute/50"
+        }`}
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {v === "" || v === "all" ? label : l}
+          </option>
+        ))}
+      </select>
+      <svg className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
+
+/** Active-filter chip with an inline clear. */
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[11px] text-sub">
+      {label}
+      <button onClick={onClear} className="text-mute transition hover:text-neg" aria-label={`Clear ${label}`}>
+        ×
+      </button>
+    </span>
+  );
+}
+
+
+/** Inline stat for chart-card headers. */
+function HeadStat({ label, value, tone, sup }: { label: string; value: string; tone?: number; sup?: string }) {
+  return (
+    <div>
+      <div className="text-[11px] text-mute">{label}</div>
+      <div className={`mt-0.5 font-mono text-xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>
+        {value}
+        {sup && <span className="ml-1 align-super text-[10px] font-normal text-mute">{sup}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Compact metric card with a sparkline sitting flush at the bottom. */
+function MiniMetric({
+  label,
+  value,
+  rightLabel,
+  rightValue,
+  series,
+}: {
+  label: string;
+  value: string;
+  rightLabel: string;
+  rightValue: string;
+  series: number[];
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-edge bg-card pt-4">
+      <div className="flex items-start justify-between px-4">
+        <div>
+          <div className="text-[11px] text-mute">{label}</div>
+          <div className="mt-1 font-mono text-2xl font-semibold text-ink">{value}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] text-mute">{rightLabel}</div>
+          <div className="mt-1 font-mono text-sm text-sub">{rightValue}</div>
+        </div>
+      </div>
+      {series.length > 1 && (
+        <div className="mt-2">
+          <MiniArea values={series} />
+        </div>
+      )}
+      {series.length <= 1 && <div className="h-6" />}
+    </div>
+  );
+}
+
+/** Edge-to-edge area sparkline for MiniMetric. */
+function MiniArea({ values, height = 46 }: { values: number[]; height?: number }) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const W = 300;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, height - ((v - min) / range) * (height - 6) - 3]);
+  const line = pts.map((p) => `${p[0]},${p[1]}`).join(" ");
+  const area = `${line} ${W},${height} 0,${height}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" className="block w-full" style={{ height }}>
+      <polygon points={area} fill="rgb(var(--accent) / 0.12)" />
+      <polyline points={line} fill="none" stroke="rgb(var(--accent))" strokeWidth={1.75} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
 type CountMode = "By setup" | "By execution";
 
 export default function AnalyticsPage() {
@@ -283,6 +398,21 @@ export default function AnalyticsPage() {
   }, [visible, fRange, fStrategy, fSession, fSide, fOutcome]);
 
   const stats = useMemo(() => computeStats(trades), [trades]);
+  /** Running series + averages powering the RR strip. */
+  const { rrSeries, winSeries, avgWinR, avgLossR, beWinRate } = useMemo(() => {
+    const ordered = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+    const rrSeries: number[] = [];
+    let sum = 0;
+    ordered.forEach((t, i) => { sum += t.rr; rrSeries.push(sum / (i + 1)); });
+    const wins = ordered.filter((t) => t.pnl > 0);
+    const losses = ordered.filter((t) => t.pnl < 0);
+    const avgWinR = wins.length ? wins.reduce((a, t) => a + Math.abs(t.rr), 0) / wins.length : 0;
+    const avgLossR = losses.length ? losses.reduce((a, t) => a + Math.abs(t.rr), 0) / losses.length : 1;
+    let ws = 0;
+    const winSeries = wins.map((t, i) => { ws += Math.abs(t.rr); return ws / (i + 1); });
+    const beWinRate = avgWinR > 0 ? (1 / (1 + avgWinR / avgLossR)) * 100 : 50;
+    return { rrSeries, winSeries, avgWinR, avgLossR, beWinRate };
+  }, [trades]);
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const wl = useMemo(() => winLossSummary(trades), [trades]);
   const startingBalance = useMemo(() => {
@@ -368,73 +498,46 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Horizontal filter bar */}
-      <div className="rounded-2xl border border-edge bg-card p-3">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <span className="text-xs font-medium uppercase tracking-wider text-mute">Filters</span>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-mute">{trades.length} trades</span>
-            {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome) && (
-              <button
-                onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); }}
-                className="rounded-lg border border-edge px-2 py-1 text-xs text-mute hover:text-sub"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="min-w-[130px] flex-1">
-            <Select value={fRange} onChange={(e) => setFRange(e.target.value)}>
-              <option value="all">All time</option>
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
-            </Select>
-          </div>
-          <div className="min-w-[130px] flex-1">
-            <Select value={fStrategy} onChange={(e) => setFStrategy(e.target.value)}>
-              <option value="">All strategies</option>
-              {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </Select>
-          </div>
-          <div className="min-w-[130px] flex-1">
-            <Select value={fSession} onChange={(e) => setFSession(e.target.value)}>
-              <option value="">All sessions</option>
-              {SESSIONS.map((s) => <option key={s}>{s}</option>)}
-            </Select>
-          </div>
-          <div className="min-w-[130px] flex-1">
-            <Select value={fSide} onChange={(e) => setFSide(e.target.value)}>
-              <option value="">Long & short</option>
-              <option value="long">Long</option>
-              <option value="short">Short</option>
-            </Select>
-          </div>
-          <div className="min-w-[130px] flex-1">
-            <Select value={fOutcome} onChange={(e) => setFOutcome(e.target.value)}>
-              <option value="">All outcomes</option>
-              <option value="win">Wins</option>
-              <option value="loss">Losses</option>
-              <option value="be">Breakeven</option>
-            </Select>
-          </div>
+      {/* Compact pill filters — chips below show only what's active, so the
+          bar stays quiet until you use it. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterPill label="Range" value={fRange === "all" ? "" : `${fRange}d`} onChange={setFRange}
+          options={[["all", "All time"], ["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"]]} />
+        <FilterPill label="Strategy" value={fStrategy} onChange={setFStrategy}
+          options={[["", "All strategies"], ...strategies.map((x) => [x.id, x.name] as [string, string])]} />
+        <FilterPill label="Session" value={fSession} onChange={setFSession}
+          options={[["", "All sessions"], ...SESSIONS.map((x) => [x, x] as [string, string])]} />
+        <FilterPill label="Side" value={fSide} onChange={setFSide}
+          options={[["", "Long & short"], ["long", "Long"], ["short", "Short"]]} />
+        <FilterPill label="Outcome" value={fOutcome} onChange={setFOutcome}
+          options={[["", "All outcomes"], ["win", "Wins"], ["loss", "Losses"], ["be", "Breakeven"]]} />
+
+        <div className="ml-auto flex items-center gap-3">
+          <span className="font-mono text-xs text-mute">{trades.length} trades</span>
+          {hasLinked && (
+            <Tabs tabs={["By setup", "By execution"]} active={countMode} onChange={(v) => setCountMode(v as CountMode)} />
+          )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs tabs={TABS} active={tab} onChange={setTab} />
-        {hasLinked && (
-          <div className="flex items-center gap-2">
-            <Tabs tabs={["By setup", "By execution"]} active={countMode} onChange={(v) => setCountMode(v as CountMode)} />
-            <span className="text-[11px] text-mute">
-              {counts.setups} setups · {counts.executions} fills
-            </span>
-          </div>
-        )}
-      </div>
+      {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome) && (
+        <div className="-mt-3 flex flex-wrap items-center gap-1.5">
+          {fRange !== "all" && <FilterChip label={`last ${fRange} days`} onClear={() => setFRange("all")} />}
+          {fStrategy && <FilterChip label={strategies.find((x) => x.id === fStrategy)?.name ?? "strategy"} onClear={() => setFStrategy("")} />}
+          {fSession && <FilterChip label={fSession} onClear={() => setFSession("")} />}
+          {fSide && <FilterChip label={fSide} onClear={() => setFSide("")} />}
+          {fOutcome && <FilterChip label={fOutcome} onClear={() => setFOutcome("")} />}
+          <button
+            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); }}
+            className="ml-1 text-[11px] text-mute underline-offset-2 hover:text-sub hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
+      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+
       {hasLinked && countMode === "By setup" && (
         <p className="-mt-2 text-[11px] text-mute">
           Counting each idea once. The same setup taken on multiple accounts is one data point — money totals still count every fill.
@@ -460,9 +563,29 @@ export default function AnalyticsPage() {
           <EdgeCheck trades={rawVisible} />
 
           <Card>
-            <SectionTitle action={<span className="font-mono text-xs text-mute">{fmtMoney(stats.netPnl, currency)} cumulative</span>}>Daily net cumulative P&amp;L</SectionTitle>
+            <div className="mb-5">
+              <h3 className="text-lg font-semibold text-ink">Profit and loss</h3>
+              <p className="text-xs text-mute">over time</p>
+            </div>
+            {/* Stats live in the chart header rather than separate cards — fewer
+                boxes, and the numbers sit next to the shape that produced them. */}
+            <div className="mb-5 flex flex-wrap gap-x-9 gap-y-4">
+              <HeadStat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} tone={stats.netPnl} />
+              <HeadStat label="Total R" value={fmtR(stats.netRR)} tone={stats.netRR} />
+              <HeadStat label="Win rate" value={fmtPct(stats.winRate)} />
+              <HeadStat label="Trades" value={String(stats.total)} sup={`${stats.wins}/${stats.losses}`} />
+              <HeadStat label="Profit factor" value={fmtPF(stats.profitFactor)} />
+              <HeadStat label="Expectancy" value={`${stats.avgRR.toFixed(2)}R`} tone={stats.avgRR} />
+            </div>
             <EquityCurve points={curve} mode="money" currency={currency} />
           </Card>
+
+          {/* RR analytics strip — mirrors the inspiration's compact metric row. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <MiniMetric label="Average RR" value={stats.avgRR.toFixed(2)} rightLabel="Best" rightValue={stats.largestWin.toFixed(2)} series={rrSeries} />
+            <MiniMetric label="Avg winner" value={`${avgWinR.toFixed(2)}R`} rightLabel="Avg loser" rightValue={`${avgLossR.toFixed(2)}R`} series={winSeries} />
+            <MiniMetric label="Breakeven win rate" value={`${beWinRate.toFixed(0)}%`} rightLabel="Actual" rightValue={fmtPct(stats.winRate)} series={[]} />
+          </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <KpiScorecard />
