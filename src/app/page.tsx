@@ -269,7 +269,11 @@ export default function DashboardPage() {
             {recent.map((t) => (
               <button key={t.id} onClick={() => setSelected(t)} className="flex w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:bg-surface/40">
                 <div className="flex items-center gap-3">
-                  <span className={`h-2 w-2 rounded-full ${t.direction === "long" ? "bg-pos" : "bg-neg"}`} />
+                  {/* Outcome, not direction: green win, red loss, amber breakeven. */}
+                  <span
+                    className={`h-2 w-2 rounded-full ${t.pnl > 0 ? "bg-pos" : t.pnl < 0 ? "bg-neg" : "bg-warn"}`}
+                    title={t.pnl > 0 ? "Win" : t.pnl < 0 ? "Loss" : "Breakeven"}
+                  />
                   <div>
                     <div className="text-sm font-medium text-ink">{t.pair}</div>
                     <div className="text-xs text-mute">{fmtDate(t.date)} · {t.session}</div>
