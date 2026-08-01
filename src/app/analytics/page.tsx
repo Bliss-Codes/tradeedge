@@ -30,6 +30,8 @@ import { EdgeCheck } from "@/components/analytics/EdgeCheck";
 import { KpiRadar, KpiAxis } from "@/components/charts/KpiRadar";
 import { RHistogram, Donut } from "@/components/charts/Primitives";
 import { WinnersLosers, ExpectancyBar, RingCompare } from "@/components/charts/WinnersLosers";
+import { TimeMatrix, DayOfWeek, TradeFrequency } from "@/components/charts/Timing";
+import { YearHeatmap } from "@/components/charts/YearHeatmap";
 import { DisciplineQuadrant, QuadrantPoint } from "@/components/charts/DisciplineQuadrant";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
 import { SessionRadar } from "@/components/charts/SessionRadar";
@@ -39,7 +41,7 @@ import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/f
 const TABS = [
   "Overview",
   "Breakdowns",
-  "Time of Day",
+  "Timing",
   "Exits",
   "Quality",
   "Pairs",
@@ -650,39 +652,50 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {tab === "Time of Day" && (
+      {tab === "Timing" && (
         <div className="space-y-6">
-          {byHour.length === 0 ? (
-            <EmptyState title="No timing data yet" body="Each trade's entry timestamp drives this. Log trades to see which hours pay." />
+          {visible.length === 0 ? (
+            <EmptyState title="No timing data yet" body="Each trade's entry timestamp drives this. Log trades to see when your edge actually shows up." />
           ) : (
             <>
               <Card>
-                <SectionTitle>Net P&L by entry hour</SectionTitle>
-                {byHour.map((h) => (
-                  <BarRow
-                    key={h.hour}
-                    label={hourLabel(h.hour)}
-                    value={Math.abs(h.stats.netPnl)}
-                    max={Math.max(...byHour.map((x) => Math.abs(x.stats.netPnl)), 1)}
-                    display={`${fmtMoney(h.stats.netPnl, currency)} · ${h.stats.total}t`}
-                    color={h.stats.netPnl >= 0 ? "rgb(var(--pos))" : "rgb(var(--neg))"}
-                  />
-                ))}
-                <p className="mt-3 text-[11px] text-mute">Hours shown in your local time (Accra, UTC+0) — e.g. 14:00 is 2:00 PM.</p>
+                <SectionTitle action={<span className="text-xs text-mute">local time (Accra, UTC+0)</span>}>
+                  Performance by time
+                </SectionTitle>
+                <TimeMatrix trades={visible} currency={currency} />
               </Card>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Card>
+                  <SectionTitle>Performance by day</SectionTitle>
+                  <DayOfWeek trades={visible} currency={currency} />
+                </Card>
+                <Card>
+                  <SectionTitle>Trade frequency</SectionTitle>
+                  <TradeFrequency trades={visible} />
+                </Card>
+              </div>
+
               <Card>
-                <SectionTitle>Win rate by entry hour</SectionTitle>
-                {byHour.map((h) => (
-                  <BarRow
-                    key={h.hour}
-                    label={hourLabel(h.hour)}
-                    value={h.stats.winRate}
-                    max={100}
-                    display={`${fmtPct(h.stats.winRate)} · ${h.stats.total}t`}
-                    color="rgb(var(--accent))"
-                  />
-                ))}
+                <SectionTitle action={<span className="text-xs text-mute">daily net P&amp;L</span>}>Performance calendar</SectionTitle>
+                <YearHeatmap trades={visible} currency={currency} />
               </Card>
+
+              {byHour.length > 0 && (
+                <Card>
+                  <SectionTitle>Net P&amp;L by entry hour</SectionTitle>
+                  {byHour.map((h) => (
+                    <BarRow
+                      key={h.hour}
+                      label={hourLabel(h.hour)}
+                      value={Math.abs(h.stats.netPnl)}
+                      max={Math.max(...byHour.map((x) => Math.abs(x.stats.netPnl)), 1)}
+                      display={`${fmtMoney(h.stats.netPnl, currency)} · ${h.stats.total}t`}
+                      color={h.stats.netPnl >= 0 ? "rgb(var(--pos))" : "rgb(var(--neg))"}
+                    />
+                  ))}
+                </Card>
+              )}
             </>
           )}
         </div>
