@@ -39,7 +39,58 @@ function Highlight({ label, value, tone }: { label: string; value: string; tone?
   );
 }
 
-function ReviewJournal({ periodKey, scope, label }: { periodKey: string; scope: "week" | "month"; label: string }) {
+/**
+ * Reads the period's trades and names the pattern, so the reflection is written
+ * against evidence instead of memory. Memory reliably remembers the last trade
+ * and forgets the repeated one.
+ */
+function detectPatterns(trades: Trade[]): { headline: string | null; notes: string[]; suggestion: string | null } {
+  if (trades.length === 0) return { headline: null, notes: [], suggestion: null };
+  const notes: string[] = [];
+
+  const noThesis = trades.filter((t) => !(t.thesis ?? "").trim());
+  const withThesis = trades.filter((t) => (t.thesis ?? "").trim());
+  const avgR = (list: Trade[]) => (list.length ? list.reduce((a, t) => a + t.rr, 0) / list.length : 0);
+
+  let headline: string | null = null;
+  let suggestion: string | null = null;
+  if (noThesis.length > 0) {
+    suggestion = "No thesis, no entry — write the setup before clicking buy.";
+    headline = `${noThesis.length} of ${trades.length} trades had no thesis (${avgR(noThesis).toFixed(2)}R avg vs ${avgR(withThesis).toFixed(2)}R when documented)`;
+  }
+
+  // Session drift: any session materially worse than the best one
+  const bySession = new Map<string, Trade[]>();
+  for (const t of trades) bySession.set(t.session, [...(bySession.get(t.session) ?? []), t]);
+  if (bySession.size > 1) {
+    const ranked = [...bySession.entries()].map(([k, v]) => ({ k, r: avgR(v), n: v.length })).sort((a, b) => b.r - a.r);
+    const worst = ranked[ranked.length - 1];
+    if (worst.r < 0) {
+      notes.push(`${worst.k} session is losing (${worst.r.toFixed(2)}R over ${worst.n} trades) — best is ${ranked[0].k} at ${ranked[0].r.toFixed(2)}R`);
+      if (!suggestion) suggestion = `Trade ${ranked[0].k} only — skip ${worst.k} entirely.`;
+    }
+  }
+
+  // Emotional entries
+  const hot = trades.filter((t) => t.emotionBefore === "FOMO" || t.emotionBefore === "Revenge" || t.emotionBefore === "Frustrated");
+  if (hot.length > 0) {
+    notes.push(`${hot.length} trade${hot.length === 1 ? "" : "s"} entered on FOMO/revenge/frustration (${avgR(hot).toFixed(2)}R avg)`);
+    if (!suggestion) suggestion = "If the entry feeling is FOMO or revenge, close the platform for the session.";
+  }
+
+  // Violations tally
+  const vio = new Map<string, number>();
+  for (const t of trades) for (const v of t.violations) vio.set(v, (vio.get(v) ?? 0) + 1);
+  const topVio = [...vio.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topVio) notes.push(`"${topVio[0]}" broken ${topVio[1]}× this period`);
+
+  if (topVio && !suggestion) suggestion = `Eliminate "${topVio[0]}" — it is the most repeated break.`;
+  if (!headline && notes.length > 0) headline = notes.shift() ?? null;
+  return { headline, notes, suggestion };
+}
+
+function ReviewJournal({ periodKey, scope, label, trades }: { periodKey: string; scope: "week" | "month"; label: string; trades: Trade[] }) {
+  const patterns = useMemo(() => detectPatterns(trades), [trades]);
   const reviews = useApp((s) => s.reviews);
   const upsertReview = useApp((s) => s.upsertReview);
   const existing = useMemo(() => reviews.find((r) => r.date === periodKey), [reviews, periodKey]);
@@ -99,6 +150,20 @@ function ReviewJournal({ periodKey, scope, label }: { periodKey: string; scope: 
       >
         {scope === "week" ? "Weekly" : "Monthly"} reflection — {label}
       </SectionTitle>
+      {patterns.headline && (
+        <div className="mb-4 rounded-xl border border-edge bg-surface/40 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-mute">What the data says</div>
+          <p className="mt-1.5 text-sm font-medium text-ink">{patterns.headline}</p>
+          {patterns.notes.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {patterns.notes.map((n) => (
+                <li key={n} className="text-xs text-sub">— {n}</li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2.5 text-[11px] text-mute">Write your reflection against this, not from memory. Memory keeps the last trade and forgets the repeated one.</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <label className="block">
           <span className="mb-1.5 block text-xs font-medium text-sub">What went well</span>
@@ -111,6 +176,15 @@ function ReviewJournal({ periodKey, scope, label }: { periodKey: string; scope: 
         <label className="block">
           <span className="mb-1.5 block text-xs font-medium text-sub">Focus for next {scope}</span>
           <textarea className={ta} value={focusNext} onChange={(e) => setFocusNext(e.target.value)} placeholder="The 1–2 things I'll concentrate on next…" />
+          {patterns.suggestion && !focusNext.trim() && (
+            <button
+              type="button"
+              onClick={() => setFocusNext(patterns.suggestion as string)}
+              className="mt-1.5 text-left text-[11px] text-accent hover:underline"
+            >
+              Use the fix the data points to: &ldquo;{patterns.suggestion}&rdquo;
+            </button>
+          )}
         </label>
       </div>
       <div className="mt-4 flex items-center gap-3">
@@ -201,7 +275,7 @@ export default function ReviewsPage() {
         </div>
       </div>
 
-      <ReviewJournal periodKey={periodKey} scope={view === "Weekly" ? "week" : "month"} label={label} />
+      <ReviewJournal periodKey={periodKey} scope={view === "Weekly" ? "week" : "month"} label={label} trades={period} />
 
       {period.length === 0 ? (
         <EmptyState title={`No trades this ${view === "Weekly" ? "week" : "month"}`} body="Your reflection above is saved. Log trades to auto-generate the stats for this period." />
