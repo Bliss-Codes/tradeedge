@@ -422,6 +422,21 @@ export default function AnalyticsPage() {
   const allAccounts = useApp((s) => s.accounts);
   const allTradesRaw = useApp((s) => s.trades);
   /** True when live trades exist on both challenge and funded accounts. */
+  /** Live trade counts per stage, shown on the pills so a differing headline
+   *  count reads as scope rather than a bug. */
+  const stageCounts = useMemo(() => {
+    const c: Record<CapitalStage, number> = { all: 0, funded: 0, challenge: 0 };
+    for (const t of allTradesRaw) {
+      if (t.type !== "live") continue;
+      const acct = allAccounts.find((a) => a.id === t.accountId && !a.archived);
+      if (!acct) continue;
+      c.all++;
+      const st = stageOf(acct.type);
+      if (st === "funded") c.funded++;
+      else if (st === "challenge") c.challenge++;
+    }
+    return c;
+  }, [allTradesRaw, allAccounts]);
   const allLiveCount = useMemo(
     () => allTradesRaw.filter((t) => t.type === "live").length,
     [allTradesRaw]
@@ -620,6 +635,7 @@ export default function AnalyticsPage() {
               }`}
             >
               {l}
+              {stageCounts[v] > 0 && <span className="ml-1.5 font-mono opacity-60">{stageCounts[v]}</span>}
             </button>
           ))}
         </div>
@@ -725,7 +741,15 @@ export default function AnalyticsPage() {
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-ink">Profit and loss</h3>
-                <p className="text-xs text-mute">over time</p>
+                <p className="text-xs text-mute">
+                  {stage === "funded"
+                    ? "funded accounts only — real money"
+                    : stage === "challenge"
+                    ? "challenge accounts only — notional"
+                    : mixedStages
+                    ? "all accounts — funded and challenge combined"
+                    : "over time"}
+                </p>
               </div>
               <div className="flex rounded-lg border border-edge p-0.5">
                 {(["Money", "R"] as const).map((m) => (
