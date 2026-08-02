@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
+import { useApp, useVisibleTrades, useDisplayCurrency, CapitalStage, stageOf } from "@/stores/useApp";
 import { isoWeekKey, dedupeBySetup, setupCounts } from "@/lib/metrics";
 import {
   computeStats,
@@ -22,6 +22,9 @@ import {
   winLossSummary,
   avgPlannedRR,
   breakevenMisses,
+  filterByMoneyScope,
+  moneySplit,
+  MoneyScope,
   monthlyPerformance,
   signColor,
 } from "@/lib/metrics";
@@ -414,18 +417,39 @@ type CountMode = "By setup" | "By execution";
 export default function AnalyticsPage() {
   const [countMode, setCountMode] = useState<CountMode>("By setup");
   const [curveMode, setCurveMode] = useState<"Money" | "R">("Money");
-  const rawVisible = useVisibleTrades();
+  /** Challenge money is notional; funded money is real. Never blend them. */
+  const [stage, setStage] = useState<CapitalStage>("all");
+  const allAccounts = useApp((s) => s.accounts);
+  const allTradesRaw = useApp((s) => s.trades);
+  /** True when live trades exist on both challenge and funded accounts. */
+  const mixedStages = useMemo(() => {
+    const stages = new Set<string>();
+    for (const t of allTradesRaw) {
+      if (t.type !== "live") continue;
+      const acct = allAccounts.find((a) => a.id === t.accountId && !a.archived);
+      if (!acct) continue;
+      const st = stageOf(acct.type);
+      if (st === "funded" || st === "challenge") stages.add(st);
+    }
+    return stages.size > 1;
+  }, [allTradesRaw, allAccounts]);
+  // Challenge P&L is score, funded P&L is income. Default to real money so the
+  // dollar figures on this page always mean withdrawable profit.
+  const [moneyScope, setMoneyScope] = useState<MoneyScope>("Real money");
+  const accounts = useApp((s) => s.accounts);
+  const rawVisible = useVisibleTrades("live", stage);
   const counts = useMemo(() => setupCounts(rawVisible), [rawVisible]);
   const hasLinked = counts.executions !== counts.setups;
   // Edge metrics must count IDEAS, not fills — otherwise the same setup taken on
   // 3 accounts inflates the sample 3x and overstates confidence in the edge.
+  const scoped = useMemo(() => filterByMoneyScope(rawVisible, accounts, moneyScope), [rawVisible, accounts, moneyScope]);
+  const split = useMemo(() => moneySplit(rawVisible, accounts), [rawVisible, accounts]);
   const visible = useMemo(
-    () => (countMode === "By setup" ? dedupeBySetup(rawVisible) : rawVisible),
-    [rawVisible, countMode]
+    () => (countMode === "By setup" ? dedupeBySetup(scoped) : scoped),
+    [scoped, countMode]
   );
   const currency = useDisplayCurrency();
   const strategies = useApp((s) => s.strategies);
-  const accounts = useApp((s) => s.accounts);
   const [tab, setTab] = useState("Overview");
   const [comboSize, setComboSize] = useState("All");
 
@@ -577,6 +601,23 @@ export default function AnalyticsPage() {
       {/* Compact pill filters — chips below show only what's active, so the
           bar stays quiet until you use it. */}
       <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-full border border-edge p-0.5">
+          {([
+            ["all", "All"],
+            ["funded", "Funded"],
+            ["challenge", "Challenge"],
+          ] as [CapitalStage, string][]).map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setStage(v)}
+              className={`rounded-full px-3 py-1 text-xs transition ${
+                stage === v ? "bg-surface text-ink" : "text-mute hover:text-sub"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
         <FilterPill label="Range" value={fRange === "all" ? "" : `${fRange}d`} onChange={setFRange}
           options={[["all", "All time"], ["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"]]} />
         <FilterPill label="Strategy" value={fStrategy} onChange={setFStrategy}
@@ -587,6 +628,9 @@ export default function AnalyticsPage() {
           options={[["", "Long & short"], ["long", "Long"], ["short", "Short"]]} />
         <FilterPill label="Outcome" value={fOutcome} onChange={setFOutcome}
           options={[["", "All outcomes"], ["win", "Wins"], ["loss", "Losses"], ["be", "Breakeven"]]} />
+
+        <FilterPill label="Money" value={moneyScope === "All" ? "" : moneyScope} onChange={(v) => setMoneyScope((v || "All") as MoneyScope)}
+          options={[["Real money", "Real money only"], ["Challenge", "Challenge only"], ["", "All accounts"]]} />
 
         <div className="ml-auto flex items-center gap-3">
           <span className="font-mono text-xs text-mute">{trades.length} trades</span>
@@ -609,6 +653,37 @@ export default function AnalyticsPage() {
           >
             Clear filters
           </button>
+        </div>
+      )}
+
+      {split.challengeTrades > 0 && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-edge bg-surface/40 px-4 py-2.5 text-xs">
+          <span className="text-mute">
+            {moneyScope === "Real money"
+              ? "Showing withdrawable profit only — challenge trades excluded."
+              : moneyScope === "Challenge"
+              ? "Showing evaluation accounts only — this P&L is score, not money."
+              : "Showing everything — dollar totals mix real profit with challenge score."}
+          </span>
+          <span className="ml-auto flex items-center gap-4 font-mono">
+            <span className={signColor(split.realPnl)}>
+              real {fmtMoney(split.realPnl, currency)}
+              <span className="ml-1 text-[10px] text-mute">({split.realTrades})</span>
+            </span>
+            <span className="text-mute">
+              challenge {fmtMoney(split.challengePnl, currency)}
+              <span className="ml-1 text-[10px]">({split.challengeTrades})</span>
+            </span>
+          </span>
+        </div>
+      )}
+
+      {stage === "all" && mixedStages && (
+        <div className="rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-xs text-sub">
+          <span className="font-medium text-warn">Mixed capital stages.</span> Challenge P&amp;L is notional — you never
+          receive it, and it is usually traded at a different risk %. Blending it with funded money makes the equity
+          curve and every money stat misleading. Switch to <span className="font-medium">Funded</span> for real earnings,
+          or <span className="font-medium">Challenge</span> to review pass attempts. R-based stats stay comparable either way.
         </div>
       )}
 

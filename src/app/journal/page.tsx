@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp, useVisibleTrades, useAllTags, uid } from "@/stores/useApp";
 import { Trade, SESSIONS, outcomeOf } from "@/lib/types";
@@ -94,7 +94,17 @@ function JournalInner() {
   const allTags = useAllTags();
   const params = useSearchParams();
 
-  const [view, setView] = useState("List");
+  const [view, setViewState] = useState("Gallery");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("te-journal-view");
+      if (saved === "List" || saved === "Gallery") setViewState(saved);
+    } catch {}
+  }, []);
+  const setView = (v: string) => {
+    setViewState(v);
+    try { localStorage.setItem("te-journal-view", v); } catch {}
+  };
   const [q, setQ] = useState("");
   const [pair, setPair] = useState("");
   const [session, setSession] = useState("");

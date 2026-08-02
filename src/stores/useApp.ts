@@ -271,16 +271,37 @@ export function useDisplayCurrency(): string {
 }
 
 /** Trades visible under the global account selector (live trades only). */
-export function useVisibleTrades(type: Trade["type"] = "live"): Trade[] {
+/**
+ * Capital stage. Challenge P&L is NOTIONAL — you never receive it, and it is
+ * usually traded at a different risk %, so mixing it with funded money makes
+ * the equity curve and every money stat meaningless. Funded P&L is the only
+ * thing that converts to payouts.
+ */
+export type CapitalStage = "all" | "funded" | "challenge";
+
+export function stageOf(type: Account["type"]): CapitalStage | "other" {
+  if (type === "Funded") return "funded";
+  if (type === "Challenge") return "challenge";
+  return "other";
+}
+
+export function useVisibleTrades(type: Trade["type"] = "live", stage: CapitalStage = "all"): Trade[] {
   const trades = useApp((s) => s.trades);
   const accounts = useApp((s) => s.accounts);
   const selected = useApp((s) => s.selectedAccountId);
   const effective = selected === "all" || accounts.some((a) => a.id === selected) ? selected : "all";
-  const activeIds = new Set(accounts.filter((a) => !a.archived).map((a) => a.id));
+  const active = accounts.filter((a) => !a.archived);
+  const activeIds = new Set(active.map((a) => a.id));
+  const stageOk = (accountId: string) => {
+    if (stage === "all") return true;
+    const acct = active.find((a) => a.id === accountId);
+    return acct ? stageOf(acct.type) === stage : false;
+  };
   return trades.filter(
     (t) =>
       t.type === type &&
-      (effective === "all" ? activeIds.has(t.accountId) : t.accountId === effective)
+      (effective === "all" ? activeIds.has(t.accountId) : t.accountId === effective) &&
+      stageOk(t.accountId)
   );
 }
 

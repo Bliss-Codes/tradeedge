@@ -596,3 +596,53 @@ export function avgPlannedRR(trades: Trade[]): { avg: number; n: number } {
   const vals = trades.map(plannedRR).filter((v): v is number => v !== undefined && v > 0);
   return { avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0, n: vals.length };
 }
+
+
+/**
+ * Challenge P&L is not money you can withdraw — it is score in an evaluation.
+ * Funded P&L converts to payouts at your profit split. Mixing the two makes
+ * every dollar figure meaningless: a 2%-risk challenge account swamps a
+ * 0.75%-risk funded account and the totals show "progress" that never
+ * reached a bank.
+ *
+ * R multiples ARE comparable across both — an R is an R regardless of stake —
+ * which is why edge stats should run on everything while money stats run on
+ * real accounts only.
+ */
+export type MoneyScope = "Real money" | "Challenge" | "All";
+
+export function isRealMoneyAccount(a: Account | undefined): boolean {
+  return a?.type === "Funded" || a?.type === "Personal";
+}
+
+export function filterByMoneyScope(trades: Trade[], accounts: Account[], scope: MoneyScope): Trade[] {
+  if (scope === "All") return trades;
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const wantReal = scope === "Real money";
+  return trades.filter((t) => isRealMoneyAccount(byId.get(t.accountId)) === wantReal);
+}
+
+export interface MoneySplit {
+  realPnl: number;
+  realTrades: number;
+  challengePnl: number;
+  challengeTrades: number;
+  /** Real P&L after the profit split — what actually reaches you. */
+  payoutEstimate: number;
+}
+
+export function moneySplit(trades: Trade[], accounts: Account[], profitSplitPct = 80): MoneySplit {
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  let realPnl = 0, realTrades = 0, challengePnl = 0, challengeTrades = 0;
+  for (const t of trades) {
+    if (isRealMoneyAccount(byId.get(t.accountId))) { realPnl += t.pnl; realTrades++; }
+    else { challengePnl += t.pnl; challengeTrades++; }
+  }
+  return {
+    realPnl,
+    realTrades,
+    challengePnl,
+    challengeTrades,
+    payoutEstimate: realPnl > 0 ? realPnl * (profitSplitPct / 100) : realPnl,
+  };
+}

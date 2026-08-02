@@ -96,8 +96,11 @@ function ConfigModal({ account, open, onClose }: { account: Account; open: boole
         <Field label="Firm daily loss %">
           <NumberInput value={c.dailyLossPct || undefined} onChange={(v) => setC({ ...c, dailyLossPct: v ?? 0 })} placeholder="5" />
         </Field>
-        <Field label="Your risk per trade %">
-          <NumberInput value={c.baseRiskPct || undefined} onChange={(v) => setC({ ...c, baseRiskPct: v ?? 0 })} placeholder="0.75" />
+        <Field label="Risk % — challenge phases">
+          <NumberInput value={c.baseRiskPct || undefined} onChange={(v) => setC({ ...c, baseRiskPct: v ?? 0 })} placeholder="1.5" />
+        </Field>
+        <Field label="Risk % — once funded">
+          <NumberInput value={c.fundedRiskPct} onChange={(v) => setC({ ...c, fundedRiskPct: v })} placeholder="0.75" />
         </Field>
         <Field label="Personal daily stop % (yours)">
           <NumberInput value={c.personalDailyStopPct} onChange={(v) => setC({ ...c, personalDailyStopPct: v })} placeholder={`default ${(c.dailyLossPct / 2).toFixed(1)}`} />
@@ -219,7 +222,7 @@ function ChallengeCard({ account, state, onEdit, collapsed, onToggle }: { accoun
             </div>
             <div className="mt-1 text-xs text-mute">
               {state.suggestedRiskAmount > 0
-                ? `${state.suggestedRiskPct.toFixed(2)}% — capped by your daily stop and DD buffer`
+                ? `${state.suggestedRiskPct.toFixed(2)}% — ${funded ? "funded" : "challenge"} risk of ${state.activeRiskPct}%, capped by your daily stop and DD buffer`
                 : "No risk available — stand down."}
             </div>
           </div>

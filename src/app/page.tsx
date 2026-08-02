@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/com
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
 import { EquityCurve, DailyPnlBars } from "@/components/charts/EquityCurve";
 import { CalendarPanel } from "@/components/calendar/CalendarPanel";
+import { stageOf } from "@/stores/useApp";
 import { YearHeatmap } from "@/components/charts/YearHeatmap";
 import { isoWeekKey } from "@/lib/metrics";
 import Link from "next/link";
@@ -111,6 +112,53 @@ function WeeklyFocusBanner() {
       </div>
       <Link href="/reviews" className="shrink-0 text-xs text-mute hover:text-sub">from last week&apos;s reflection →</Link>
     </div>
+  );
+}
+
+
+/** Splits notional challenge P&L from real funded earnings. Blending them is
+ *  what makes a journal look flat while the funded account is actually paying. */
+function CapitalSplit({ currency }: { currency: string }) {
+  const trades = useApp((s) => s.trades);
+  const accounts = useApp((s) => s.accounts);
+
+  const split = useMemo(() => {
+    let funded = 0, challenge = 0, fundedN = 0, challengeN = 0;
+    for (const t of trades) {
+      if (t.type !== "live") continue;
+      const acct = accounts.find((a) => a.id === t.accountId && !a.archived);
+      if (!acct) continue;
+      const st = stageOf(acct.type);
+      if (st === "funded") { funded += t.pnl; fundedN++; }
+      else if (st === "challenge") { challenge += t.pnl; challengeN++; }
+    }
+    return { funded, challenge, fundedN, challengeN };
+  }, [trades, accounts]);
+
+  if (split.fundedN === 0 && split.challengeN === 0) return null;
+
+  return (
+    <Card>
+      <SectionTitle>Real vs notional</SectionTitle>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-pos/30 bg-pos/[0.04] px-4 py-3">
+          <div className="text-[11px] uppercase tracking-wider text-mute">Funded — real money</div>
+          <div className={`mt-1 font-mono text-2xl font-semibold ${signColor(split.funded)}`}>
+            {fmtMoney(split.funded, currency)}
+          </div>
+          <div className="mt-0.5 text-[11px] text-mute">{split.fundedN} trades · converts to payouts</div>
+        </div>
+        <div className="rounded-xl border border-edge bg-surface/40 px-4 py-3">
+          <div className="text-[11px] uppercase tracking-wider text-mute">Challenge — notional</div>
+          <div className="mt-1 font-mono text-2xl font-semibold text-sub">{fmtMoney(split.challenge, currency)}</div>
+          <div className="mt-0.5 text-[11px] text-mute">{split.challengeN} trades · pass progress, not income</div>
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] text-mute">
+        Challenge profit is never paid out and is usually traded at a higher risk %. Keeping it separate is why your
+        funded curve looks like progress instead of noise.
+      </p>
+    </Card>
   );
 }
 
@@ -229,6 +277,8 @@ export default function DashboardPage() {
           <DailyPnlBars days={daily} currency={currency} />
         </Card>
       </div>
+
+      <CapitalSplit currency={currency} />
 
       <Card>
         <SectionTitle action={<span className="text-xs text-mute">daily net P&amp;L</span>}>Trading rhythm</SectionTitle>

@@ -23,8 +23,17 @@ export interface ChallengeConfig {
   dailyLossPct: number;
   /** "static" = measured from starting balance; "trailing" = from peak equity. */
   drawdownMode: DrawdownMode;
-  /** Your planned risk per trade, % of starting balance (e.g. 0.75). */
+  /**
+   * Risk per trade while in an evaluation phase, % of starting balance.
+   * Usually higher than fundedRiskPct — a failed challenge costs a fee, a
+   * failed funded account costs an income stream.
+   */
   baseRiskPct: number;
+  /**
+   * Risk per trade once the account is Funded. Falls back to baseRiskPct when
+   * unset, so existing accounts behave exactly as before.
+   */
+  fundedRiskPct?: number;
   /** Your own daily stop, % — defaults to half the firm's daily limit. */
   personalDailyStopPct?: number;
   /** Funded only: min closed profit for a day to count as a Benchmark Day. */
@@ -82,7 +91,7 @@ export const CHALLENGE_PRESETS: ChallengePreset[] = [
 ];
 
 export function defaultChallengeConfig(): ChallengeConfig {
-  return { enabled: true, ...CHALLENGE_PRESETS[0].config, baseRiskPct: 0.75 };
+  return { enabled: true, ...CHALLENGE_PRESETS[0].config, baseRiskPct: 1.5, fundedRiskPct: 0.75 };
 }
 
 export type ChallengeLevel = "passed" | "ok" | "warn" | "daily-stop" | "breached";
@@ -126,6 +135,8 @@ export interface ChallengeState {
   personalRemaining: number; // vs your stop
 
   // guidance
+  /** The configured risk for this phase, before caps. */
+  activeRiskPct: number;
   suggestedRiskPct: number;
   suggestedRiskAmount: number;
   estTradesToTarget?: number; // at avg winner R and current win rate
@@ -185,7 +196,10 @@ export function computeChallengeState(account: Account, allTrades: Trade[]): Cha
   // Suggested risk: your base risk, capped so one stop-out can never exceed
   // what's left of your personal daily stop, and never eats more than 30% of
   // the remaining overall drawdown buffer in a single trade.
-  const baseRiskAmount = (config.baseRiskPct / 100) * start;
+  // Phase-aware risk: challenges and funded accounts are different games.
+  const activeRiskPct =
+    config.phase === "Funded" ? config.fundedRiskPct ?? config.baseRiskPct : config.baseRiskPct;
+  const baseRiskAmount = (activeRiskPct / 100) * start;
   const suggestedRiskAmount = Math.max(0, Math.min(baseRiskAmount, personalRemaining, ddRemaining * 0.3));
   const suggestedRiskPct = start > 0 ? (suggestedRiskAmount / start) * 100 : 0;
 
@@ -270,6 +284,7 @@ export function computeChallengeState(account: Account, allTrades: Trade[]): Cha
     todayLossUsed,
     dailyRemaining,
     personalRemaining,
+    activeRiskPct,
     suggestedRiskPct,
     suggestedRiskAmount,
     estTradesToTarget,
