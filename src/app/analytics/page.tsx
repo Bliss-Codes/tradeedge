@@ -422,6 +422,10 @@ export default function AnalyticsPage() {
   const allAccounts = useApp((s) => s.accounts);
   const allTradesRaw = useApp((s) => s.trades);
   /** True when live trades exist on both challenge and funded accounts. */
+  const allLiveCount = useMemo(
+    () => allTradesRaw.filter((t) => t.type === "live").length,
+    [allTradesRaw]
+  );
   const mixedStages = useMemo(() => {
     const stages = new Set<string>();
     for (const t of allTradesRaw) {
@@ -513,15 +517,20 @@ export default function AnalyticsPage() {
   const winMoney = useMemo(() => trades.filter((t) => t.pnl > 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const lossMoney = useMemo(() => trades.filter((t) => t.pnl < 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const startingBalance = useMemo(() => {
-    const active = accounts.filter((a) => !a.archived);
+    // Only accounts in the selected capital stage count — showing funded
+    // analytics against combined funded+challenge capital is meaningless.
+    const active = accounts.filter((a) => !a.archived && (stage === "all" || stageOf(a.type) === stage));
     if (fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "") {
-      // when not filtered down, balance = selected account or sum of active accounts
       const sel = useApp.getState().selectedAccountId;
-      if (sel !== "all") return accounts.find((a) => a.id === sel)?.balance;
-      return active.reduce((s, a) => s + (a.balance || 0), 0) || undefined;
+      if (sel !== "all") {
+        const acct = accounts.find((a) => a.id === sel);
+        if (!acct) return undefined;
+        return stage === "all" || stageOf(acct.type) === stage ? acct.balance : undefined;
+      }
+      return active.reduce((s2, a) => s2 + (a.balance || 0), 0) || undefined;
     }
     return undefined;
-  }, [accounts, fStrategy, fSession, fSide, fOutcome]);
+  }, [accounts, stage, fStrategy, fSession, fSide, fOutcome]);
   /** Account balance and its % change, for the chart header. */
   const balance = startingBalance !== undefined ? startingBalance + stats.netPnl : undefined;
   const pctChange = startingBalance ? (stats.netPnl / startingBalance) * 100 : undefined;
@@ -591,10 +600,6 @@ export default function AnalyticsPage() {
 
   const cleanStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length === 0)), [trades]);
   const dirtyStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length > 0)), [trades]);
-
-  if (visible.length === 0) {
-    return <EmptyState title="Nothing to analyze yet" body="Once you've logged trades, this page breaks down what's working — by pair, session, strategy, tag, and rule discipline." />;
-  }
 
   return (
     <div className="space-y-6">
@@ -696,7 +701,22 @@ export default function AnalyticsPage() {
       )}
 
       {trades.length === 0 ? (
-        <EmptyState title="No trades match these filters" body="Adjust or clear the filters above." />
+        <EmptyState
+          title={
+            allLiveCount === 0
+              ? "Nothing to analyze yet"
+              : rawVisible.length === 0
+              ? "No trades in this view"
+              : "No trades match these filters"
+          }
+          body={
+            allLiveCount === 0
+              ? "Once you've logged trades, this page breaks down what's working — by pair, session, strategy, tag, and rule discipline."
+              : rawVisible.length === 0
+              ? `You have ${allLiveCount} logged trade${allLiveCount === 1 ? "" : "s"}, but none in the current account or capital stage. Check the account selector above and the All/Funded/Challenge switch.`
+              : `${rawVisible.length} trade${rawVisible.length === 1 ? "" : "s"} in view, but the filters exclude them all. Clear the filter chips above.`
+          }
+        />
       ) : (
       <>
       {tab === "Overview" && (
@@ -740,10 +760,14 @@ export default function AnalyticsPage() {
             <MiniMetric
               label="Avg planned RR"
               value={planned.n ? planned.avg.toFixed(2) : "—"}
-              rightLabel="Realized"
-              rightValue={`${stats.avgRR.toFixed(2)}R`}
+              rightLabel="Realized on winners"
+              rightValue={`${avgWinR.toFixed(2)}R`}
               series={rrSeries}
-              note={planned.n ? `${planned.n} trades with a target set` : "Set entry, stop and target to track this"}
+              note={
+                planned.n
+                  ? `${planned.n} with a target set · winners deliver ${((avgWinR / (planned.avg || 1)) * 100).toFixed(0)}% of what you plan`
+                  : "Set entry, stop and target to track this"
+              }
             />
             <MiniMetric
               label="Avg winner"
