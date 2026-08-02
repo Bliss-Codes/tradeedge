@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Trade } from "@/lib/types";
+import { Trade, outcomeOf } from "@/lib/types";
 import { dedupeBySetup, setupCounts } from "@/lib/metrics";
 import { Card, SectionTitle } from "@/components/ui/primitives";
 
@@ -16,10 +16,10 @@ const MIN_SETUPS = 50;
 export function EdgeCheck({ trades }: { trades: Trade[] }) {
   const m = useMemo(() => {
     const counts = setupCounts(trades);
-    const ideas = dedupeBySetup(trades).filter((t) => t.rr !== 0 || t.pnl !== 0);
-    const decided = ideas.filter((t) => t.pnl !== 0);
-    const wins = decided.filter((t) => t.pnl > 0);
-    const losses = decided.filter((t) => t.pnl < 0);
+    const ideas = dedupeBySetup(trades).filter((t) => t.rr !== 0 || outcomeOf(t) !== "be");
+    const decided = ideas.filter((t) => outcomeOf(t) !== "be");
+    const wins = decided.filter((t) => outcomeOf(t) === "win");
+    const losses = decided.filter((t) => outcomeOf(t) === "loss");
     const winRate = decided.length ? wins.length / decided.length : 0;
     const avgWinR = wins.length ? wins.reduce((s, t) => s + Math.abs(t.rr), 0) / wins.length : 0;
     const avgLossR = losses.length ? losses.reduce((s, t) => s + Math.abs(t.rr), 0) / losses.length : 1;

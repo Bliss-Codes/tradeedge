@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Trade } from "@/lib/types";
+import { Trade, outcomeOf } from "@/lib/types";
 import { fmtMoney } from "@/lib/metrics";
 
 /**
@@ -31,7 +31,7 @@ function sideStats(list: Trade[], all: Trade[], isWin: boolean): SideStats {
   const streaks: number[] = [];
   let run = 0;
   for (const t of ordered) {
-    const hit = isWin ? t.pnl > 0 : t.pnl < 0;
+    const hit = isWin ? outcomeOf(t) === "win" : outcomeOf(t) === "loss";
     if (hit) run++;
     else if (run > 0) {
       streaks.push(run);
@@ -61,15 +61,15 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
 
 export function WinnersLosers({ trades, currency = "USD" }: { trades: Trade[]; currency?: string }) {
   const { w, l } = useMemo(() => {
-    const wins = trades.filter((t) => t.pnl > 0);
-    const losses = trades.filter((t) => t.pnl < 0);
+    const wins = trades.filter((t) => outcomeOf(t) === "win");
+    const losses = trades.filter((t) => outcomeOf(t) === "loss");
     return { w: sideStats(wins, trades, true), l: sideStats(losses, trades, false) };
   }, [trades]);
 
   if (trades.length === 0) return null;
 
-  const winMoney = trades.filter((t) => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
-  const lossMoney = trades.filter((t) => t.pnl < 0).reduce((s, t) => s + t.pnl, 0);
+  const winMoney = trades.filter((t) => outcomeOf(t) === "win").reduce((s, t) => s + t.pnl, 0);
+  const lossMoney = trades.filter((t) => outcomeOf(t) === "loss").reduce((s, t) => s + t.pnl, 0);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -113,8 +113,8 @@ export function WinnersLosers({ trades, currency = "USD" }: { trades: Trade[]; c
  */
 export function ExpectancyBar({ trades, currency = "USD" }: { trades: Trade[]; currency?: string }) {
   const m = useMemo(() => {
-    const wins = trades.filter((t) => t.pnl > 0);
-    const losses = trades.filter((t) => t.pnl < 0);
+    const wins = trades.filter((t) => outcomeOf(t) === "win");
+    const losses = trades.filter((t) => outcomeOf(t) === "loss");
     const n = trades.length || 1;
     const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
     const avgLoss = losses.length ? losses.reduce((s, t) => s + t.pnl, 0) / losses.length : 0;

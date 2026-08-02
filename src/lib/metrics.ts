@@ -39,6 +39,9 @@ export function computeStats(trades: Trade[]): Stats {
     else be++;
     netRR += t.rr;
     netPnl += t.pnl;
+    // Profit factor is computed in R, not money, deliberately: risk % differs
+    // between challenge (higher) and funded (lower) accounts, so money-based
+    // gross profit/loss would be distorted by position size rather than edge.
     if (t.rr > 0) grossWin += t.rr;
     if (t.rr < 0) grossLoss += -t.rr;
     if (t.rr > largestWin) largestWin = t.rr;
@@ -214,10 +217,35 @@ export function executionSummary(trades: Trade[]): ExecutionSummary {
 // ── prop-firm / SMC analytics ─────────────────────────────────────────
 
 /** Rule adherence = trades where the plan was followed ÷ total, as a %. */
+/**
+ * Adherence over REVIEWED trades only.
+ *
+ * Previously this divided by every trade, so an unreviewed trade
+ * (followedPlan === undefined) counted as a rule break. That reports a
+ * disciplined trader who simply hasn't ticked the checklist as 0% adherent,
+ * which is not true — it's unknown, not bad. Use `adherenceDetail` when you
+ * need to show how much of the sample is actually reviewed.
+ */
 export function ruleAdherence(trades: Trade[]): number {
-  if (trades.length === 0) return 0;
-  const followed = trades.filter((t) => t.followedPlan === true).length;
-  return (followed / trades.length) * 100;
+  const reviewed = trades.filter((t) => t.followedPlan !== undefined);
+  if (reviewed.length === 0) return 0;
+  return (reviewed.filter((t) => t.followedPlan === true).length / reviewed.length) * 100;
+}
+
+export function adherenceDetail(trades: Trade[]): {
+  pct: number;
+  reviewed: number;
+  total: number;
+  coverage: number;
+} {
+  const reviewed = trades.filter((t) => t.followedPlan !== undefined);
+  const followed = reviewed.filter((t) => t.followedPlan === true).length;
+  return {
+    pct: reviewed.length ? (followed / reviewed.length) * 100 : 0,
+    reviewed: reviewed.length,
+    total: trades.length,
+    coverage: trades.length ? (reviewed.length / trades.length) * 100 : 0,
+  };
 }
 
 export interface TrendPoint {
@@ -330,8 +358,11 @@ export interface WinLossSummary {
 /** Winner/loser breakdown including consecutive-streak stats (chronological). */
 export function winLossSummary(trades: Trade[]): WinLossSummary {
   const chron = [...trades].sort((a, b) => a.date.localeCompare(b.date));
-  const wins = chron.filter((t) => t.rr > 0);
-  const losses = chron.filter((t) => t.rr < 0);
+  // Classify with outcomeOf so every card agrees on what a "win" is.
+  // Using t.rr here gave a different winner count than the header stats
+  // whenever pnl and rr disagreed (e.g. pnl logged, rr left at 0).
+  const wins = chron.filter((t) => outcomeOf(t) === "win");
+  const losses = chron.filter((t) => outcomeOf(t) === "loss");
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
 
@@ -341,7 +372,8 @@ export function winLossSummary(trades: Trade[]): WinLossSummary {
   let run = 0;
   let runSign = 0;
   for (const t of chron) {
-    const s = t.rr > 0 ? 1 : t.rr < 0 ? -1 : 0;
+    const o = outcomeOf(t);
+    const s = o === "win" ? 1 : o === "loss" ? -1 : 0;
     if (s === 0) continue;
     if (s === runSign) run++;
     else {
@@ -529,8 +561,9 @@ export function isoWeekKey(d: Date): string {
  *
  * - Trades sharing a setupId become one entry.
  * - R is averaged across the executions (they should be near-identical).
- * - P&L is summed (the money really was made on every account) — but P&L is
- *   not what edge stats key on, so this stays honest either way.
+ * - P&L is summed on purpose: the money really was made on every account, so
+ *   money totals stay identical in both counting modes. Only the edge stats
+ *   (win rate, expectancy, sample size) collapse to one data point.
  * - Trades without a setupId are untouched.
  */
 export function dedupeBySetup(trades: Trade[]): Trade[] {

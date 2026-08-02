@@ -16,6 +16,7 @@ import {
   executionSummary,
   executionFindings,
   ruleAdherence,
+  adherenceDetail,
   adherenceTrend,
   statsByHour,
   distribution,
@@ -185,7 +186,8 @@ function DisciplineTrend() {
 function KpiScorecard() {
   const trades = useVisibleTrades();
   const stats = useMemo(() => computeStats(dedupeBySetup(trades)), [trades]);
-  const adherence = useMemo(() => ruleAdherence(trades), [trades]);
+  const adh = useMemo(() => adherenceDetail(trades), [trades]);
+  const adherence = adh.pct;
   const thesisRate = useMemo(
     () => (trades.length ? (trades.filter((t) => (t.thesis ?? "").trim()).length / trades.length) * 100 : 0),
     [trades]
@@ -193,7 +195,7 @@ function KpiScorecard() {
 
   if (trades.length === 0) return null;
 
-  const wins = trades.filter((t) => t.pnl > 0);
+  const wins = trades.filter((t) => outcomeOf(t) === "win");
   const avgWinR = wins.length ? wins.reduce((s, t) => s + Math.abs(t.rr), 0) / wins.length : 0;
 
   const axes: KpiAxis[] = [
@@ -201,7 +203,7 @@ function KpiScorecard() {
     { key: "wr", label: "Win rate", value: stats.winRate, target: 45, max: 70, format: (v) => `${v.toFixed(0)}%` },
     { key: "rr", label: "Avg winner", value: avgWinR, target: 2, max: 4, format: (v) => `${v.toFixed(1)}R` },
     { key: "pf", label: "Profit factor", value: Math.min(stats.profitFactor, 4), target: 1.5, max: 3, format: (v) => v.toFixed(2) },
-    { key: "adh", label: "Adherence", value: adherence, target: 90, max: 100, format: (v) => `${v.toFixed(0)}%` },
+    { key: "adh", label: "Adherence", value: adherence, target: 90, max: 100, format: (v) => (adh.reviewed === 0 ? "—" : `${v.toFixed(0)}%`) },
     { key: "th", label: "Thesis rate", value: thesisRate, target: 100, max: 100, format: (v) => `${v.toFixed(0)}%` },
   ];
 
@@ -213,6 +215,7 @@ function KpiScorecard() {
       </div>
       <p className="mt-2 text-[11px] text-mute">
         Dashed ring is the target. Any point inside it is the KPI to work on next.
+        {adh.coverage < 100 && ` Adherence covers the ${adh.reviewed} of ${adh.total} trades you have reviewed.`}
       </p>
     </Card>
   );
@@ -501,8 +504,8 @@ export default function AnalyticsPage() {
     const rrSeries: number[] = [];
     let sum = 0;
     ordered.forEach((t, i) => { sum += t.rr; rrSeries.push(sum / (i + 1)); });
-    const wins = ordered.filter((t) => t.pnl > 0);
-    const losses = ordered.filter((t) => t.pnl < 0);
+    const wins = ordered.filter((t) => outcomeOf(t) === "win");
+    const losses = ordered.filter((t) => outcomeOf(t) === "loss");
     const avgWinR = wins.length ? wins.reduce((a, t) => a + Math.abs(t.rr), 0) / wins.length : 0;
     const avgLossR = losses.length ? losses.reduce((a, t) => a + Math.abs(t.rr), 0) / losses.length : 1;
     let ws = 0;
@@ -522,15 +525,15 @@ export default function AnalyticsPage() {
   /** Long/short counts and win rates, shared by the by-side visuals. */
   const sideSplit = useMemo(() => {
     const wr = (list: typeof trades) => {
-      const decided = list.filter((t) => t.pnl !== 0);
-      return decided.length ? (decided.filter((t) => t.pnl > 0).length / decided.length) * 100 : 0;
+      const decided = list.filter((t) => outcomeOf(t) !== "be");
+      return decided.length ? (decided.filter((t) => outcomeOf(t) === "win").length / decided.length) * 100 : 0;
     };
     const longs = trades.filter((t) => t.direction === "long");
     const shorts = trades.filter((t) => t.direction === "short");
     return { longN: longs.length, shortN: shorts.length, longWR: wr(longs), shortWR: wr(shorts) };
   }, [trades]);
-  const winMoney = useMemo(() => trades.filter((t) => t.pnl > 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
-  const lossMoney = useMemo(() => trades.filter((t) => t.pnl < 0).reduce((s2, t) => s2 + t.pnl, 0), [trades]);
+  const winMoney = useMemo(() => trades.filter((t) => outcomeOf(t) === "win").reduce((s2, t) => s2 + t.pnl, 0), [trades]);
+  const lossMoney = useMemo(() => trades.filter((t) => outcomeOf(t) === "loss").reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const startingBalance = useMemo(() => {
     // Only accounts in the selected capital stage count — showing funded
     // analytics against combined funded+challenge capital is meaningless.
@@ -600,7 +603,8 @@ export default function AnalyticsPage() {
   const byQuality = useMemo(() => {
     return statsByGroup(trades, (t) => (t.qualityScore ? String(t.qualityScore) : undefined)).sort((a, b) => Number(a.key) - Number(b.key));
   }, [trades]);
-  const adherence = useMemo(() => ruleAdherence(trades), [trades]);
+  const adh = useMemo(() => adherenceDetail(trades), [trades]);
+  const adherence = adh.pct;
   const adherenceWeekly = useMemo(() => adherenceTrend(trades, "week", 10), [trades]);
   const adherenceMonthly = useMemo(() => adherenceTrend(trades, "month", 6), [trades]);
 
@@ -852,7 +856,7 @@ export default function AnalyticsPage() {
                       {fmtPF(stats.profitFactor)}
                     </div>
                     <div className="mt-0.5 text-[11px] text-mute">
-                      {stats.profitFactor >= 2 ? "strong" : stats.profitFactor >= 1.5 ? "good" : stats.profitFactor >= 1 ? "marginal" : "losing"} · target 1.5+
+                      {stats.profitFactor >= 2 ? "strong" : stats.profitFactor >= 1.5 ? "good" : stats.profitFactor >= 1 ? "marginal" : "losing"} · target 1.5+ · in R
                     </div>
                   </div>
                   <PFRing value={stats.profitFactor} />

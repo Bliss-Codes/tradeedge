@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
-import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, ruleAdherence, signColor } from "@/lib/metrics";
+import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, adherenceDetail, signColor } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
 import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/components/ui/primitives";
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
@@ -16,7 +16,7 @@ import { RiskBanner } from "@/components/layout/RiskBanner";
 import { TradeModal } from "@/components/trades/TradeModal";
 import { TradeDetail } from "@/components/trades/TradeDetail";
 import { DayReviewModal } from "@/components/trades/DayReviewModal";
-import { Trade } from "@/lib/types";
+import { Trade, outcomeOf } from "@/lib/types";
 
 const todayKey = () => {
   const d = new Date();
@@ -174,7 +174,8 @@ export default function DashboardPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
 
   const stats = useMemo(() => computeStats(trades), [trades]);
-  const adherence = useMemo(() => ruleAdherence(trades), [trades]);
+  const adh = useMemo(() => adherenceDetail(trades), [trades]);
+  const adherence = adh.pct;
   /** Share of trades that had a written thesis — the single strongest predictor
    *  in this journal's own data (documented setups vastly outperform blanks). */
   const thesisRate = useMemo(
@@ -235,26 +236,29 @@ export default function DashboardPage() {
           hero
           icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"
           label="Rule adherence"
-          value={fmtPct(adherence)}
-          sub={thesisRate < 100 ? `${fmtPct(thesisRate)} had a thesis` : "every trade had a thesis"}
-          tone={adherence >= 90 ? 1 : adherence >= 70 ? 0 : -1}
+          value={adh.reviewed === 0 ? "—" : fmtPct(adherence)}
+          sub={
+            adh.reviewed === 0
+              ? "no trades reviewed yet"
+              : adh.coverage < 100
+              ? `${adh.reviewed} of ${adh.total} reviewed · ${fmtPct(thesisRate)} had a thesis`
+              : `${fmtPct(thesisRate)} had a thesis`
+          }
         />
         <KpiCard
           icon="M3 17l6-6 4 4 8-8 M21 7v5h-5"
           label="Net P&L"
           value={fmtMoney(stats.netPnl, currency)}
           sub={`${fmtR(stats.netRR)} · ${stats.total} trades`}
-          tone={stats.netPnl}
         />
         <KpiCard icon="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z" label="Win rate" value={fmtPct(stats.winRate)} sub={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
         <KpiCard icon="M4 20V10 M10 20V4 M16 20v-7 M22 20H2" label="Profit factor" value={fmtPF(stats.profitFactor)} sub="gross win ÷ loss" />
-        <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} tone={money.expectancy} />
+        <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} />
         <KpiCard
           icon="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"
           label="Current streak"
           value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "W" : "L"}`}
           sub={stats.currentStreak > 0 ? "winning" : stats.currentStreak < 0 ? "losing" : "flat"}
-          tone={stats.currentStreak}
         />
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -330,7 +334,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
+                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{outcomeOf(t) !== "be" ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
                   <OutcomePill rr={t.rr} pnl={t.pnl} />
                 </div>
               </button>
