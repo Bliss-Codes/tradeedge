@@ -134,12 +134,15 @@ export function TradeModal({
   const [t, setT] = useState<Trade>(existing ?? seed ?? blank);
   /** Extra accounts this same setup was executed on (multi-account logging). */
   const [alsoOn, setAlsoOn] = useState<Set<string>>(new Set());
+  /** Off-plan trades still get logged — they just get labelled as such. */
+  const [offPlan, setOffPlan] = useState(false);
   const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     if (open) {
       setT(existing ? { ...existing } : seed ? { ...seed } : blank);
       setAlsoOn(new Set());
+      setOffPlan(existing?.followedPlan === false);
     }
   }, [open, existing, seed, blank]);
 
@@ -288,21 +291,44 @@ export function TradeModal({
   return (
     <Modal open={open} onClose={onClose} title={existing ? "Edit trade" : "Log trade"} wide persistent>
       <div className="space-y-6">
-        {/* Thesis gate — the decision, before the numbers. Required for live trades. */}
+        {/* Decision gate. A reason is always required, but an off-plan trade is
+            still a real trade — blocking it would delete the most instructive
+            data in the journal. So the gate asks for honesty, not compliance. */}
         {!existing && t.type === "live" && (
-          <div className="rounded-xl border border-accent/30 bg-accent/5 p-4">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Thesis — why this trade?</span>
+          <div className={`rounded-xl border p-4 ${offPlan ? "border-warn/40 bg-warn/[0.06]" : "border-accent/30 bg-accent/5"}`}>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <span className={`text-xs font-semibold uppercase tracking-wider ${offPlan ? "text-warn" : "text-accent"}`}>
+                {offPlan ? "Off-plan — what happened?" : "Thesis — why this trade?"}
+              </span>
               {!(t.thesis ?? "").trim() && <span className="text-[11px] text-mute">required</span>}
             </div>
             <Textarea
               rows={2}
               value={t.thesis ?? ""}
               onChange={(e) => set("thesis", e.target.value || undefined)}
-              placeholder="Liquidity taken, structure, POI, invalidation — before you enter."
+              placeholder={
+                offPlan
+                  ? "Be honest: chased the move, revenge after the last loss, boredom, saw it late…"
+                  : "Liquidity taken, structure, POI, invalidation — before you enter."
+              }
               autoFocus
             />
-            <p className="mt-1.5 text-[11px] text-mute">If you can&apos;t name the setup, it isn&apos;t one. This field is the trade filter, not paperwork.</p>
+            <p className="mt-1.5 text-[11px] text-mute">
+              {offPlan
+                ? "Logging it honestly is what makes the data worth having. These trades are kept separate from your A-setups."
+                : "If you can't name the setup, it isn't one. This field is the trade filter, not paperwork."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !offPlan;
+                setOffPlan(next);
+                set("followedPlan", next ? false : undefined);
+              }}
+              className={`mt-2.5 text-[11px] underline-offset-2 hover:underline ${offPlan ? "text-warn" : "text-mute hover:text-sub"}`}
+            >
+              {offPlan ? "← Actually this followed my plan" : "This one didn't follow my plan — log it anyway"}
+            </button>
             <div className="mt-3 border-t border-accent/20 pt-3">
               <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">How do you feel entering?</div>
               <div className="flex flex-wrap gap-1.5">

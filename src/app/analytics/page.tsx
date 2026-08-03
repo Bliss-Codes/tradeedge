@@ -41,7 +41,7 @@ import { YearHeatmap } from "@/components/charts/YearHeatmap";
 import { DisciplineQuadrant, QuadrantPoint } from "@/components/charts/DisciplineQuadrant";
 import { EquityCurve, BarRow } from "@/components/charts/EquityCurve";
 import { SessionRadar } from "@/components/charts/SessionRadar";
-import { GRADES, EXIT_REASONS, QUALITY_LABELS, SESSIONS, outcomeOf } from "@/lib/types";
+import { GRADES, EXIT_REASONS, QUALITY_LABELS, SESSIONS, outcomeOf, Trade } from "@/lib/types";
 import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/fields";
 
 const TABS = [
@@ -415,6 +415,63 @@ function PFRing({ value, size = 74 }: { value: number; size?: number }) {
   );
 }
 
+
+/** Plan-following trades against off-plan ones. This is usually the single
+ *  most valuable split in the journal: it separates the system's edge from
+ *  the cost of deviating from it. */
+function PlanVsOffPlan({ trades, currency }: { trades: Trade[]; currency: string }) {
+  const m = useMemo(() => {
+    const off = trades.filter((t) => t.followedPlan === false);
+    const on = trades.filter((t) => t.followedPlan === true);
+    const agg = (list: Trade[]) => {
+      const decided = list.filter((t) => outcomeOf(t) !== "be");
+      return {
+        n: list.length,
+        wr: decided.length ? (decided.filter((t) => outcomeOf(t) === "win").length / decided.length) * 100 : 0,
+        r: list.reduce((a, t) => a + t.rr, 0),
+        exp: list.length ? list.reduce((a, t) => a + t.rr, 0) / list.length : 0,
+        pnl: list.reduce((a, t) => a + t.pnl, 0),
+      };
+    };
+    return { on: agg(on), off: agg(off) };
+  }, [trades]);
+
+  if (m.off.n === 0 && m.on.n === 0) return null;
+
+  const Row = ({ label, on, off }: { label: string; on: string; off: string }) => (
+    <div className="grid grid-cols-3 items-center py-1.5 text-sm">
+      <span className="text-mute">{label}</span>
+      <span className="text-right font-mono text-pos">{on}</span>
+      <span className="text-right font-mono text-warn">{off}</span>
+    </div>
+  );
+
+  return (
+    <Card>
+      <SectionTitle>Plan vs off-plan</SectionTitle>
+      <div className="grid grid-cols-3 border-b border-edge pb-2 text-xs uppercase tracking-wider text-mute">
+        <span />
+        <span className="text-right text-pos">Followed plan</span>
+        <span className="text-right text-warn">Off-plan</span>
+      </div>
+      <div className="divide-y divide-edge/60">
+        <Row label="Trades" on={String(m.on.n)} off={String(m.off.n)} />
+        <Row label="Win rate" on={`${m.on.wr.toFixed(0)}%`} off={`${m.off.wr.toFixed(0)}%`} />
+        <Row label="Expectancy" on={`${m.on.exp.toFixed(2)}R`} off={`${m.off.exp.toFixed(2)}R`} />
+        <Row label="Total R" on={`${m.on.r >= 0 ? "+" : ""}${m.on.r.toFixed(1)}R`} off={`${m.off.r >= 0 ? "+" : ""}${m.off.r.toFixed(1)}R`} />
+        <Row label="P&L" on={fmtMoney(m.on.pnl, currency)} off={fmtMoney(m.off.pnl, currency)} />
+      </div>
+      {m.off.n > 0 && m.on.n > 0 && (
+        <p className="mt-3 text-[11px] text-mute">
+          {m.off.exp < m.on.exp
+            ? `Off-plan trades cost you ${(m.on.exp - m.off.exp).toFixed(2)}R per trade versus your own system. Eliminating them is worth more than any new setup.`
+            : "Off-plan trades are outperforming your plan here — worth examining whether the plan is too restrictive, or this is a small-sample fluke."}
+        </p>
+      )}
+    </Card>
+  );
+}
+
 type CountMode = "By setup" | "By execution";
 
 export default function AnalyticsPage() {
@@ -457,7 +514,11 @@ export default function AnalyticsPage() {
   }, [allTradesRaw, allAccounts]);
   // Challenge P&L is score, funded P&L is income. Default to real money so the
   // dollar figures on this page always mean withdrawable profit.
-  const [moneyScope, setMoneyScope] = useState<MoneyScope>("Real money");
+  // Capital scope lives in one place: the stage pills. A second Money filter
+  // used to stack on top of this and could contradict it (Challenge + Real
+  // money = zero trades, with no indication why).
+  const moneyScope: MoneyScope =
+    stage === "funded" ? "Real money" : stage === "challenge" ? "Challenge" : "All";
   const accounts = useApp((s) => s.accounts);
   const rawVisible = useVisibleTrades("live", stage);
   const counts = useMemo(() => setupCounts(rawVisible), [rawVisible]);
@@ -654,9 +715,6 @@ export default function AnalyticsPage() {
         <FilterPill label="Outcome" value={fOutcome} onChange={setFOutcome}
           options={[["", "All outcomes"], ["win", "Wins"], ["loss", "Losses"], ["be", "Breakeven"]]} />
 
-        <FilterPill label="Money" value={moneyScope === "All" ? "" : moneyScope} onChange={(v) => setMoneyScope((v || "All") as MoneyScope)}
-          options={[["Real money", "Real money only"], ["Challenge", "Challenge only"], ["", "All accounts"]]} />
-
         <div className="ml-auto flex items-center gap-3">
           <span className="font-mono text-xs text-mute">{trades.length} trades</span>
           {hasLinked && (
@@ -685,7 +743,7 @@ export default function AnalyticsPage() {
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-edge bg-surface/40 px-4 py-2.5 text-xs">
           <span className="text-mute">
             {moneyScope === "Real money"
-              ? "Showing withdrawable profit only — challenge trades excluded."
+              ? "Showing funded accounts only — this is withdrawable profit."
               : moneyScope === "Challenge"
               ? "Showing evaluation accounts only — this P&L is score, not money."
               : "Showing everything — dollar totals mix real profit with challenge score."}
@@ -894,6 +952,8 @@ export default function AnalyticsPage() {
               />
             </Card>
           </div>
+
+          <PlanVsOffPlan trades={visible} currency={currency} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <KpiScorecard />
