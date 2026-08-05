@@ -196,5 +196,5 @@ export function buildSampleData(): Snapshot {
     },
   ];
 
-  return { accounts, trades, strategies, missed, reviews, customTags: [] };
+  return { accounts, trades, strategies, missed, reviews, customTags: [], customViolations: [], customEmotions: [] };
 }

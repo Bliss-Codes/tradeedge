@@ -35,7 +35,8 @@ export const COMMON_PAIRS = [
 ];
 
 export const EMOTIONS = ["Neutral", "Focused", "Fear", "FOMO", "Revenge", "Frustrated"] as const;
-export type Emotion = (typeof EMOTIONS)[number];
+/** Built-ins are suggestions, not a closed set — users add their own. */
+export type Emotion = (typeof EMOTIONS)[number] | (string & {});
 
 // SMC / liquidity trade taxonomy
 export const HTF_BIAS = ["Bullish", "Bearish"] as const;
@@ -100,7 +101,8 @@ export const VIOLATIONS = [
   "Overtrading",
   "Ignored Setup Rules",
 ] as const;
-export type Violation = (typeof VIOLATIONS)[number];
+/** Built-ins are suggestions, not a closed set — users add their own. */
+export type Violation = (typeof VIOLATIONS)[number] | (string & {});
 
 export const ACCOUNT_TYPES = ["Personal", "Demo", "Challenge", "Funded", "Backtest"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -263,6 +265,9 @@ export interface Profile {
   displayName?: string;
   avatarDataUrl?: string;
   tagline?: string;
+  /** User-defined violation and emotion labels, kept in the profile jsonb. */
+  customViolations?: string[];
+  customEmotions?: string[];
 }
 
 export interface Snapshot {
@@ -273,6 +278,8 @@ export interface Snapshot {
   missed: MissedTrade[];
   reviews: DayReview[];
   customTags: string[];
+  customViolations: string[];
+  customEmotions: string[];
 }
 
 export const EMPTY_SNAPSHOT: Snapshot = {
@@ -283,6 +290,8 @@ export const EMPTY_SNAPSHOT: Snapshot = {
   missed: [],
   reviews: [],
   customTags: [],
+  customViolations: [],
+  customEmotions: [],
 };
 
 export function outcomeOf(t: Pick<Trade, "rr" | "pnl">): Outcome {

@@ -49,6 +49,8 @@ export class SupabaseBackend implements Backend {
       missed: rows<MissedTrade>(missed),
       reviews: rows<DayReview>(reviews),
       customTags: (profile.data?.custom_tags as string[] | undefined) ?? [],
+      customViolations: ((profile.data?.profile as Profile | undefined)?.customViolations as string[] | undefined) ?? [],
+      customEmotions: ((profile.data?.profile as Profile | undefined)?.customEmotions as string[] | undefined) ?? [],
       profile: (profile.data?.profile as Profile | undefined) ?? {},
     };
   }

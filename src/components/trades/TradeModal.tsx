@@ -85,6 +85,44 @@ function StrategyFieldInput({
   );
 }
 
+
+/** Inline "+ add" for user-defined chips (violations, emotions). */
+function AddChip({ onAdd, label = "Add" }: { onAdd: (v: string) => void; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState("");
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-full border border-dashed border-edge px-3 py-1 text-xs text-mute transition hover:border-mute hover:text-sub"
+      >
+        + {label}
+      </button>
+    );
+  }
+  const commit = () => {
+    const clean = val.trim();
+    if (clean) onAdd(clean);
+    setVal("");
+    setOpen(false);
+  };
+  return (
+    <input
+      autoFocus
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); commit(); }
+        if (e.key === "Escape") { setVal(""); setOpen(false); }
+      }}
+      placeholder="Type and press Enter"
+      className="w-44 rounded-full border border-accent/60 bg-surface px-3 py-1 text-xs text-ink outline-none"
+    />
+  );
+}
+
 export function TradeModal({
   open,
   onClose,
@@ -103,6 +141,12 @@ export function TradeModal({
   const allTrades = useApp((s) => s.trades);
   const selectedAccount = useApp((s) => s.selectedAccountId);
   const addTrade = useApp((s) => s.addTrade);
+  const addCustomViolation = useApp((s) => s.addCustomViolation);
+  const addCustomEmotion = useApp((s) => s.addCustomEmotion);
+  const customViolations = useApp((s) => s.customViolations);
+  const customEmotions = useApp((s) => s.customEmotions);
+  const allViolations = useMemo(() => [...VIOLATIONS, ...(customViolations ?? [])], [customViolations]);
+  const allEmotions = useMemo(() => [...EMOTIONS, ...(customEmotions ?? [])], [customEmotions]);
   const updateTrade = useApp((s) => s.updateTrade);
   const addCustomTag = useApp((s) => s.addCustomTag);
   const allTags = useAllTags();
@@ -332,7 +376,7 @@ export function TradeModal({
             <div className="mt-3 border-t border-accent/20 pt-3">
               <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">How do you feel entering?</div>
               <div className="flex flex-wrap gap-1.5">
-                {EMOTIONS.map((e) => {
+                {allEmotions.map((e) => {
                   const on = t.emotionBefore === e;
                   const risky = e === "FOMO" || e === "Revenge" || e === "Frustrated";
                   return (
@@ -352,6 +396,7 @@ export function TradeModal({
                     </button>
                   );
                 })}
+                <AddChip label="emotion" onAdd={(v) => { addCustomEmotion(v); set("emotionBefore", v); }} />
               </div>
               {(t.emotionBefore === "FOMO" || t.emotionBefore === "Revenge" || t.emotionBefore === "Frustrated") && (
                 <p className="mt-2 text-[11px] text-neg">
@@ -724,18 +769,24 @@ export function TradeModal({
         {/* Psychology */}
         <div className="space-y-4">
           {(existing || t.type === "backtest") && (
-            <OptionCards label="Emotion before" value={t.emotionBefore} options={EMOTIONS} clearable onChange={(v) => set("emotionBefore", v as Emotion | undefined)} />
+            <OptionCards label="Emotion before" value={t.emotionBefore} options={allEmotions} clearable onChange={(v) => set("emotionBefore", v as Emotion | undefined)} />
           )}
-          <OptionCards label="Emotion after" value={t.emotionAfter} options={EMOTIONS} clearable onChange={(v) => set("emotionAfter", v as Emotion | undefined)} />
+          <div>
+            <OptionCards label="Emotion after" value={t.emotionAfter} options={allEmotions} clearable onChange={(v) => set("emotionAfter", v as Emotion | undefined)} />
+            <div className="mt-2">
+              <AddChip label="emotion" onAdd={(v) => { addCustomEmotion(v); set("emotionAfter", v); }} />
+            </div>
+          </div>
         </div>
 
         {/* Rule violations */}
         <div>
           <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">Rule violations</div>
           <div className="flex flex-wrap gap-2">
-            {VIOLATIONS.map((v) => (
+            {allViolations.map((v) => (
               <TagChip key={v} tag={v} active={t.violations.includes(v)} onClick={() => toggleViolation(v)} />
             ))}
+            <AddChip label="violation" onAdd={(v) => { addCustomViolation(v); toggleViolation(v); }} />
           </div>
         </div>
 

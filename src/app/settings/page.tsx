@@ -19,6 +19,8 @@ export default function SettingsPage() {
     strategies: state.strategies,
     missed: state.missed,
     reviews: state.reviews,
+    customViolations: state.customViolations,
+    customEmotions: state.customEmotions,
     customTags: state.customTags,
   };
 

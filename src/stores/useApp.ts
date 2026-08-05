@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { Account, MissedTrade, Snapshot, Strategy, Trade, DayReview, EMPTY_SNAPSHOT, DEFAULT_TAGS, Profile } from "@/lib/types";
+import { Account, MissedTrade, Snapshot, Strategy, Trade, DayReview, EMPTY_SNAPSHOT, DEFAULT_TAGS, Profile, VIOLATIONS, EMOTIONS } from "@/lib/types";
 import { backend } from "@/lib/data/backend";
 import { buildSampleData } from "@/lib/data/sample";
 import { supabase, isSupabaseEnabled } from "@/lib/supabase/client";
@@ -56,6 +56,8 @@ interface AppState extends Snapshot {
 
   addCustomTag: (tag: string) => void;
   setProfile: (patch: Partial<Profile>) => void;
+  addCustomViolation: (v: string) => void;
+  addCustomEmotion: (v: string) => void;
 
   loadSampleData: () => void;
   restoreBackup: (s: Snapshot) => void;
@@ -228,6 +230,26 @@ export const useApp = create<AppState>((set, get) => ({
     const next = { ...(get().profile ?? {}), ...patch };
     set({ profile: next });
     reportSync(backend.setProfile(next));
+  },
+
+  addCustomViolation: (v) => {
+    const clean = v.trim();
+    if (!clean) return;
+    const existing = get().customViolations ?? [];
+    if (existing.includes(clean) || (VIOLATIONS as readonly string[]).includes(clean)) return;
+    const next = [...existing, clean];
+    set({ customViolations: next });
+    reportSync(backend.setProfile({ ...(get().profile ?? {}), customViolations: next }));
+  },
+
+  addCustomEmotion: (v) => {
+    const clean = v.trim();
+    if (!clean) return;
+    const existing = get().customEmotions ?? [];
+    if (existing.includes(clean) || (EMOTIONS as readonly string[]).includes(clean)) return;
+    const next = [...existing, clean];
+    set({ customEmotions: next });
+    reportSync(backend.setProfile({ ...(get().profile ?? {}), customEmotions: next }));
   },
 
   addCustomTag: (tag) => {
