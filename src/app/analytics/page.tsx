@@ -17,6 +17,8 @@ import {
   executionFindings,
   ruleAdherence,
   adherenceDetail,
+  quadrantOf,
+  TradeType,
   adherenceTrend,
   statsByHour,
   distribution,
@@ -479,6 +481,7 @@ export default function AnalyticsPage() {
   const [curveMode, setCurveMode] = useState<"Money" | "R">("Money");
   /** Challenge money is notional; funded money is real. Never blend them. */
   const [stage, setStage] = useState<CapitalStage>("all");
+  const [fType, setFType] = useState<string>("");
   const allAccounts = useApp((s) => s.accounts);
   const allTradesRaw = useApp((s) => s.trades);
   /** True when live trades exist on both challenge and funded accounts. */
@@ -551,10 +554,11 @@ export default function AnalyticsPage() {
       if (fSession && t.session !== fSession) return false;
       if (fSide && t.direction !== fSide) return false;
       if (fOutcome && outcomeOf(t) !== fOutcome) return false;
+      if (fType && quadrantOf(t) !== fType) return false;
       if (new Date(t.date).getTime() < cutoff) return false;
       return true;
     });
-  }, [visible, fRange, fStrategy, fSession, fSide, fOutcome]);
+  }, [visible, fRange, fStrategy, fSession, fSide, fOutcome, fType]);
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   /** Running series + averages powering the RR strip. */
@@ -609,7 +613,7 @@ export default function AnalyticsPage() {
       return active.reduce((s2, a) => s2 + (a.balance || 0), 0) || undefined;
     }
     return undefined;
-  }, [accounts, stage, fStrategy, fSession, fSide, fOutcome]);
+  }, [accounts, stage, fStrategy, fSession, fSide, fOutcome, fType]);
   /** Account balance and its % change, for the chart header. */
   const balance = startingBalance !== undefined ? startingBalance + stats.netPnl : undefined;
   const pctChange = startingBalance ? (stats.netPnl / startingBalance) * 100 : undefined;
@@ -714,6 +718,15 @@ export default function AnalyticsPage() {
           options={[["", "Long & short"], ["long", "Long"], ["short", "Short"]]} />
         <FilterPill label="Outcome" value={fOutcome} onChange={setFOutcome}
           options={[["", "All outcomes"], ["win", "Wins"], ["loss", "Losses"], ["be", "Breakeven"]]} />
+        <FilterPill label="Trade type" value={fType} onChange={setFType}
+          options={[
+            ["", "All types"],
+            ["type1", "Type 1 — plan, won"],
+            ["type2", "Type 2 — plan, stopped"],
+            ["type3", "Type 3 — off-plan, won"],
+            ["type4", "Type 4 — off-plan, lost"],
+            ["unclassified", "Unclassified"],
+          ]} />
 
         <div className="ml-auto flex items-center gap-3">
           <span className="font-mono text-xs text-mute">{trades.length} trades</span>
@@ -723,15 +736,16 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome) && (
+      {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome || fType) && (
         <div className="-mt-3 flex flex-wrap items-center gap-1.5">
           {fRange !== "all" && <FilterChip label={`last ${fRange} days`} onClear={() => setFRange("all")} />}
           {fStrategy && <FilterChip label={strategies.find((x) => x.id === fStrategy)?.name ?? "strategy"} onClear={() => setFStrategy("")} />}
           {fSession && <FilterChip label={fSession} onClear={() => setFSession("")} />}
           {fSide && <FilterChip label={fSide} onClear={() => setFSide("")} />}
           {fOutcome && <FilterChip label={fOutcome} onClear={() => setFOutcome("")} />}
+          {fType && <FilterChip label={fType.replace("type", "Type ")} onClear={() => setFType("")} />}
           <button
-            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); }}
+            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); setFType(""); }}
             className="ml-1 text-[11px] text-mute underline-offset-2 hover:text-sub hover:underline"
           >
             Clear filters

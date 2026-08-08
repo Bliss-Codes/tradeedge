@@ -679,3 +679,119 @@ export function moneySplit(trades: Trade[], accounts: Account[], profitSplitPct 
     payoutEstimate: realPnl > 0 ? realPnl * (profitSplitPct / 100) : realPnl,
   };
 }
+
+/* ── Process vs outcome quadrants ──────────────────────────────────────
+   Sorting trades by process AND result separates skill from luck. The
+   dangerous cell is Type 3: breaking the plan and getting paid for it,
+   because the market just rewarded the behaviour that will eventually
+   blow the account. Type 2 is the opposite — a good trade that lost, which
+   is simply the cost of doing business and must not be "fixed". */
+
+export type TradeType = "type1" | "type2" | "type3" | "type4" | "unclassified";
+
+export interface QuadrantMeta {
+  key: TradeType;
+  label: string;
+  short: string;
+  verdict: string;
+  tone: "pos" | "neg" | "warn" | "mute";
+}
+
+export const TRADE_TYPES: QuadrantMeta[] = [
+  {
+    key: "type1",
+    label: "Followed plan · won",
+    short: "Type 1",
+    verdict: "Repeat these. This is the system working exactly as designed.",
+    tone: "pos",
+  },
+  {
+    key: "type2",
+    label: "Followed plan · stopped out",
+    short: "Type 2",
+    verdict: "Accept these. A good trade that lost is the cost of the edge, not a mistake to fix.",
+    tone: "mute",
+  },
+  {
+    key: "type3",
+    label: "Broke plan · won",
+    short: "Type 3",
+    verdict: "The most dangerous cell. You got paid for bad process, which teaches you to repeat it.",
+    tone: "warn",
+  },
+  {
+    key: "type4",
+    label: "Broke plan · lost",
+    short: "Type 4",
+    verdict: "Eliminate these. Pure cost — bad process and bad outcome with nothing learned but the lesson.",
+    tone: "neg",
+  },
+];
+
+/**
+ * A trade counts as "followed plan" when followedPlan is true, or when it has
+ * a thesis and no violations logged. Explicit false, any violation, a
+ * reactive entry emotion, or a missing thesis marks it off-plan.
+ */
+export function followedPlanOf(t: Trade): boolean | undefined {
+  if (t.followedPlan === false) return false;
+  if (t.violations.length > 0) return false;
+  const reactive = t.emotionBefore === "FOMO" || t.emotionBefore === "Revenge" || t.emotionBefore === "Frustrated";
+  if (reactive) return false;
+  if (t.followedPlan === true) return true;
+  if ((t.thesis ?? "").trim()) return true;
+  return undefined; // not enough information to judge
+}
+
+export function quadrantOf(t: Trade): TradeType {
+  const followed = followedPlanOf(t);
+  if (followed === undefined) return "unclassified";
+  const o = outcomeOf(t);
+  if (o === "be") return followed ? "type2" : "type4"; // breakeven sits with the non-winners
+  const won = o === "win";
+  if (followed) return won ? "type1" : "type2";
+  return won ? "type3" : "type4";
+}
+
+export interface QuadrantStats {
+  key: TradeType;
+  n: number;
+  r: number;
+  pnl: number;
+  share: number; // % of classified trades
+}
+
+export function quadrantBreakdown(trades: Trade[]): {
+  rows: QuadrantStats[];
+  unclassified: number;
+  classified: number;
+  processQuality: number; // % of classified trades that followed the plan
+  luckShare: number; // % of winners that came from broken process
+} {
+  const buckets: Record<TradeType, Trade[]> = {
+    type1: [], type2: [], type3: [], type4: [], unclassified: [],
+  };
+  for (const t of trades) buckets[quadrantOf(t)].push(t);
+  const classified = trades.length - buckets.unclassified.length;
+
+  const rows = TRADE_TYPES.map(({ key }) => {
+    const list = buckets[key];
+    return {
+      key,
+      n: list.length,
+      r: list.reduce((a, t) => a + t.rr, 0),
+      pnl: list.reduce((a, t) => a + t.pnl, 0),
+      share: classified ? (list.length / classified) * 100 : 0,
+    };
+  });
+
+  const onPlan = buckets.type1.length + buckets.type2.length;
+  const winners = buckets.type1.length + buckets.type3.length;
+  return {
+    rows,
+    unclassified: buckets.unclassified.length,
+    classified,
+    processQuality: classified ? (onPlan / classified) * 100 : 0,
+    luckShare: winners ? (buckets.type3.length / winners) * 100 : 0,
+  };
+}

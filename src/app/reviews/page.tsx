@@ -17,6 +17,7 @@ import {
   isoWeekKey,
 } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
+import { TradeQuadrants } from "@/components/analytics/TradeQuadrants";
 import { availableBreakdownFields, fieldValueByName, strategyMap } from "@/lib/fields";
 import { Button, Card, EmptyState, SectionTitle, Stat, Tabs, inputCls } from "@/components/ui/primitives";
 import { GroupTable } from "@/components/ui/GroupTable";
@@ -276,6 +277,8 @@ export default function ReviewsPage() {
       </div>
 
       <ReviewJournal periodKey={periodKey} scope={view === "Weekly" ? "week" : "month"} label={label} trades={period} />
+
+      <TradeQuadrants trades={period} currency={currency} />
 
       {period.length === 0 ? (
         <EmptyState title={`No trades this ${view === "Weekly" ? "week" : "month"}`} body="Your reflection above is saved. Log trades to auto-generate the stats for this period." />
