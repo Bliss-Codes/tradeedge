@@ -21,11 +21,18 @@ export function TradeDetail({
   onClose,
   onEdit,
   replay = false,
+  onPrev,
+  onNext,
+  position,
 }: {
   trade: Trade | null;
   onClose: () => void;
   onEdit?: (t: Trade) => void;
   replay?: boolean;
+  /** Step through the filtered list without closing the card. */
+  onPrev?: () => void;
+  onNext?: () => void;
+  position?: { index: number; total: number };
 }) {
   const strategies = useApp((s) => s.strategies);
   const accounts = useApp((s) => s.accounts);
@@ -35,6 +42,17 @@ export function TradeDetail({
   useEffect(() => {
     setRevealed(!replay);
   }, [trade?.id, replay]);
+
+  // Arrow keys step through trades; disabled while the lightbox owns them.
+  useEffect(() => {
+    if (lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" && onPrev) { e.preventDefault(); onPrev(); }
+      if (e.key === "ArrowRight" && onNext) { e.preventDefault(); onNext(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onPrev, onNext, lightbox]);
 
   if (!trade) return null;
   const strategy = strategies.find((s) => s.id === trade.strategyId);
@@ -48,9 +66,9 @@ export function TradeDetail({
           <div>
             <div className="mb-2 text-xs font-medium uppercase tracking-wider text-mute">Before</div>
             {trade.beforeImageIds.length > 0 ? (
-              <div className="flex flex-wrap gap-3">
+              <div className="space-y-3">
                 {trade.beforeImageIds.map((id, i) => (
-                  <ImageThumb key={id} id={id} onOpen={() => setLightbox({ ids: trade.beforeImageIds, index: i })} />
+                  <ImageThumb key={id} id={id} size="lg" onOpen={() => setLightbox({ ids: trade.beforeImageIds, index: i })} />
                 ))}
               </div>
             ) : (
@@ -128,7 +146,7 @@ export function TradeDetail({
             {trade.afterImageIds.length > 0 && (
               <div className="flex flex-wrap gap-3">
                 {trade.afterImageIds.map((id, i) => (
-                  <ImageThumb key={id} id={id} onOpen={() => setLightbox({ ids: trade.afterImageIds, index: i })} />
+                  <ImageThumb key={id} id={id} size="lg" onOpen={() => setLightbox({ ids: trade.afterImageIds, index: i })} />
                 ))}
               </div>
             )}
@@ -176,9 +194,26 @@ export function TradeDetail({
           </div>
         )}
 
-        {onEdit && (
-          <div className="flex justify-end gap-2 border-t border-edge pt-4">
-            <Button variant="ghost" onClick={() => onEdit(trade)}>Edit trade</Button>
+        {(onEdit || onPrev || onNext) && (
+          <div className="flex items-center justify-between gap-2 border-t border-edge pt-4">
+            <div className="flex items-center gap-2">
+              {(onPrev || onNext) && (
+                <>
+                  <Button variant="ghost" onClick={onPrev} disabled={!onPrev}>
+                    ← Previous
+                  </Button>
+                  <Button variant="ghost" onClick={onNext} disabled={!onNext}>
+                    Next →
+                  </Button>
+                  {position && (
+                    <span className="ml-1 font-mono text-xs text-mute">
+                      {position.index + 1} of {position.total}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            {onEdit && <Button variant="ghost" onClick={() => onEdit(trade)}>Edit trade</Button>}
           </div>
         )}
       </div>

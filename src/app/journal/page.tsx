@@ -154,6 +154,8 @@ function JournalInner() {
   }, [trades, q, pair, session, strategy, outcome, tag, range, sort, dir]);
 
   const detail = trades.find((t) => t.id === detailId) ?? null;
+  /** Step through the same filtered, sorted list the user is looking at. */
+  const detailIndex = detail ? filtered.findIndex((t) => t.id === detail.id) : -1;
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDir((d) => (d === 1 ? -1 : 1));
@@ -359,6 +361,13 @@ function JournalInner() {
           trade={detail}
           replay={replay}
           onClose={() => setDetailId(null)}
+          position={detailIndex >= 0 ? { index: detailIndex, total: filtered.length } : undefined}
+          onPrev={detailIndex > 0 ? () => setDetailId(filtered[detailIndex - 1].id) : undefined}
+          onNext={
+            detailIndex >= 0 && detailIndex < filtered.length - 1
+              ? () => setDetailId(filtered[detailIndex + 1].id)
+              : undefined
+          }
           onEdit={(t) => {
             setDetailId(null);
             setEditing(t);

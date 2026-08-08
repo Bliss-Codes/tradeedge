@@ -273,14 +273,22 @@ export function TradeModal({
     // No thesis, no entry. Your own data: documented setups +1.00R, blank -0.56R.
     // Backtests are exempt — they're practice, not live decisions.
     if (t.type === "live" && !(t.thesis ?? "").trim()) m.push("Thesis");
-    for (const f of strategyFields) {
-      if (f.required) {
-        const v = t.fieldValues?.[f.id];
-        if (v === undefined || v === "" || v === null) m.push(f.name);
+    // Backtesting is a volume activity — dozens of entries per session. Enforcing
+    // the full live checklist there turns research into data entry, so strategy
+    // fields and setup grade stay available but optional.
+    if (t.type !== "backtest") {
+      for (const f of strategyFields) {
+        if (f.required) {
+          const v = t.fieldValues?.[f.id];
+          if (v === undefined || v === "" || v === null) m.push(f.name);
+        }
       }
     }
     return m;
   }, [t, strategyFields]);
+
+  /** Sections that only mean something for trades you actually took. */
+  const isBacktest = t.type === "backtest";
 
   const save = () => {
     if (missing.length > 0) return;
@@ -335,6 +343,13 @@ export function TradeModal({
   return (
     <Modal open={open} onClose={onClose} title={existing ? "Edit trade" : "Log trade"} wide persistent>
       <div className="space-y-6">
+        {isBacktest && (
+          <div className="rounded-xl border border-edge bg-surface/40 px-4 py-2.5 text-[11px] text-mute">
+            <span className="font-medium text-sub">Backtest mode — lean form.</span> Only pair, direction and outcome are
+            required. Setup fields stay available for edge research but are optional, and the psychology sections are
+            hidden since they only apply to trades you actually placed.
+          </div>
+        )}
         {/* Decision gate. A reason is always required, but an off-plan trade is
             still a real trade — blocking it would delete the most instructive
             data in the journal. So the gate asks for honesty, not compliance. */}
@@ -673,7 +688,9 @@ export function TradeModal({
           )}
         </div>
 
-        {/* Trade review checklist */}
+        {/* Trade review checklist — live only. Discipline questions have no
+            meaning on a trade you never actually placed. */}
+        {!isBacktest && (
         <div className="rounded-xl border border-edge bg-surface/40 p-4">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-xs font-medium uppercase tracking-wider text-mute">Trade review</div>
@@ -698,9 +715,10 @@ export function TradeModal({
             })}
           </div>
         </div>
+        )}
 
         {/* Strategy checklist (live, only when a strategy with a checklist is selected) */}
-        {selectedStrategy && selectedStrategy.checklist.length > 0 && (
+        {!isBacktest && selectedStrategy && selectedStrategy.checklist.length > 0 && (
           <div className="rounded-xl border border-edge bg-surface/50 p-4">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs font-medium uppercase tracking-wider text-mute">{selectedStrategy.name} checklist</div>
@@ -767,8 +785,9 @@ export function TradeModal({
         </div>
 
         {/* Psychology */}
+        {!isBacktest && (
         <div className="space-y-4">
-          {(existing || t.type === "backtest") && (
+          {existing && (
             <OptionCards label="Emotion before" value={t.emotionBefore} options={allEmotions} clearable onChange={(v) => set("emotionBefore", v as Emotion | undefined)} />
           )}
           <div>
@@ -778,8 +797,10 @@ export function TradeModal({
             </div>
           </div>
         </div>
+        )}
 
-        {/* Rule violations */}
+        {/* Rule violations — live only. */}
+        {!isBacktest && (
         <div>
           <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-mute">Rule violations</div>
           <div className="flex flex-wrap gap-2">
@@ -789,6 +810,7 @@ export function TradeModal({
             <AddChip label="violation" onAdd={(v) => { addCustomViolation(v); toggleViolation(v); }} />
           </div>
         </div>
+        )}
 
         {/* Narrative */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

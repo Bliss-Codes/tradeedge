@@ -56,13 +56,31 @@ export function Lightbox({ ids, index, onClose }: { ids: string[]; index: number
   );
 }
 
-export function ImageThumb({ id, onOpen, onDelete }: { id: string; onOpen: () => void; onDelete?: () => void }) {
+export function ImageThumb({
+  id,
+  onOpen,
+  onDelete,
+  size = "sm",
+}: {
+  id: string;
+  onOpen: () => void;
+  onDelete?: () => void;
+  /** "lg" is for review contexts where the chart needs to be readable without
+   *  opening the lightbox first. */
+  size?: "sm" | "lg";
+}) {
   const url = useImageUrl(id);
+  const box = size === "lg" ? "h-64 w-full" : "h-24 w-36 shrink-0";
   return (
-    <div className="group relative h-24 w-36 shrink-0 overflow-hidden rounded-xl border border-edge bg-surface">
+    <div className={`group relative ${box} overflow-hidden rounded-xl border border-edge bg-surface`}>
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="Screenshot" className="h-full w-full cursor-zoom-in object-cover" onClick={onOpen} />
+        <img
+          src={url}
+          alt="Screenshot"
+          className={`h-full w-full cursor-zoom-in ${size === "lg" ? "object-contain" : "object-cover"}`}
+          onClick={onOpen}
+        />
       ) : (
         <div className="flex h-full items-center justify-center text-xs text-mute">…</div>
       )}
