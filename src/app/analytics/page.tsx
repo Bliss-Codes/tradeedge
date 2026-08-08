@@ -481,12 +481,20 @@ export default function AnalyticsPage() {
   const [curveMode, setCurveMode] = useState<"Money" | "R">("Money");
   /** Challenge money is notional; funded money is real. Never blend them. */
   const [stage, setStage] = useState<CapitalStage>("all");
+  /** Which book to analyse. Backtests and forward tests get the same tooling as
+   *  live, but stay strictly separate — never blended into live performance. */
+  const [dataset, setDataset] = useState<"live" | "backtest" | "forward">("live");
   const [fType, setFType] = useState<string>("");
   const allAccounts = useApp((s) => s.accounts);
   const allTradesRaw = useApp((s) => s.trades);
   /** True when live trades exist on both challenge and funded accounts. */
   /** Live trade counts per stage, shown on the pills so a differing headline
    *  count reads as scope rather than a bug. */
+  const datasetCounts = useMemo(() => {
+    const c = { live: 0, backtest: 0, forward: 0 } as Record<"live" | "backtest" | "forward", number>;
+    for (const t of allTradesRaw) if (c[t.type] !== undefined) c[t.type]++;
+    return c;
+  }, [allTradesRaw]);
   const stageCounts = useMemo(() => {
     const c: Record<CapitalStage, number> = { all: 0, funded: 0, challenge: 0 };
     for (const t of allTradesRaw) {
@@ -501,8 +509,8 @@ export default function AnalyticsPage() {
     return c;
   }, [allTradesRaw, allAccounts]);
   const allLiveCount = useMemo(
-    () => allTradesRaw.filter((t) => t.type === "live").length,
-    [allTradesRaw]
+    () => allTradesRaw.filter((t) => t.type === dataset).length,
+    [allTradesRaw, dataset]
   );
   const mixedStages = useMemo(() => {
     const stages = new Set<string>();
@@ -523,7 +531,7 @@ export default function AnalyticsPage() {
   const moneyScope: MoneyScope =
     stage === "funded" ? "Real money" : stage === "challenge" ? "Challenge" : "All";
   const accounts = useApp((s) => s.accounts);
-  const rawVisible = useVisibleTrades("live", stage);
+  const rawVisible = useVisibleTrades(dataset, dataset === "live" ? stage : "all");
   const counts = useMemo(() => setupCounts(rawVisible), [rawVisible]);
   const hasLinked = counts.executions !== counts.setups;
   // Edge metrics must count IDEAS, not fills — otherwise the same setup taken on
@@ -692,6 +700,26 @@ export default function AnalyticsPage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-full border border-edge p-0.5">
           {([
+            ["live", "Live"],
+            ["backtest", "Backtest"],
+            ["forward", "Forward"],
+          ] as ["live" | "backtest" | "forward", string][]).map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setDataset(v)}
+              className={`rounded-full px-3 py-1 text-xs transition ${
+                dataset === v ? "bg-surface text-ink" : "text-mute hover:text-sub"
+              }`}
+            >
+              {l}
+              {datasetCounts[v] > 0 && <span className="ml-1.5 font-mono opacity-60">{datasetCounts[v]}</span>}
+            </button>
+          ))}
+        </div>
+
+        {dataset === "live" && (
+        <div className="flex rounded-full border border-edge p-0.5">
+          {([
             ["all", "All"],
             ["funded", "Funded"],
             ["challenge", "Challenge"],
@@ -708,6 +736,7 @@ export default function AnalyticsPage() {
             </button>
           ))}
         </div>
+        )}
         <FilterPill label="Range" value={fRange === "all" ? "" : `${fRange}d`} onChange={setFRange}
           options={[["all", "All time"], ["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"]]} />
         <FilterPill label="Strategy" value={fStrategy} onChange={setFStrategy}
@@ -775,7 +804,17 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {stage === "all" && mixedStages && (
+      {dataset !== "live" && (
+        <div className="rounded-xl border border-accent/30 bg-accent/[0.05] px-4 py-3 text-xs text-sub">
+          <span className="font-medium text-accent">
+            {dataset === "backtest" ? "Backtest results" : "Forward test results"}.
+          </span>{" "}
+          Same analytics, separate book — these never mix into live performance. Manual backtests typically overstate
+          live results by 20–30%, so treat expectancy here as a ceiling rather than a forecast.
+        </div>
+      )}
+
+      {dataset === "live" && stage === "all" && mixedStages && (
         <div className="rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-xs text-sub">
           <span className="font-medium text-warn">Mixed capital stages.</span> Challenge P&amp;L is notional — you never
           receive it, and it is usually traded at a different risk %. Blending it with funded money makes the equity
@@ -796,14 +835,16 @@ export default function AnalyticsPage() {
         <EmptyState
           title={
             allLiveCount === 0
-              ? "Nothing to analyze yet"
+              ? dataset === "live" ? "Nothing to analyze yet" : `No ${dataset} trades yet`
               : rawVisible.length === 0
               ? "No trades in this view"
               : "No trades match these filters"
           }
           body={
             allLiveCount === 0
-              ? "Once you've logged trades, this page breaks down what's working — by pair, session, strategy, tag, and rule discipline."
+              ? dataset === "live"
+                ? "Once you've logged trades, this page breaks down what's working — by pair, session, strategy, tag, and rule discipline."
+                : `Log ${dataset} trades from the Journal's ${dataset === "backtest" ? "Backtest" : "Forward"} tab and they will be analysed here.`
               : rawVisible.length === 0
               ? `You have ${allLiveCount} logged trade${allLiveCount === 1 ? "" : "s"}, but none in the current account or capital stage. Check the account selector above and the All/Funded/Challenge switch.`
               : `${rawVisible.length} trade${rawVisible.length === 1 ? "" : "s"} in view, but the filters exclude them all. Clear the filter chips above.`
@@ -967,14 +1008,14 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          <PlanVsOffPlan trades={visible} currency={currency} />
+          {dataset === "live" && <PlanVsOffPlan trades={visible} currency={currency} />}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <KpiScorecard />
             <DisciplineScatter />
           </div>
 
-          <EdgeCheck trades={rawVisible} />
+          {dataset === "live" && <EdgeCheck trades={rawVisible} />}
 
           <div>
             <SectionTitle>Performance by side</SectionTitle>
