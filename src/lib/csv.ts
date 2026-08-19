@@ -1,4 +1,4 @@
-import { Snapshot, Trade, TradeType, Session, SESSIONS, sessionFromDate } from "@/lib/types";
+import { Snapshot, Trade, TradeType, Session, SESSIONS, sessionFromDate, EXIT_REASONS, ExitReason } from "@/lib/types";
 import { uid } from "@/stores/useApp";
 
 // ── tiny CSV parser (handles quoted fields) ───────────────────────────
@@ -151,7 +151,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       takeProfit: get("takeProfit") ? Number(get("takeProfit")) : undefined,
       riskPercent: get("riskPercent") ? Number(get("riskPercent")) : undefined,
       riskAmount: get("riskAmount") ? Number(get("riskAmount")) : undefined,
-      exitReason: get("exitReason") || undefined,
+      exitReason: (EXIT_REASONS as readonly string[]).includes(get("exitReason")) ? (get("exitReason") as ExitReason) : undefined,
       thesis: get("thesis") || undefined,
       lessons: get("lessons") || undefined,
       tags: get("tags") ? get("tags").split(/[;|]/).map((t) => t.trim()).filter(Boolean) : [],
