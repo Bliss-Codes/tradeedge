@@ -226,10 +226,40 @@ export function executionSummary(trades: Trade[]): ExecutionSummary {
  * which is not true — it's unknown, not bad. Use `adherenceDetail` when you
  * need to show how much of the sample is actually reviewed.
  */
+const REVIEW_KEYS = [
+  "followedHtfBias",
+  "waitedForLiquidity",
+  "waitedForConfirmation",
+  "respectedRisk",
+  "followedPlan",
+] as const;
+
+function reviewStatus(t: Trade): "reviewed" | "unreviewed" | "partial" {
+  const values = REVIEW_KEYS.map((k) => t[k]);
+  // Legacy trades may only have the original followedPlan flag.
+  const hasNewReviewFields = values.slice(0, -1).some((v) => v !== undefined);
+  if (!hasNewReviewFields) return t.followedPlan === undefined ? "unreviewed" : "reviewed";
+  return values.every((v) => v !== undefined) ? "reviewed" : "partial";
+}
+
+function followedReview(t: Trade): boolean {
+  const status = reviewStatus(t);
+  if (status !== "reviewed") return false;
+  const hasNewReviewFields = REVIEW_KEYS.slice(0, -1).some((k) => t[k] !== undefined);
+  if (!hasNewReviewFields) return t.followedPlan === true;
+  return REVIEW_KEYS.every((k) => t[k] === true);
+}
+
+/**
+ * Rule adherence uses the complete review checklist for new trades:
+ * HTF bias, liquidity, confirmation, risk, and overall plan. Partially
+ * reviewed trades are excluded from the denominator instead of being treated
+ * as violations. Legacy trades that only have followedPlan keep the old rule.
+ */
 export function ruleAdherence(trades: Trade[]): number {
-  const reviewed = trades.filter((t) => t.followedPlan !== undefined);
+  const reviewed = trades.filter((t) => reviewStatus(t) === "reviewed");
   if (reviewed.length === 0) return 0;
-  return (reviewed.filter((t) => t.followedPlan === true).length / reviewed.length) * 100;
+  return (reviewed.filter(followedReview).length / reviewed.length) * 100;
 }
 
 export function adherenceDetail(trades: Trade[]): {
@@ -237,14 +267,17 @@ export function adherenceDetail(trades: Trade[]): {
   reviewed: number;
   total: number;
   coverage: number;
+  partial: number;
 } {
-  const reviewed = trades.filter((t) => t.followedPlan !== undefined);
-  const followed = reviewed.filter((t) => t.followedPlan === true).length;
+  const reviewed = trades.filter((t) => reviewStatus(t) === "reviewed");
+  const partial = trades.filter((t) => reviewStatus(t) === "partial").length;
+  const followed = reviewed.filter(followedReview).length;
   return {
     pct: reviewed.length ? (followed / reviewed.length) * 100 : 0,
     reviewed: reviewed.length,
     total: trades.length,
     coverage: trades.length ? (reviewed.length / trades.length) * 100 : 0,
+    partial,
   };
 }
 

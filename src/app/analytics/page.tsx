@@ -185,8 +185,7 @@ function DisciplineTrend() {
 
 
 /** The six KPIs that define the prop-trading sweet spot, as one shape. */
-function KpiScorecard() {
-  const trades = useVisibleTrades();
+function KpiScorecard({ trades }: { trades: Trade[] }) {
   const stats = useMemo(() => computeStats(dedupeBySetup(trades)), [trades]);
   const adh = useMemo(() => adherenceDetail(trades), [trades]);
   const adherence = adh.pct;
@@ -217,7 +216,8 @@ function KpiScorecard() {
       </div>
       <p className="mt-2 text-[11px] text-mute">
         Dashed ring is the target. Any point inside it is the KPI to work on next.
-        {adh.coverage < 100 && ` Adherence covers the ${adh.reviewed} of ${adh.total} trades you have reviewed.`}
+        {(adh.coverage < 100 || adh.partial > 0) &&
+          ` Adherence uses ${adh.reviewed} complete reviews; ${adh.partial} partial review${adh.partial === 1 ? "" : "s"} are excluded.`}
       </p>
     </Card>
   );
@@ -225,9 +225,8 @@ function KpiScorecard() {
 
 
 /** Weekly discipline vs weekly R, quadrant-shaded. */
-function DisciplineScatter() {
+function DisciplineScatter({ trades }: { trades: Trade[] }) {
   const reviews = useApp((s) => s.reviews);
-  const trades = useVisibleTrades();
   const points = useMemo<QuadrantPoint[]>(() => {
     const rByWeek = new Map<string, number>();
     for (const t of trades) {
@@ -553,20 +552,27 @@ export default function AnalyticsPage() {
   const [fSession, setFSession] = useState("");
   const [fSide, setFSide] = useState("");
   const [fOutcome, setFOutcome] = useState("");
+  const [fGrade, setFGrade] = useState("");
 
   const trades = useMemo(() => {
+    // Ranges are relative to the selected dataset, not the current calendar date.
+    // This matters for historical backtests (e.g. "last 365 days" in a 2021 sample).
+    const ordered = [...visible].sort((a, b) => a.date.localeCompare(b.date));
+    const latestTime = ordered.length ? new Date(ordered[ordered.length - 1].date).getTime() : Date.now();
     const days = fRange === "all" ? Infinity : parseInt(fRange, 10);
-    const cutoff = days === Infinity ? -Infinity : Date.now() - days * 86400000;
+    const cutoff = days === Infinity ? -Infinity : latestTime - days * 86400000;
+
     return visible.filter((t) => {
       if (fStrategy && t.strategyId !== fStrategy) return false;
       if (fSession && t.session !== fSession) return false;
       if (fSide && t.direction !== fSide) return false;
       if (fOutcome && outcomeOf(t) !== fOutcome) return false;
       if (fType && quadrantOf(t) !== fType) return false;
+      if (fGrade && t.grade !== fGrade) return false;
       if (new Date(t.date).getTime() < cutoff) return false;
       return true;
     });
-  }, [visible, fRange, fStrategy, fSession, fSide, fOutcome, fType]);
+  }, [visible, fRange, fStrategy, fSession, fSide, fOutcome, fType, fGrade]);
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   /** Running series + averages powering the RR strip. */
@@ -585,7 +591,8 @@ export default function AnalyticsPage() {
     const winSeries = wins.map((t, i) => { ws += Math.abs(t.rr); return ws / (i + 1); });
     return { rrSeries, winSeries, avgWinR, avgLossR };
   }, [trades]);
-  const curve = useMemo(() => equityCurve(trades, curveMode === "R" ? "rr" : "pnl"), [trades, curveMode]);
+  const chartMode: "Money" | "R" = stage === "all" && mixedStages ? "R" : curveMode;
+  const curve = useMemo(() => equityCurve(trades, chartMode === "R" ? "rr" : "pnl"), [trades, chartMode]);
   const wl = useMemo(() => winLossSummary(trades), [trades]);
   const expectancyMoney = useMemo(
     () => (trades.length ? trades.reduce((a, t) => a + t.pnl, 0) / trades.length : 0),
@@ -611,6 +618,8 @@ export default function AnalyticsPage() {
     // Only accounts in the selected capital stage count — showing funded
     // analytics against combined funded+challenge capital is meaningless.
     const active = accounts.filter((a) => !a.archived && (stage === "all" || stageOf(a.type) === stage));
+    // A combined funded+challenge money return is not a meaningful percentage.
+    if (stage === "all" && mixedStages) return undefined;
     if (fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "") {
       const sel = useApp.getState().selectedAccountId;
       if (sel !== "all") {
@@ -621,10 +630,11 @@ export default function AnalyticsPage() {
       return active.reduce((s2, a) => s2 + (a.balance || 0), 0) || undefined;
     }
     return undefined;
-  }, [accounts, stage, fStrategy, fSession, fSide, fOutcome, fType]);
+  }, [accounts, stage, mixedStages, fStrategy, fSession, fSide, fOutcome, fType]);
   /** Account balance and its % change, for the chart header. */
   const balance = startingBalance !== undefined ? startingBalance + stats.netPnl : undefined;
   const pctChange = startingBalance ? (stats.netPnl / startingBalance) * 100 : undefined;
+  const pnlLabel = dataset === "live" && stage === "all" && mixedStages ? "Net P&L (mixed)" : "Net P&L";
   const monthly = useMemo(() => monthlyPerformance(trades, startingBalance), [trades, startingBalance]);
   const monthlyCurrency = useDisplayCurrency();
   const bySide = useMemo(
@@ -747,6 +757,8 @@ export default function AnalyticsPage() {
           options={[["", "Long & short"], ["long", "Long"], ["short", "Short"]]} />
         <FilterPill label="Outcome" value={fOutcome} onChange={setFOutcome}
           options={[["", "All outcomes"], ["win", "Wins"], ["loss", "Losses"], ["be", "Breakeven"]]} />
+        <FilterPill label="Grade" value={fGrade} onChange={setFGrade}
+          options={[["", "All grades"], ...GRADES.map((g) => [g, g] as [string, string])]} />
         <FilterPill label="Trade type" value={fType} onChange={setFType}
           options={[
             ["", "All types"],
@@ -765,16 +777,17 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome || fType) && (
+      {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome || fGrade || fType) && (
         <div className="-mt-3 flex flex-wrap items-center gap-1.5">
           {fRange !== "all" && <FilterChip label={`last ${fRange} days`} onClear={() => setFRange("all")} />}
           {fStrategy && <FilterChip label={strategies.find((x) => x.id === fStrategy)?.name ?? "strategy"} onClear={() => setFStrategy("")} />}
           {fSession && <FilterChip label={fSession} onClear={() => setFSession("")} />}
           {fSide && <FilterChip label={fSide} onClear={() => setFSide("")} />}
           {fOutcome && <FilterChip label={fOutcome} onClear={() => setFOutcome("")} />}
+          {fGrade && <FilterChip label={`Grade ${fGrade}`} onClear={() => setFGrade("")} />}
           {fType && <FilterChip label={fType.replace("type", "Type ")} onClear={() => setFType("")} />}
           <button
-            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); setFType(""); }}
+            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); setFGrade(""); setFType(""); }}
             className="ml-1 text-[11px] text-mute underline-offset-2 hover:text-sub hover:underline"
           >
             Clear filters
@@ -809,17 +822,7 @@ export default function AnalyticsPage() {
           <span className="font-medium text-accent">
             {dataset === "backtest" ? "Backtest results" : "Forward test results"}.
           </span>{" "}
-          Same analytics, separate book — these never mix into live performance. Manual backtests typically overstate
-          live results by 20–30%, so treat expectancy here as a ceiling rather than a forecast.
-        </div>
-      )}
-
-      {dataset === "live" && stage === "all" && mixedStages && (
-        <div className="rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-xs text-sub">
-          <span className="font-medium text-warn">Mixed capital stages.</span> Challenge P&amp;L is notional — you never
-          receive it, and it is usually traded at a different risk %. Blending it with funded money makes the equity
-          curve and every money stat misleading. Switch to <span className="font-medium">Funded</span> for real earnings,
-          or <span className="font-medium">Challenge</span> to review pass attempts. R-based stats stay comparable either way.
+          This is a separate research book. Its results never mix into live performance.
         </div>
       )}
 
@@ -873,9 +876,11 @@ export default function AnalyticsPage() {
                   <button
                     key={m}
                     onClick={() => setCurveMode(m)}
+                    disabled={m === "Money" && stage === "all" && mixedStages}
+                    title={m === "Money" && stage === "all" && mixedStages ? "Select Funded or Challenge to compare money" : undefined}
                     className={`rounded-md px-3 py-1 text-xs transition ${
-                      curveMode === m ? "bg-surface text-ink" : "text-mute hover:text-sub"
-                    }`}
+                      chartMode === m ? "bg-surface text-ink" : "text-mute hover:text-sub"
+                    } ${m === "Money" && stage === "all" && mixedStages ? "cursor-not-allowed opacity-40" : ""}`}
                   >
                     {m}
                   </button>
@@ -887,13 +892,13 @@ export default function AnalyticsPage() {
             {/* Only headline account figures live here — profit factor,
                 expectancy and RR each have their own card below. */}
             <div className="mb-5 grid grid-cols-2 justify-items-start gap-x-4 gap-y-5 border-b border-edge/60 pb-5 sm:grid-cols-5">
-              <HeadStat label="Net P&L" value={fmtMoney(stats.netPnl, currency)} delta={pctChange} />
+              <HeadStat label={pnlLabel} value={fmtMoney(stats.netPnl, currency)} delta={pctChange} />
               <HeadStat label="Account balance" value={balance !== undefined ? fmtMoney(balance, currency) : "—"} delta={pctChange} />
               <HeadStat label="Win rate" value={fmtPct(stats.winRate)} />
               <HeadStat label="Total trades" value={String(stats.total)} sup={`${stats.wins}/${stats.losses}`} />
               <HeadStat label="Breakeven trades" value={String(stats.breakevens)} />
             </div>
-            <EquityCurve points={curve} mode={curveMode === "R" ? "R" : "money"} currency={currency} />
+            <EquityCurve points={curve} mode={chartMode === "R" ? "R" : "money"} currency={currency} />
           </Card>
 
           {/* RR analytics strip — mirrors the inspiration's compact metric row. */}
@@ -1008,14 +1013,14 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {dataset === "live" && <PlanVsOffPlan trades={visible} currency={currency} />}
+          {dataset === "live" && <PlanVsOffPlan trades={trades} currency={currency} />}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <KpiScorecard />
-            <DisciplineScatter />
+            <KpiScorecard trades={trades} />
+            {dataset === "live" && <DisciplineScatter trades={trades} />}
           </div>
 
-          {dataset === "live" && <EdgeCheck trades={rawVisible} />}
+          {dataset === "live" && <EdgeCheck trades={trades} />}
 
           <div>
             <SectionTitle>Performance by side</SectionTitle>
@@ -1052,8 +1057,8 @@ export default function AnalyticsPage() {
           </div>
 
           <Card>
-            <SectionTitle action={<span className="text-xs text-mute">{visible.length} trades</span>}>Outcome distribution</SectionTitle>
-            <RHistogram rs={visible.map((t) => t.rr)} />
+            <SectionTitle action={<span className="text-xs text-mute">{trades.length} trades</span>}>Outcome distribution</SectionTitle>
+            <RHistogram rs={trades.map((t) => t.rr)} />
             <p className="mt-2 text-[11px] text-mute">
               A fat left tail past −1R means stops aren&apos;t holding. A healthy shape clusters losses at −1R and spreads winners right.
             </p>
@@ -1156,23 +1161,23 @@ export default function AnalyticsPage() {
                 <SectionTitle action={<span className="text-xs text-mute">local time (Accra, UTC+0)</span>}>
                   Performance by time
                 </SectionTitle>
-                <TimeMatrix trades={visible} currency={currency} />
+                <TimeMatrix trades={trades} currency={currency} />
               </Card>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card>
                   <SectionTitle>Performance by day</SectionTitle>
-                  <DayOfWeek trades={visible} currency={currency} />
+                  <DayOfWeek trades={trades} currency={currency} />
                 </Card>
                 <Card>
                   <SectionTitle>Trade frequency</SectionTitle>
-                  <TradeFrequency trades={visible} />
+                  <TradeFrequency trades={trades} />
                 </Card>
               </div>
 
               <Card>
                 <SectionTitle action={<span className="text-xs text-mute">daily net P&amp;L</span>}>Performance calendar</SectionTitle>
-                <YearHeatmap trades={visible} currency={currency} />
+                <YearHeatmap trades={trades} currency={currency} />
               </Card>
 
               {byHour.length > 0 && (
@@ -1304,10 +1309,10 @@ export default function AnalyticsPage() {
           <Card>
             <SectionTitle>Performance by setup grade</SectionTitle>
             <p className="mb-4 text-sm text-mute">
-              The test of good grading: your A+ setups should out-earn your B and C setups. If they don&apos;t, your idea of an A+ needs work.
+              The test of good grading: your A+ setups should out-earn your A and B setups. If they don&apos;t, your idea of an A+ needs work.
             </p>
             {byGrade.length === 0 ? (
-              <div className="py-8 text-center text-sm text-mute">No graded trades yet. Grade setups A+ / A / B / C as you log them.</div>
+              <div className="py-8 text-center text-sm text-mute">No graded trades yet. Grade setups A+ / A / B as you log them.</div>
             ) : (
               <GroupTable rows={byGrade} keyLabel="Grade" currency={currency} />
             )}

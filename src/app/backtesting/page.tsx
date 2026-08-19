@@ -68,7 +68,7 @@ export default function BacktestingPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-xl text-sm text-mute">
-          Test a system on history, prove it forward, then compare against live execution. If live numbers drift far from the backtest, the gap is usually you — not the system.
+          Test a system on history, prove it forward, then compare the two with live execution. Keep strategy performance and execution quality separate when interpreting any gap.
         </p>
         <div className="flex gap-2">
           <Select value={strategyFilter} onChange={(e) => setStrategyFilter(e.target.value)} className="w-auto">

@@ -90,3 +90,21 @@ All grouping suppresses `undefined` keys, so trades missing a field never create
 - **Validation applies to all modal saves**, including backtest/forward entries logged via the form. For an SMC-focused platform that's intentional, but it does add friction to quick backtest logging. CSV import stays lenient for bulk history.
 - **Editing an old trade** now requires filling the new SMC fields before it can be re-saved. That's the cost of making them required; it only triggers on edit.
 - The new analytics only become meaningful with sample size. Treat any group under ~20 trades as a hypothesis, not an edge.
+
+
+---
+
+## 7. Analytics cleanup and correctness pass (August 2026)
+
+The Analytics layer was tightened around the way TradeEdge is actually being used:
+
+- Removed the intrusive **Mixed capital stages** warning banner.
+- Removed the unsupported claim that manual backtests overstate live results by **20–30%**.
+- Backtest/forward notices now only describe dataset separation; they do not make unsupported performance claims.
+- Added a **Grade** global filter so A+ / A / B can be analysed without changing tabs.
+- Historical date-range filters are now relative to the **latest trade in the selected dataset**, rather than `Date.now()`. This prevents a 2021 backtest from appearing empty when "last 365 days" is selected.
+- Analytics charts that previously used the unfiltered dataset now respect the active filters.
+- KPI scorecard and Edge Check now use the currently filtered dataset instead of silently falling back to live trades.
+- Mixed funded/challenge live views no longer produce a misleading percentage return or money equity curve; the chart automatically stays in **R** until a single capital stage is selected.
+- Grade copy was updated to reflect the current A+ / A / B taxonomy.
+- Rule adherence now uses the complete five-part review checklist for new trades. Partial reviews are excluded from the denominator rather than being counted as failures; legacy trades with only `followedPlan` remain compatible.
