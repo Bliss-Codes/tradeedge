@@ -508,6 +508,7 @@ export interface RiskStatus {
   dailyPnl: number;
   dailyRemaining?: number;
   maxDrawdownLimit?: number;
+  ddRemaining?: number;
   drawdown: number;
   maxDrawdown: number;
   currentDrawdownPct: number;
@@ -619,6 +620,7 @@ export function riskStatus(account: Account, trades: Trade[]): RiskStatus {
     dailyPnl,
     dailyRemaining,
     maxDrawdownLimit: mdd,
+    ddRemaining,
     drawdown: currentDrawdown,
     maxDrawdown: maxDD,
     currentDrawdownPct,
