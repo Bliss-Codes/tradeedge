@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useApp } from "@/stores/useApp";
-import { csvTemplate, download, tradeFingerprint, tradesFromCSV } from "@/lib/csv";
+import { tradesFromCSV } from "@/lib/csv";
 import { TradeType } from "@/lib/types";
 import { computeStats, equityCurve, fmtPF, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
 import { Button, Card, Field, Modal, SectionTitle, Select } from "@/components/ui/primitives";
@@ -26,7 +26,6 @@ export default function BacktestingPage() {
   const [importType, setImportType] = useState<TradeType>("live");
   const [importAccount, setImportAccount] = useState("");
   const [importMsg, setImportMsg] = useState<string | null>(null);
-  const [importPreview, setImportPreview] = useState<{ trades: ReturnType<typeof tradesFromCSV>["trades"]; errors: string[]; duplicates: number } | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const [strategyFilter, setStrategyFilter] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -53,33 +52,13 @@ export default function BacktestingPage() {
       setImportMsg("Create an account first — imported trades need a home.");
       return;
     }
-    const parsed = tradesFromCSV(text, accountId, importType);
-    const existing = new Set(trades.map(tradeFingerprint));
-    const seen = new Set<string>();
-    const duplicates = parsed.trades.filter((t) => {
-      const key = tradeFingerprint(t);
-      if (existing.has(key) || seen.has(key)) return true;
-      seen.add(key);
-      return false;
-    }).length;
-    setImportPreview({ ...parsed, duplicates });
-    setImportMsg(null);
-  };
-
-  const confirmImport = () => {
-    if (!importPreview) return;
-    const existing = new Set(trades.map(tradeFingerprint));
-    const seen = new Set<string>();
-    const fresh = importPreview.trades.filter((t) => {
-      const key = tradeFingerprint(t);
-      if (existing.has(key) || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    if (fresh.length) importTrades(fresh);
-    setImportMsg(`Imported ${fresh.length} trade${fresh.length === 1 ? "" : "s"}. ${importPreview.duplicates} duplicate row${importPreview.duplicates === 1 ? "" : "s"} skipped${importPreview.errors.length ? `; ${importPreview.errors.length} invalid row${importPreview.errors.length === 1 ? "" : "s"} rejected.` : "."}`);
-    setImportPreview(null);
-    setImportOpen(false);
+    const { trades: parsed, errors } = tradesFromCSV(text, accountId, importType);
+    if (parsed.length) importTrades(parsed);
+    setImportMsg(
+      parsed.length
+        ? `Imported ${parsed.length} trade${parsed.length === 1 ? "" : "s"}.${errors.length ? ` ${errors.length} row(s) skipped.` : ""}`
+        : errors.join(" ") || "Nothing to import."
+    );
   };
 
   const live = computeStats(byType.live);
@@ -89,7 +68,7 @@ export default function BacktestingPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-xl text-sm text-mute">
-          Test a system on history, prove it forward, then compare the two with live execution. Keep strategy performance and execution quality separate when interpreting any gap.
+          Test a system on history, prove it forward, then compare against live execution. If live numbers drift far from the backtest, the gap is usually you — not the system.
         </p>
         <div className="flex gap-2">
           <Select value={strategyFilter} onChange={(e) => setStrategyFilter(e.target.value)} className="w-auto">
@@ -97,8 +76,7 @@ export default function BacktestingPage() {
             {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
           <Button variant="ghost" onClick={() => setLogOpen(true)}>Log test trade</Button>
-          <Button variant="ghost" onClick={() => download("tradeedge-import-template.csv", csvTemplate(), "text/csv")}>CSV template</Button>
-          <Button onClick={() => { setImportMsg(null); setImportPreview(null); setImportOpen(true); }}>Import CSV</Button>
+          <Button onClick={() => { setImportMsg(null); setImportOpen(true); }}>Import CSV</Button>
         </div>
       </div>
 
@@ -189,26 +167,7 @@ export default function BacktestingPage() {
               e.target.value = "";
             }}
           />
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => fileRef.current?.click()}>Choose CSV file</Button>
-            <Button variant="ghost" onClick={() => download("tradeedge-import-template.csv", csvTemplate(), "text/csv")}>Download template</Button>
-          </div>
-          {importPreview && (
-            <div className="rounded-xl border border-edge bg-surface/50 p-4 text-sm">
-              <div className="font-semibold text-ink">Import preview</div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
-                <div><span className="text-mute">Valid rows</span><div className="font-mono text-ink">{importPreview.trades.length}</div></div>
-                <div><span className="text-mute">Duplicates</span><div className="font-mono text-warn">{importPreview.duplicates}</div></div>
-                <div><span className="text-mute">Invalid rows</span><div className="font-mono text-neg">{importPreview.errors.length}</div></div>
-                <div><span className="text-mute">Will import</span><div className="font-mono text-pos">{Math.max(0, importPreview.trades.length - importPreview.duplicates)}</div></div>
-              </div>
-              {importPreview.errors.length > 0 && <div className="mt-3 max-h-24 overflow-auto text-xs text-neg">{importPreview.errors.slice(0, 8).map((e, i) => <div key={i}>{e}</div>)}</div>}
-              <div className="mt-4 flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setImportPreview(null)}>Cancel</Button>
-                <Button onClick={confirmImport} disabled={importPreview.trades.length === importPreview.duplicates}>Confirm import</Button>
-              </div>
-            </div>
-          )}
+          <Button onClick={() => fileRef.current?.click()}>Choose CSV file</Button>
           {importMsg && <p className="text-sm text-sub">{importMsg}</p>}
         </div>
       </Modal>

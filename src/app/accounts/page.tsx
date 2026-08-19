@@ -65,7 +65,6 @@ const typeBadge: Record<AccountType, string> = {
 export default function AccountsPage() {
   const accounts = useApp((s) => s.accounts);
   const trades = useApp((s) => s.trades);
-  const missed = useApp((s) => s.missed);
   const deleteAccount = useApp((s) => s.deleteAccount);
   const updateAccount = useApp((s) => s.updateAccount);
   const setSelected = useApp((s) => s.setSelectedAccount);
@@ -150,7 +149,7 @@ export default function AccountsPage() {
       {confirming && (
         <Modal open onClose={() => setConfirming(null)} title="Delete account permanently">
           <p className="text-sm text-sub">
-            Deleting <span className="font-medium text-ink">{confirming.name}</span> is only allowed when it has no linked trade or missed-setup history. Historical trading data is protected from accidental deletion.
+            Deleting <span className="font-medium text-ink">{confirming.name}</span> also <span className="text-neg">permanently removes its {trades.filter((t) => t.accountId === confirming.id).length} trades</span> and their stats. This can&apos;t be undone.
           </p>
           <p className="mt-2 text-sm text-mute">
             If this is a finished or blown prop account, use <span className="font-medium text-ink">Archive</span> instead — it keeps the trade history for review and just hides the account from your active view.
@@ -160,13 +159,7 @@ export default function AccountsPage() {
               <Button variant="subtle" onClick={() => { updateAccount({ ...confirming, archived: true }); setConfirming(null); }}>Archive instead</Button>
             )}
             <Button variant="ghost" onClick={() => setConfirming(null)}>Keep account</Button>
-            <Button
-              variant="danger"
-              disabled={trades.some((t) => t.accountId === confirming.id) || missed.some((m) => m.accountId === confirming.id)}
-              onClick={() => { deleteAccount(confirming.id); setConfirming(null); }}
-            >
-              {(trades.some((t) => t.accountId === confirming.id) || missed.some((m) => m.accountId === confirming.id)) ? "Archive account" : "Delete permanently"}
-            </Button>
+            <Button variant="danger" onClick={() => { deleteAccount(confirming.id); setConfirming(null); }}>Delete permanently</Button>
           </div>
         </Modal>
       )}

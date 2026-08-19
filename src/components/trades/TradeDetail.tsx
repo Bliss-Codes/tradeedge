@@ -57,16 +57,6 @@ export function TradeDetail({
   if (!trade) return null;
   const strategy = strategies.find((s) => s.id === trade.strategyId);
   const account = accounts.find((a) => a.id === trade.accountId);
-  const reviewItems: [string, boolean | undefined][] = [
-    ["HTF bias", trade.followedHtfBias],
-    ["Liquidity", trade.waitedForLiquidity],
-    ["Confirmation", trade.waitedForConfirmation],
-    ["Risk", trade.respectedRisk],
-    ["Plan", trade.followedPlan],
-  ];
-  const reviewAnswered = reviewItems.filter(([, v]) => v !== undefined).length;
-  const reviewPassed = reviewItems.filter(([, v]) => v === true).length;
-  const reviewComplete = reviewAnswered === reviewItems.length;
 
   return (
     <Modal open onClose={onClose} title={`${trade.pair} · ${trade.direction === "long" ? "Long" : "Short"}`} wide>
@@ -201,36 +191,6 @@ export function TradeDetail({
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {!replay && (
-          <div className="rounded-xl border border-edge bg-surface/40 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wider text-mute">Execution review</div>
-                <div className="mt-1 text-sm text-sub">
-                  {reviewComplete
-                    ? `${reviewPassed}/${reviewItems.length} checks passed`
-                    : `${reviewAnswered}/${reviewItems.length} review checks answered`}
-                </div>
-              </div>
-              {reviewComplete ? (
-                <span className={`rounded-full border px-2.5 py-1 text-xs ${reviewPassed === reviewItems.length ? "border-pos/40 bg-pos/10 text-pos" : "border-neg/40 bg-neg/10 text-neg"}`}>
-                  {reviewPassed === reviewItems.length ? "Fully reviewed" : "Review complete"}
-                </span>
-              ) : (
-                <span className="rounded-full border border-warn/40 bg-warn/10 px-2.5 py-1 text-xs text-warn">Review incomplete</span>
-              )}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {reviewItems.map(([label, value]) => (
-                <div key={label} className={`rounded-lg border px-2.5 py-2 text-center text-[11px] ${value === true ? "border-pos/30 bg-pos/10 text-pos" : value === false ? "border-neg/30 bg-neg/10 text-neg" : "border-edge bg-card text-mute"}`}>
-                  <div className="font-medium">{value === true ? "✓" : value === false ? "✗" : "—"}</div>
-                  <div className="mt-0.5 truncate">{label}</div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

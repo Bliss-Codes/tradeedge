@@ -218,66 +218,53 @@ export function executionSummary(trades: Trade[]): ExecutionSummary {
 
 /** Rule adherence = trades where the plan was followed ÷ total, as a %. */
 /**
- * Adherence over REVIEWED trades only.
+ * Adherence over EVERY trade, not just the reviewed ones.
  *
- * Previously this divided by every trade, so an unreviewed trade
- * (followedPlan === undefined) counted as a rule break. That reports a
- * disciplined trader who simply hasn't ticked the checklist as 0% adherent,
- * which is not true — it's unknown, not bad. Use `adherenceDetail` when you
- * need to show how much of the sample is actually reviewed.
+ * Two wrong versions came before this. The first counted unreviewed trades as
+ * rule breaks. The second measured only reviewed trades — but reviewing is
+ * voluntary and nobody ticks "followed plan" on a trade they are ashamed of,
+ * so the sample self-selected toward good trades and reported 90%+ adherence
+ * for a trader who documented under half their entries.
+ *
+ * A live trade with no thesis IS a plan break — "no thesis, no entry" is the
+ * rule, so an undocumented entry broke it by definition. That makes adherence
+ * measurable across the whole book rather than the flattering subset.
  */
-const REVIEW_KEYS = [
-  "followedHtfBias",
-  "waitedForLiquidity",
-  "waitedForConfirmation",
-  "respectedRisk",
-  "followedPlan",
-] as const;
-
-function reviewStatus(t: Trade): "reviewed" | "unreviewed" | "partial" {
-  const values = REVIEW_KEYS.map((k) => t[k]);
-  // Legacy trades may only have the original followedPlan flag.
-  const hasNewReviewFields = values.slice(0, -1).some((v) => v !== undefined);
-  if (!hasNewReviewFields) return t.followedPlan === undefined ? "unreviewed" : "reviewed";
-  return values.every((v) => v !== undefined) ? "reviewed" : "partial";
+export function followedRules(t: Trade): boolean {
+  if (t.followedPlan === false) return false;
+  if (t.violations.length > 0) return false;
+  if (t.respectedRisk === false) return false;
+  if (t.waitedForConfirmation === false) return false;
+  if (t.emotionBefore === "FOMO" || t.emotionBefore === "Revenge" || t.emotionBefore === "Frustrated") return false;
+  // Backtests have no plan to break; live trades need a documented thesis.
+  if (t.type === "live" && !(t.thesis ?? "").trim()) return false;
+  return true;
 }
 
-function followedReview(t: Trade): boolean {
-  const status = reviewStatus(t);
-  if (status !== "reviewed") return false;
-  const hasNewReviewFields = REVIEW_KEYS.slice(0, -1).some((k) => t[k] !== undefined);
-  if (!hasNewReviewFields) return t.followedPlan === true;
-  return REVIEW_KEYS.every((k) => t[k] === true);
-}
-
-/**
- * Rule adherence uses the complete review checklist for new trades:
- * HTF bias, liquidity, confirmation, risk, and overall plan. Partially
- * reviewed trades are excluded from the denominator instead of being treated
- * as violations. Legacy trades that only have followedPlan keep the old rule.
- */
 export function ruleAdherence(trades: Trade[]): number {
-  const reviewed = trades.filter((t) => reviewStatus(t) === "reviewed");
-  if (reviewed.length === 0) return 0;
-  return (reviewed.filter(followedReview).length / reviewed.length) * 100;
+  if (trades.length === 0) return 0;
+  return (trades.filter(followedRules).length / trades.length) * 100;
 }
 
 export function adherenceDetail(trades: Trade[]): {
   pct: number;
-  reviewed: number;
+  followed: number;
   total: number;
+  /** How many were explicitly reviewed — context, not the denominator. */
+  reviewed: number;
   coverage: number;
-  partial: number;
+  noThesis: number;
 } {
-  const reviewed = trades.filter((t) => reviewStatus(t) === "reviewed");
-  const partial = trades.filter((t) => reviewStatus(t) === "partial").length;
-  const followed = reviewed.filter(followedReview).length;
+  const followed = trades.filter(followedRules).length;
+  const reviewed = trades.filter((t) => t.followedPlan !== undefined).length;
+  const noThesis = trades.filter((t) => t.type === "live" && !(t.thesis ?? "").trim()).length;
   return {
-    pct: reviewed.length ? (followed / reviewed.length) * 100 : 0,
-    reviewed: reviewed.length,
+    pct: trades.length ? (followed / trades.length) * 100 : 0,
+    followed,
     total: trades.length,
-    coverage: trades.length ? (reviewed.length / trades.length) * 100 : 0,
-    partial,
+    reviewed,
+    coverage: trades.length ? (reviewed / trades.length) * 100 : 0,
+    noThesis,
   };
 }
 
@@ -492,9 +479,22 @@ export function monthlyPerformance(trades: Trade[], startingBalance?: number): M
     .map(([year, months]) => {
       const had = hadTrade.get(year)!;
       const cells = months.map((v, i) => (had[i] ? v : null));
-      const pct = cells.map((v) => (v === null || !startingBalance ? null : (v / startingBalance) * 100));
-      const total = cells.reduce((s: number, v) => s + (v ?? 0), 0);
-      const totalPct = startingBalance ? (total / startingBalance) * 100 : 0;
+
+      // Returns compound. Each month is measured against the balance at the
+      // START of that month, not the original deposit — otherwise a year of
+      // growth reports each month against a stale denominator and the annual
+      // figure becomes the SUM of monthly percentages, which is not a return.
+      let running = startingBalance ?? 0;
+      const pct = cells.map((v) => {
+        if (v === null || !startingBalance || running <= 0) return v === null ? null : 0;
+        const p = (v / running) * 100;
+        running += v;
+        return p;
+      });
+
+      const total = cells.reduce((s2: number, v) => s2 + (v ?? 0), 0);
+      // Annual return is end-over-start, i.e. properly compounded.
+      const totalPct = startingBalance ? ((startingBalance + total) / startingBalance - 1) * 100 : 0;
       return { year, months: cells, pctMonths: pct, total, totalPct };
     });
 }
@@ -504,145 +504,62 @@ export function monthlyPerformance(trades: Trade[], startingBalance?: number): M
 export interface RiskStatus {
   hasLimits: boolean;
   dailyLossLimit?: number;
-  dailyLoss: number;
-  dailyPnl: number;
+  dailyLoss: number; // positive number = currency lost today
   dailyRemaining?: number;
   maxDrawdownLimit?: number;
+  drawdown: number; // current peak-to-trough drawdown in currency
   ddRemaining?: number;
-  drawdown: number;
-  maxDrawdown: number;
-  currentDrawdownPct: number;
-  maxDrawdownPct: number;
-  currentEquity: number;
-  peakEquity: number;
-  netPnl: number;
-  avgRiskAmount: number;
-  maxRiskAmount: number;
-  avgRiskPercent: number;
-  maxRiskPercent: number;
-  dailyRiskAmount: number;
-  largestLoss: number;
-  largestWin: number;
-  maxConsecutiveLosses: number;
-  maxConsecutiveWins: number;
-  riskBreaches: number;
-  dailyLossBreaches: number;
-  drawdownBreaches: number;
-  oneTradeAway: boolean;
   level: "ok" | "warn" | "breach";
+  oneTradeAway: boolean; // a typical losing trade would breach the daily limit
 }
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-/**
- * Account-level risk snapshot. `account.balance` is the immutable starting
- * balance; all realized P&L is applied to it. Risk metrics are calculated
- * from this account's trades only and never from the current Analytics filter.
- */
+/** Evaluate an account's daily-loss and drawdown limits against its trades. */
 export function riskStatus(account: Account, trades: Trade[]): RiskStatus {
-  const acctTrades = trades
-    .filter((t) => t.accountId === account.id)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const acctTrades = trades.filter((t) => t.accountId === account.id);
+  const today = new Date();
+  const todayPnl = acctTrades.filter((t) => isSameDay(new Date(t.date), today)).reduce((s, t) => s + t.pnl, 0);
+  const dailyLoss = todayPnl < 0 ? -todayPnl : 0;
 
-  const now = new Date();
-  const todayTrades = acctTrades.filter((t) => isSameDay(new Date(t.date), now));
-  const dailyPnl = todayTrades.reduce((s, t) => s + t.pnl, 0);
-  const dailyLoss = dailyPnl < 0 ? -dailyPnl : 0;
-  const dailyRiskAmount = todayTrades.reduce((s, t) => s + Math.max(0, t.riskAmount ?? 0), 0);
-
+  // Drawdown from peak equity over the account's history.
+  const sorted = [...acctTrades].sort((a, b) => a.date.localeCompare(b.date));
   let equity = account.balance;
   let peak = account.balance;
   let maxDD = 0;
-  let maxConsecutiveLosses = 0;
-  let maxConsecutiveWins = 0;
-  let lossStreak = 0;
-  let winStreak = 0;
-  let largestLoss = 0;
-  let largestWin = 0;
-
-  for (const t of acctTrades) {
+  for (const t of sorted) {
     equity += t.pnl;
     if (equity > peak) peak = equity;
-    maxDD = Math.max(maxDD, peak - equity);
-
-    if (t.pnl < largestLoss) largestLoss = t.pnl;
-    if (t.pnl > largestWin) largestWin = t.pnl;
-
-    if (t.pnl < 0) { lossStreak += 1; winStreak = 0; }
-    else if (t.pnl > 0) { winStreak += 1; lossStreak = 0; }
-    else { lossStreak = 0; winStreak = 0; }
-    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, lossStreak);
-    maxConsecutiveWins = Math.max(maxConsecutiveWins, winStreak);
+    const dd = peak - equity;
+    if (dd > maxDD) maxDD = dd;
   }
-
-  const currentDrawdown = Math.max(0, peak - equity);
-  const currentDrawdownPct = peak > 0 ? (currentDrawdown / peak) * 100 : 0;
-  const maxDrawdownPct = account.balance > 0 ? (maxDD / account.balance) * 100 : 0;
-
-  const riskAmounts = acctTrades.map((t) => t.riskAmount ?? 0).filter((v) => v > 0);
-  const riskPcts = acctTrades.map((t) => t.riskPercent ?? 0).filter((v) => v > 0);
-  const avgRiskAmount = riskAmounts.length ? riskAmounts.reduce((a, b) => a + b, 0) / riskAmounts.length : 0;
-  const maxRiskAmount = riskAmounts.length ? Math.max(...riskAmounts) : 0;
-  const avgRiskPercent = riskPcts.length ? riskPcts.reduce((a, b) => a + b, 0) / riskPcts.length : 0;
-  const maxRiskPercent = riskPcts.length ? Math.max(...riskPcts) : 0;
+  const drawdown = peak - equity;
 
   const dll = account.dailyLossLimit;
   const mdd = account.maxDrawdownLimit;
+  const hasLimits = !!dll || !!mdd;
+
   const dailyRemaining = dll !== undefined ? Math.max(0, dll - dailyLoss) : undefined;
-  const ddRemaining = mdd !== undefined ? Math.max(0, mdd - currentDrawdown) : undefined;
+  const ddRemaining = mdd !== undefined ? Math.max(0, mdd - drawdown) : undefined;
 
-  const dailyLossBreaches = dll !== undefined
-    ? acctTrades.reduce((count, t) => {
-        const day = acctTrades.filter((x) => isSameDay(new Date(x.date), new Date(t.date))).reduce((s, x) => s + x.pnl, 0);
-        return day < -dll ? count + 1 : count;
-      }, 0) > 0 ? 1 : 0
-    : 0;
-  const drawdownBreaches = mdd !== undefined && maxDD >= mdd ? 1 : 0;
-  const riskBreaches = dailyLossBreaches + drawdownBreaches;
-
-  const typicalRisk = avgRiskAmount;
-  const oneTradeAway = dailyRemaining !== undefined && typicalRisk > 0 && dailyRemaining <= typicalRisk && dailyRemaining > 0;
+  // Typical risk per trade (from recent trades) to flag "one trade away".
+  const risks = acctTrades.map((t) => t.riskAmount ?? 0).filter((r) => r > 0);
+  const typicalRisk = risks.length ? risks.reduce((a, b) => a + b, 0) / risks.length : 0;
 
   let level: RiskStatus["level"] = "ok";
-  if ((dll !== undefined && dailyLoss >= dll) || (mdd !== undefined && currentDrawdown >= mdd)) level = "breach";
+  if ((dll !== undefined && dailyLoss >= dll) || (mdd !== undefined && drawdown >= mdd)) level = "breach";
   else if (
     (dailyRemaining !== undefined && dll! > 0 && dailyRemaining <= dll! * 0.3) ||
-    (ddRemaining !== undefined && mdd! > 0 && ddRemaining <= mdd! * 0.3) ||
-    oneTradeAway
-  ) level = "warn";
+    (ddRemaining !== undefined && mdd! > 0 && ddRemaining <= mdd! * 0.3)
+  )
+    level = "warn";
 
-  return {
-    hasLimits: dll !== undefined || mdd !== undefined,
-    dailyLossLimit: dll,
-    dailyLoss,
-    dailyPnl,
-    dailyRemaining,
-    maxDrawdownLimit: mdd,
-    ddRemaining,
-    drawdown: currentDrawdown,
-    maxDrawdown: maxDD,
-    currentDrawdownPct,
-    maxDrawdownPct,
-    currentEquity: equity,
-    peakEquity: peak,
-    netPnl: equity - account.balance,
-    avgRiskAmount,
-    maxRiskAmount,
-    avgRiskPercent,
-    maxRiskPercent,
-    dailyRiskAmount,
-    largestLoss,
-    largestWin,
-    maxConsecutiveLosses,
-    maxConsecutiveWins,
-    riskBreaches,
-    dailyLossBreaches,
-    drawdownBreaches,
-    oneTradeAway,
-    level,
-  };
+  const oneTradeAway =
+    level !== "breach" && dailyRemaining !== undefined && typicalRisk > 0 && dailyRemaining <= typicalRisk;
+
+  return { hasLimits, dailyLossLimit: dll, dailyLoss, dailyRemaining, maxDrawdownLimit: mdd, drawdown, ddRemaining, level, oneTradeAway };
 }
 
 // ── formatting helpers ────────────────────────────────────────────────

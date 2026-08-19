@@ -54,7 +54,6 @@ const ALIASES: Record<string, string[]> = {
   session: ["session"],
   tags: ["tags", "tag", "labels"],
   notes: ["notes", "note", "comment", "comments", "remark", "remarks"],
-  strategyId: ["strategyid", "strategy id", "strategy", "strategy name"],
 };
 
 /** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
@@ -132,7 +131,6 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       rr: isNaN(rr) ? 0 : rr,
       pnl: isNaN(pnl) ? 0 : pnl,
       session,
-      strategyId: get("strategyId") || undefined,
       tags: get("tags") ? get("tags").split(/[;|]/).map((t) => t.trim()).filter(Boolean) : [],
       notes: get("notes") || undefined,
       violations: [],
@@ -153,32 +151,13 @@ function esc(v: unknown): string {
 }
 
 export function tradesToCSV(trades: Trade[]): string {
-  const header = [
-    "id", "date", "pair", "direction", "type", "rr", "pnl", "session",
-    "accountId", "strategyId", "grade", "entry", "exit", "stopLoss",
-    "takeProfit", "riskPercent", "riskAmount", "lotSize", "exitReason",
-    "htfBias", "entryModel", "poiType", "liquidityTaken", "qualityScore",
-    "emotionBefore", "emotionAfter", "violations", "tags", "notes", "thesis", "lessons"
-  ];
-  const lines = trades.map((t) => [
-    t.id, t.date, t.pair, t.direction, t.type, t.rr, t.pnl, t.session,
-    t.accountId, t.strategyId ?? "", t.grade ?? "", t.entry ?? "", t.exit ?? "",
-    t.stopLoss ?? "", t.takeProfit ?? "", t.riskPercent ?? "", t.riskAmount ?? "",
-    t.lotSize ?? "", t.exitReason ?? "", t.htfBias ?? "", t.entryModel ?? "",
-    t.poiType ?? "", t.liquidityTaken ?? "", t.qualityScore ?? "",
-    t.emotionBefore ?? "", t.emotionAfter ?? "", t.violations.join(";"),
-    t.tags.join(";"), t.notes ?? "", t.thesis ?? "", t.lessons ?? ""
-  ].map(esc).join(","));
+  const header = ["date", "pair", "direction", "rr", "pnl", "session", "strategyId", "tags", "notes", "type", "accountId"];
+  const lines = trades.map((t) =>
+    [t.date, t.pair, t.direction, t.rr, t.pnl, t.session, t.strategyId ?? "", t.tags.join(";"), t.notes ?? "", t.type, t.accountId]
+      .map(esc)
+      .join(",")
+  );
   return [header.join(","), ...lines].join("\n");
-}
-
-export function csvTemplate(): string {
-  return "date,pair,direction,rr,pnl,session,strategyId,grade,tags,notes\n2025-01-03T09:30:00Z,XAUUSD,long,3,300,London,,A+,Liquidity;Sweep,Example trade";
-}
-
-/** Stable fingerprint used to detect an imported trade that already exists. */
-export function tradeFingerprint(t: Pick<Trade, "accountId" | "type" | "pair" | "direction" | "date" | "rr" | "pnl">): string {
-  return [t.accountId, t.type, t.pair.toUpperCase(), t.direction, new Date(t.date).toISOString(), t.rr, t.pnl].join("|");
 }
 
 export function download(filename: string, content: string, mime = "text/plain") {
