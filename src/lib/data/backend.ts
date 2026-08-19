@@ -95,6 +95,7 @@ class LocalBackend implements Backend {
   }
   async deleteAccount(id: string) {
     this.mutate((s) => {
+      if (s.trades.some((t) => t.accountId === id)) throw new Error("This account has historical trades. Archive it instead of deleting it.");
       s.accounts = s.accounts.filter((x) => x.id !== id);
     });
   }
@@ -107,6 +108,7 @@ class LocalBackend implements Backend {
   }
   async deleteStrategy(id: string) {
     this.mutate((s) => {
+      if (s.trades.some((t) => t.strategyId === id)) throw new Error("This strategy is referenced by historical trades. Archive it instead of deleting it.");
       s.strategies = s.strategies.filter((x) => x.id !== id);
     });
   }

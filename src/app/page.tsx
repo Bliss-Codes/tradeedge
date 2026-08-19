@@ -240,7 +240,7 @@ export default function DashboardPage() {
           sub={
             adh.total === 0
               ? "no trades yet"
-              : `${adh.followed} of ${adh.total} clean${adh.noThesis > 0 ? ` · ${adh.noThesis} with no thesis` : ""}`
+              : `${adh.followed} of ${adh.total} reviewed`
           }
         />
         <KpiCard
