@@ -530,7 +530,6 @@ export default function AnalyticsPage() {
   const moneyScope: MoneyScope =
     stage === "funded" ? "Real money" : stage === "challenge" ? "Challenge" : "All";
   const accounts = useApp((s) => s.accounts);
-  const selectedAccountId = useApp((s) => s.selectedAccountId);
   const rawVisible = useVisibleTrades(dataset, dataset === "live" ? stage : "all");
   const counts = useMemo(() => setupCounts(rawVisible), [rawVisible]);
   const hasLinked = counts.executions !== counts.setups;
@@ -616,23 +615,22 @@ export default function AnalyticsPage() {
   const winMoney = useMemo(() => trades.filter((t) => outcomeOf(t) === "win").reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const lossMoney = useMemo(() => trades.filter((t) => outcomeOf(t) === "loss").reduce((s2, t) => s2 + t.pnl, 0), [trades]);
   const startingBalance = useMemo(() => {
-    // Account balance is account-level data. It must not disappear just because
-    // the user filters by strategy/session/outcome/grade, and the selected
-    // account must be reactive so changing the global account selector updates
-    // Analytics immediately.
+    // Only accounts in the selected capital stage count — showing funded
+    // analytics against combined funded+challenge capital is meaningless.
     const active = accounts.filter((a) => !a.archived && (stage === "all" || stageOf(a.type) === stage));
-
-    if (selectedAccountId !== "all") {
-      const acct = accounts.find((a) => a.id === selectedAccountId && !a.archived);
-      if (!acct) return undefined;
-      return stage === "all" || stageOf(acct.type) === stage ? acct.balance : undefined;
-    }
-
-    // Do not show a misleading combined dollar balance when challenge and
-    // funded capital are mixed. R-based analytics remain valid in that view.
+    // A combined funded+challenge money return is not a meaningful percentage.
     if (stage === "all" && mixedStages) return undefined;
-    return active.reduce((s2, a) => s2 + (a.balance || 0), 0) || undefined;
-  }, [accounts, selectedAccountId, stage, mixedStages]);
+    if (fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "") {
+      const sel = useApp.getState().selectedAccountId;
+      if (sel !== "all") {
+        const acct = accounts.find((a) => a.id === sel);
+        if (!acct) return undefined;
+        return stage === "all" || stageOf(acct.type) === stage ? acct.balance : undefined;
+      }
+      return active.reduce((s2, a) => s2 + (a.balance || 0), 0) || undefined;
+    }
+    return undefined;
+  }, [accounts, stage, mixedStages, fStrategy, fSession, fSide, fOutcome, fType]);
   /** Account balance and its % change, for the chart header. */
   const balance = startingBalance !== undefined ? startingBalance + stats.netPnl : undefined;
   const pctChange = startingBalance ? (stats.netPnl / startingBalance) * 100 : undefined;

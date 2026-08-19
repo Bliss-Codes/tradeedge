@@ -5,6 +5,7 @@ import { Account, MissedTrade, Snapshot, Strategy, Trade, DayReview, EMPTY_SNAPS
 import { backend } from "@/lib/data/backend";
 import { buildSampleData } from "@/lib/data/sample";
 import { supabase, isSupabaseEnabled } from "@/lib/supabase/client";
+import { normalizeSnapshot, validateAccount, validateTrade } from "@/lib/integrity";
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -130,7 +131,8 @@ export const useApp = create<AppState>((set, get) => ({
     }
     try {
       const snap = await backend.fetchAll();
-      set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true });
+      const normalized = normalizeSnapshot(snap);
+      set({ ...normalized.value, hydrated: true, syncError: normalized.errors.length ? normalized.errors.slice(0, 3).join(" ") : null });
     } catch {
       set({ hydrated: true });
     }
@@ -140,10 +142,28 @@ export const useApp = create<AppState>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
 
   addTrade: (t) => {
+    const errors = validateTrade(t, get().accounts, get().strategies);
+    if (errors.length) {
+      set({ syncError: errors.join(" ") });
+      return;
+    }
+    if (get().trades.some((x) => x.id === t.id)) {
+      set({ syncError: `Trade ${t.id} already exists.` });
+      return;
+    }
     set((s) => ({ trades: [t, ...s.trades] }));
     reportSync(backend.upsertTrade(t));
   },
   updateTrade: (t) => {
+    const errors = validateTrade(t, get().accounts, get().strategies);
+    if (errors.length) {
+      set({ syncError: errors.join(" ") });
+      return;
+    }
+    if (!get().trades.some((x) => x.id === t.id)) {
+      set({ syncError: `Cannot update missing trade ${t.id}.` });
+      return;
+    }
     set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? t : x)) }));
     reportSync(backend.upsertTrade(t));
   },
@@ -153,30 +173,85 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.deleteTrades(ids));
   },
   importTrades: (ts) => {
-    set((s) => ({ trades: [...ts, ...s.trades] }));
-    reportSync(backend.upsertTrades(ts));
+    const existingIds = new Set(get().trades.map((x) => x.id));
+    const seen = new Set<string>();
+    const valid: Trade[] = [];
+    const errors: string[] = [];
+    for (const t of ts) {
+      if (existingIds.has(t.id) || seen.has(t.id)) {
+        errors.push(`Skipped duplicate trade ${t.id}.`);
+        continue;
+      }
+      const tradeErrors = validateTrade(t, get().accounts, get().strategies);
+      if (tradeErrors.length) {
+        errors.push(...tradeErrors);
+        continue;
+      }
+      seen.add(t.id);
+      valid.push(t);
+    }
+    if (!valid.length) {
+      if (errors.length) set({ syncError: errors.slice(0, 3).join(" ") });
+      return;
+    }
+    set((s) => ({ trades: [...valid, ...s.trades], syncError: errors.length ? errors.slice(0, 3).join(" ") : null }));
+    reportSync(backend.upsertTrades(valid));
   },
 
   addAccount: (a) => {
+    const errors = validateAccount(a);
+    if (errors.length) {
+      set({ syncError: errors.join(" ") });
+      return;
+    }
+    if (get().accounts.some((x) => x.id === a.id)) {
+      set({ syncError: `Account ${a.id} already exists.` });
+      return;
+    }
     set((s) => ({ accounts: [...s.accounts, a] }));
     reportSync(backend.upsertAccount(a));
   },
   updateAccount: (a) => {
+    const errors = validateAccount(a);
+    if (errors.length) {
+      set({ syncError: errors.join(" ") });
+      return;
+    }
+    if (!get().accounts.some((x) => x.id === a.id)) {
+      set({ syncError: `Cannot update missing account ${a.id}.` });
+      return;
+    }
     set((s) => ({ accounts: s.accounts.map((x) => (x.id === a.id ? a : x)) }));
     reportSync(backend.upsertAccount(a));
   },
   deleteAccount: (id) => {
-    const removedTradeIds = get().trades.filter((t) => t.accountId === id).map((t) => t.id);
+    const account = get().accounts.find((a) => a.id === id);
+    if (!account) {
+      set({ syncError: `Cannot delete missing account ${id}.` });
+      return;
+    }
+    const linkedTrades = get().trades.filter((t) => t.accountId === id).length;
+    const linkedMissed = get().missed.filter((m) => m.accountId === id).length;
+    if (linkedTrades || linkedMissed) {
+      set({ syncError: `${account.name} has ${linkedTrades} trade${linkedTrades === 1 ? "" : "s"} and ${linkedMissed} missed setup${linkedMissed === 1 ? "" : "s"}. Archive it instead of deleting its history.` });
+      return;
+    }
     set((s) => ({
       accounts: s.accounts.filter((x) => x.id !== id),
-      trades: s.trades.filter((t) => t.accountId !== id),
       selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId,
     }));
-    reportSync(backend.deleteTrades(removedTradeIds));
     reportSync(backend.deleteAccount(id));
   },
 
   addStrategy: (st) => {
+    if (!st.id || !st.name.trim()) {
+      set({ syncError: "Strategy requires a valid id and name." });
+      return;
+    }
+    if (get().strategies.some((x) => x.id === st.id)) {
+      set({ syncError: `Strategy ${st.id} already exists.` });
+      return;
+    }
     set((s) => ({ strategies: [...s.strategies, st] }));
     reportSync(backend.upsertStrategy(st));
   },
@@ -185,15 +260,18 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.upsertStrategy(st));
   },
   deleteStrategy: (id) => {
-    const changed = get()
-      .trades.filter((t) => t.strategyId === id)
-      .map((t) => ({ ...t, strategyId: undefined }));
-    set((s) => ({
-      strategies: s.strategies.filter((x) => x.id !== id),
-      trades: s.trades.map((t) => (t.strategyId === id ? { ...t, strategyId: undefined } : t)),
-    }));
+    const strategy = get().strategies.find((s) => s.id === id);
+    if (!strategy) {
+      set({ syncError: `Cannot delete missing strategy ${id}.` });
+      return;
+    }
+    const linkedTrades = get().trades.filter((t) => t.strategyId === id).length;
+    if (linkedTrades) {
+      set({ syncError: `${strategy.name} has ${linkedTrades} historical trade${linkedTrades === 1 ? "" : "s"}. Archive it instead of deleting its history.` });
+      return;
+    }
+    set((s) => ({ strategies: s.strategies.filter((x) => x.id !== id) }));
     reportSync(backend.deleteStrategy(id));
-    if (changed.length) reportSync(backend.upsertTrades(changed));
   },
 
   addMissed: (m) => {
@@ -262,15 +340,15 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   loadSampleData: () => {
-    const snap = buildSampleData();
-    set({ ...snap, selectedAccountId: "all" });
+    const snap = normalizeSnapshot(buildSampleData()).value;
+    set({ ...snap, selectedAccountId: "all", syncError: null });
     reportSync(backend.replaceAll(snap));
   },
 
   restoreBackup: (snap) => {
-    const full = { ...EMPTY_SNAPSHOT, ...snap };
-    set({ ...full, selectedAccountId: "all" });
-    reportSync(backend.replaceAll(full));
+    const normalized = normalizeSnapshot(snap);
+    set({ ...normalized.value, selectedAccountId: "all", syncError: normalized.errors.length ? normalized.errors.slice(0, 3).join(" ") : null });
+    reportSync(backend.replaceAll(normalized.value));
   },
 
   clearAll: async () => {

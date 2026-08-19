@@ -41,6 +41,10 @@ export class SupabaseBackend implements Backend {
       sb.from(TABLES.review).select("data"),
       sb.from("profiles").select("custom_tags, profile").maybeSingle(),
     ]);
+    const failures = [accounts, trades, strategies, missed, reviews, profile]
+      .filter((r) => r.error)
+      .map((r) => String(r.error?.message ?? r.error));
+    if (failures.length) throw new Error(`Supabase sync incomplete: ${failures.join(" | ")}`);
     const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) => (r.data ?? []).map((x) => x.data);
     return {
       accounts: rows<Account>(accounts),
@@ -81,7 +85,13 @@ export class SupabaseBackend implements Backend {
   deleteAccount = (id: string) => this.del(TABLES.account, [id]);
 
   upsertStrategy = (s: Strategy) => this.put(TABLES.strategy, s.id, s);
-  deleteStrategy = (id: string) => this.del(TABLES.strategy, [id]);
+  async deleteStrategy(id: string) {
+    const sb = db();
+    const { data, error } = await sb.from(TABLES.trade).select("id").contains("data", { strategyId: id }).limit(1);
+    if (error) throw error;
+    if (data?.length) throw new Error(`Cannot delete strategy ${id}: historical trades still reference it. Archive it instead.`);
+    await this.del(TABLES.strategy, [id]);
+  }
 
   upsertMissed = (m: MissedTrade) => this.put(TABLES.missed, m.id, m);
   deleteMissed = (id: string) => this.del(TABLES.missed, [id]);
@@ -124,10 +134,13 @@ export class SupabaseBackend implements Backend {
     const sb = db();
     const uid = await userId();
     // RLS already scopes to the user; the filter is belt-and-suspenders.
-    await Promise.all(
+    const results = await Promise.all(
       Object.values(TABLES).map((t) => sb.from(t).delete().eq("user_id", uid))
     );
-    await sb.from("profiles").upsert({ user_id: uid, custom_tags: [] });
+    const failures = results.filter((r) => r.error).map((r) => String(r.error?.message ?? r.error));
+    if (failures.length) throw new Error(`Supabase clear incomplete: ${failures.join(" | ")}`);
+    const { error: profileError } = await sb.from("profiles").upsert({ user_id: uid, custom_tags: [] });
+    if (profileError) throw profileError;
   }
 }
 

@@ -504,62 +504,143 @@ export function monthlyPerformance(trades: Trade[], startingBalance?: number): M
 export interface RiskStatus {
   hasLimits: boolean;
   dailyLossLimit?: number;
-  dailyLoss: number; // positive number = currency lost today
+  dailyLoss: number;
+  dailyPnl: number;
   dailyRemaining?: number;
   maxDrawdownLimit?: number;
-  drawdown: number; // current peak-to-trough drawdown in currency
-  ddRemaining?: number;
+  drawdown: number;
+  maxDrawdown: number;
+  currentDrawdownPct: number;
+  maxDrawdownPct: number;
+  currentEquity: number;
+  peakEquity: number;
+  netPnl: number;
+  avgRiskAmount: number;
+  maxRiskAmount: number;
+  avgRiskPercent: number;
+  maxRiskPercent: number;
+  dailyRiskAmount: number;
+  largestLoss: number;
+  largestWin: number;
+  maxConsecutiveLosses: number;
+  maxConsecutiveWins: number;
+  riskBreaches: number;
+  dailyLossBreaches: number;
+  drawdownBreaches: number;
+  oneTradeAway: boolean;
   level: "ok" | "warn" | "breach";
-  oneTradeAway: boolean; // a typical losing trade would breach the daily limit
 }
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-/** Evaluate an account's daily-loss and drawdown limits against its trades. */
+/**
+ * Account-level risk snapshot. `account.balance` is the immutable starting
+ * balance; all realized P&L is applied to it. Risk metrics are calculated
+ * from this account's trades only and never from the current Analytics filter.
+ */
 export function riskStatus(account: Account, trades: Trade[]): RiskStatus {
-  const acctTrades = trades.filter((t) => t.accountId === account.id);
-  const today = new Date();
-  const todayPnl = acctTrades.filter((t) => isSameDay(new Date(t.date), today)).reduce((s, t) => s + t.pnl, 0);
-  const dailyLoss = todayPnl < 0 ? -todayPnl : 0;
+  const acctTrades = trades
+    .filter((t) => t.accountId === account.id)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
-  // Drawdown from peak equity over the account's history.
-  const sorted = [...acctTrades].sort((a, b) => a.date.localeCompare(b.date));
+  const now = new Date();
+  const todayTrades = acctTrades.filter((t) => isSameDay(new Date(t.date), now));
+  const dailyPnl = todayTrades.reduce((s, t) => s + t.pnl, 0);
+  const dailyLoss = dailyPnl < 0 ? -dailyPnl : 0;
+  const dailyRiskAmount = todayTrades.reduce((s, t) => s + Math.max(0, t.riskAmount ?? 0), 0);
+
   let equity = account.balance;
   let peak = account.balance;
   let maxDD = 0;
-  for (const t of sorted) {
+  let maxConsecutiveLosses = 0;
+  let maxConsecutiveWins = 0;
+  let lossStreak = 0;
+  let winStreak = 0;
+  let largestLoss = 0;
+  let largestWin = 0;
+
+  for (const t of acctTrades) {
     equity += t.pnl;
     if (equity > peak) peak = equity;
-    const dd = peak - equity;
-    if (dd > maxDD) maxDD = dd;
+    maxDD = Math.max(maxDD, peak - equity);
+
+    if (t.pnl < largestLoss) largestLoss = t.pnl;
+    if (t.pnl > largestWin) largestWin = t.pnl;
+
+    if (t.pnl < 0) { lossStreak += 1; winStreak = 0; }
+    else if (t.pnl > 0) { winStreak += 1; lossStreak = 0; }
+    else { lossStreak = 0; winStreak = 0; }
+    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, lossStreak);
+    maxConsecutiveWins = Math.max(maxConsecutiveWins, winStreak);
   }
-  const drawdown = peak - equity;
+
+  const currentDrawdown = Math.max(0, peak - equity);
+  const currentDrawdownPct = peak > 0 ? (currentDrawdown / peak) * 100 : 0;
+  const maxDrawdownPct = account.balance > 0 ? (maxDD / account.balance) * 100 : 0;
+
+  const riskAmounts = acctTrades.map((t) => t.riskAmount ?? 0).filter((v) => v > 0);
+  const riskPcts = acctTrades.map((t) => t.riskPercent ?? 0).filter((v) => v > 0);
+  const avgRiskAmount = riskAmounts.length ? riskAmounts.reduce((a, b) => a + b, 0) / riskAmounts.length : 0;
+  const maxRiskAmount = riskAmounts.length ? Math.max(...riskAmounts) : 0;
+  const avgRiskPercent = riskPcts.length ? riskPcts.reduce((a, b) => a + b, 0) / riskPcts.length : 0;
+  const maxRiskPercent = riskPcts.length ? Math.max(...riskPcts) : 0;
 
   const dll = account.dailyLossLimit;
   const mdd = account.maxDrawdownLimit;
-  const hasLimits = !!dll || !!mdd;
-
   const dailyRemaining = dll !== undefined ? Math.max(0, dll - dailyLoss) : undefined;
-  const ddRemaining = mdd !== undefined ? Math.max(0, mdd - drawdown) : undefined;
+  const ddRemaining = mdd !== undefined ? Math.max(0, mdd - currentDrawdown) : undefined;
 
-  // Typical risk per trade (from recent trades) to flag "one trade away".
-  const risks = acctTrades.map((t) => t.riskAmount ?? 0).filter((r) => r > 0);
-  const typicalRisk = risks.length ? risks.reduce((a, b) => a + b, 0) / risks.length : 0;
+  const dailyLossBreaches = dll !== undefined
+    ? acctTrades.reduce((count, t) => {
+        const day = acctTrades.filter((x) => isSameDay(new Date(x.date), new Date(t.date))).reduce((s, x) => s + x.pnl, 0);
+        return day < -dll ? count + 1 : count;
+      }, 0) > 0 ? 1 : 0
+    : 0;
+  const drawdownBreaches = mdd !== undefined && maxDD >= mdd ? 1 : 0;
+  const riskBreaches = dailyLossBreaches + drawdownBreaches;
+
+  const typicalRisk = avgRiskAmount;
+  const oneTradeAway = dailyRemaining !== undefined && typicalRisk > 0 && dailyRemaining <= typicalRisk && dailyRemaining > 0;
 
   let level: RiskStatus["level"] = "ok";
-  if ((dll !== undefined && dailyLoss >= dll) || (mdd !== undefined && drawdown >= mdd)) level = "breach";
+  if ((dll !== undefined && dailyLoss >= dll) || (mdd !== undefined && currentDrawdown >= mdd)) level = "breach";
   else if (
     (dailyRemaining !== undefined && dll! > 0 && dailyRemaining <= dll! * 0.3) ||
-    (ddRemaining !== undefined && mdd! > 0 && ddRemaining <= mdd! * 0.3)
-  )
-    level = "warn";
+    (ddRemaining !== undefined && mdd! > 0 && ddRemaining <= mdd! * 0.3) ||
+    oneTradeAway
+  ) level = "warn";
 
-  const oneTradeAway =
-    level !== "breach" && dailyRemaining !== undefined && typicalRisk > 0 && dailyRemaining <= typicalRisk;
-
-  return { hasLimits, dailyLossLimit: dll, dailyLoss, dailyRemaining, maxDrawdownLimit: mdd, drawdown, ddRemaining, level, oneTradeAway };
+  return {
+    hasLimits: dll !== undefined || mdd !== undefined,
+    dailyLossLimit: dll,
+    dailyLoss,
+    dailyPnl,
+    dailyRemaining,
+    maxDrawdownLimit: mdd,
+    drawdown: currentDrawdown,
+    maxDrawdown: maxDD,
+    currentDrawdownPct,
+    maxDrawdownPct,
+    currentEquity: equity,
+    peakEquity: peak,
+    netPnl: equity - account.balance,
+    avgRiskAmount,
+    maxRiskAmount,
+    avgRiskPercent,
+    maxRiskPercent,
+    dailyRiskAmount,
+    largestLoss,
+    largestWin,
+    maxConsecutiveLosses,
+    maxConsecutiveWins,
+    riskBreaches,
+    dailyLossBreaches,
+    drawdownBreaches,
+    oneTradeAway,
+    level,
+  };
 }
 
 // ── formatting helpers ────────────────────────────────────────────────

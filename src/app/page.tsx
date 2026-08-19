@@ -176,12 +176,6 @@ export default function DashboardPage() {
   const stats = useMemo(() => computeStats(trades), [trades]);
   const adh = useMemo(() => adherenceDetail(trades), [trades]);
   const adherence = adh.pct;
-  /** Share of trades that had a written thesis — the single strongest predictor
-   *  in this journal's own data (documented setups vastly outperform blanks). */
-  const thesisRate = useMemo(
-    () => (trades.length ? (trades.filter((t) => (t.thesis ?? "").trim()).length / trades.length) * 100 : 0),
-    [trades]
-  );
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const daily = useMemo(() => dailyPnl(trades), [trades]);
   const money = useMemo(() => {
@@ -240,9 +234,7 @@ export default function DashboardPage() {
           sub={
             adh.reviewed === 0
               ? "no trades reviewed yet"
-              : adh.coverage < 100
-              ? `${adh.reviewed} of ${adh.total} reviewed · ${fmtPct(thesisRate)} had a thesis`
-              : `${fmtPct(thesisRate)} had a thesis`
+              : `${adh.reviewed} of ${adh.total} reviewed`
           }
         />
         <KpiCard

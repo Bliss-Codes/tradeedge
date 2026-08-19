@@ -106,6 +106,10 @@ class LocalBackend implements Backend {
     });
   }
   async deleteStrategy(id: string) {
+    const snapshot = this.read();
+    if (snapshot.trades.some((t) => t.strategyId === id)) {
+      throw new Error(`Cannot delete strategy ${id}: historical trades still reference it. Archive it instead.`);
+    }
     this.mutate((s) => {
       s.strategies = s.strategies.filter((x) => x.id !== id);
     });
