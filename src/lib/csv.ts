@@ -1,4 +1,4 @@
-import { Snapshot, Trade, TradeType, Session, SESSIONS, sessionFromDate, EXIT_REASONS, ExitReason } from "@/lib/types";
+import { Snapshot, Trade, TradeType, Session, SESSIONS, sessionFromDate } from "@/lib/types";
 import { uid } from "@/stores/useApp";
 
 // ── tiny CSV parser (handles quoted fields) ───────────────────────────
@@ -54,18 +54,6 @@ const ALIASES: Record<string, string[]> = {
   session: ["session"],
   tags: ["tags", "tag", "labels"],
   notes: ["notes", "note", "comment", "comments", "remark", "remarks"],
-  strategyId: ["strategyid", "strategy id", "strategy"],
-  accountId: ["accountid", "account id", "account"],
-  grade: ["grade", "setup grade"],
-  riskPercent: ["riskpercent", "risk %", "risk pct", "risk percentage"],
-  riskAmount: ["riskamount", "risk amount"],
-  entry: ["entry", "entry price"],
-  exit: ["exit", "exit price"],
-  stopLoss: ["stoploss", "stop loss", "sl"],
-  takeProfit: ["takeprofit", "take profit", "tp"],
-  exitReason: ["exitreason", "exit reason"],
-  thesis: ["thesis", "trade thesis"],
-  lessons: ["lessons", "lesson", "reflection"],
 };
 
 /** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
@@ -143,17 +131,6 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       rr: isNaN(rr) ? 0 : rr,
       pnl: isNaN(pnl) ? 0 : pnl,
       session,
-      strategyId: get("strategyId") || undefined,
-      grade: (["A+", "A", "B", "C"] as string[]).includes(get("grade")) ? (get("grade") as Trade["grade"]) : undefined,
-      entry: get("entry") ? Number(get("entry")) : undefined,
-      exit: get("exit") ? Number(get("exit")) : undefined,
-      stopLoss: get("stopLoss") ? Number(get("stopLoss")) : undefined,
-      takeProfit: get("takeProfit") ? Number(get("takeProfit")) : undefined,
-      riskPercent: get("riskPercent") ? Number(get("riskPercent")) : undefined,
-      riskAmount: get("riskAmount") ? Number(get("riskAmount")) : undefined,
-      exitReason: (EXIT_REASONS as readonly string[]).includes(get("exitReason")) ? (get("exitReason") as ExitReason) : undefined,
-      thesis: get("thesis") || undefined,
-      lessons: get("lessons") || undefined,
       tags: get("tags") ? get("tags").split(/[;|]/).map((t) => t.trim()).filter(Boolean) : [],
       notes: get("notes") || undefined,
       violations: [],
@@ -174,9 +151,9 @@ function esc(v: unknown): string {
 }
 
 export function tradesToCSV(trades: Trade[]): string {
-  const header = ["id", "date", "pair", "direction", "rr", "pnl", "session", "strategyId", "grade", "entry", "exit", "stopLoss", "takeProfit", "riskPercent", "riskAmount", "exitReason", "tags", "notes", "thesis", "lessons", "type", "accountId"];
+  const header = ["date", "pair", "direction", "rr", "pnl", "session", "strategyId", "tags", "notes", "type", "accountId"];
   const lines = trades.map((t) =>
-    [t.id, t.date, t.pair, t.direction, t.rr, t.pnl, t.session, t.strategyId ?? "", t.grade ?? "", t.entry ?? "", t.exit ?? "", t.stopLoss ?? "", t.takeProfit ?? "", t.riskPercent ?? "", t.riskAmount ?? "", t.exitReason ?? "", t.tags.join(";"), t.notes ?? "", t.thesis ?? "", t.lessons ?? "", t.type, t.accountId]
+    [t.date, t.pair, t.direction, t.rr, t.pnl, t.session, t.strategyId ?? "", t.tags.join(";"), t.notes ?? "", t.type, t.accountId]
       .map(esc)
       .join(",")
   );
@@ -195,10 +172,4 @@ export function download(filename: string, content: string, mime = "text/plain")
 
 export function snapshotToJSON(s: Snapshot): string {
   return JSON.stringify({ app: "tradeedge", version: 1, exportedAt: new Date().toISOString(), data: s }, null, 2);
-}
-
-
-export function tradeCSVTemplate(): string {
-  return `date,pair,direction,rr,pnl,session,strategyId,grade,entry,exit,stopLoss,takeProfit,riskPercent,riskAmount,exitReason,tags,notes,thesis,lessons,type,accountId
-2026-01-15T10:00:00Z,XAUUSD,long,3,150,London,,A+,,,,,,,Take Profit,"Liquidity;Sweep","","","",live,""`;
 }

@@ -73,23 +73,6 @@ function reportSync(p: Promise<unknown>) {
   });
 }
 
-function assertTradeIntegrity(t: Trade, state: AppState, allowExistingId = false) {
-  if (!t.id || !t.accountId || !t.date || !t.pair) throw new Error("Trade is missing required identity fields.");
-  if (!state.accounts.some((a) => a.id === t.accountId)) throw new Error("Trade references an account that does not exist.");
-  if (t.strategyId && !state.strategies.some((s) => s.id === t.strategyId)) throw new Error("Trade references a strategy that does not exist.");
-  if (!allowExistingId && state.trades.some((x) => x.id === t.id)) throw new Error("A trade with this ID already exists.");
-}
-
-function assertAccountIntegrity(a: Account, state: AppState, allowExistingId = false) {
-  if (!a.id || !a.name || !a.currency) throw new Error("Account is missing required fields.");
-  if (!allowExistingId && state.accounts.some((x) => x.id === a.id)) throw new Error("An account with this ID already exists.");
-}
-
-function assertStrategyIntegrity(st: Strategy, state: AppState, allowExistingId = false) {
-  if (!st.id || !st.name) throw new Error("Strategy is missing required fields.");
-  if (!allowExistingId && state.strategies.some((x) => x.id === st.id)) throw new Error("A strategy with this ID already exists.");
-}
-
 export const useApp = create<AppState>((set, get) => ({
   ...EMPTY_SNAPSHOT,
   hydrated: false,
@@ -157,12 +140,10 @@ export const useApp = create<AppState>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
 
   addTrade: (t) => {
-    assertTradeIntegrity(t, get());
     set((s) => ({ trades: [t, ...s.trades] }));
     reportSync(backend.upsertTrade(t));
   },
   updateTrade: (t) => {
-    assertTradeIntegrity(t, get(), true);
     set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? t : x)) }));
     reportSync(backend.upsertTrade(t));
   },
@@ -172,51 +153,47 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.deleteTrades(ids));
   },
   importTrades: (ts) => {
-    const state = get();
-    const existing = new Set(state.trades.map((t) => t.id));
-    const clean = ts.filter((t) => !existing.has(t.id));
-    clean.forEach((t) => assertTradeIntegrity(t, state));
-    if (!clean.length) return;
-    set((s) => ({ trades: [...clean, ...s.trades] }));
-    reportSync(backend.upsertTrades(clean));
+    set((s) => ({ trades: [...ts, ...s.trades] }));
+    reportSync(backend.upsertTrades(ts));
   },
 
   addAccount: (a) => {
-    assertAccountIntegrity(a, get());
     set((s) => ({ accounts: [...s.accounts, a] }));
     reportSync(backend.upsertAccount(a));
   },
   updateAccount: (a) => {
-    assertAccountIntegrity(a, get(), true);
     set((s) => ({ accounts: s.accounts.map((x) => (x.id === a.id ? a : x)) }));
     reportSync(backend.upsertAccount(a));
   },
   deleteAccount: (id) => {
-    const account = get().accounts.find((a) => a.id === id);
-    if (!account) return;
-    if (get().trades.some((t) => t.accountId === id)) {
-      throw new Error("This account has historical trades. Archive it instead of deleting it.");
-    }
-    set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id), selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId }));
+    const removedTradeIds = get().trades.filter((t) => t.accountId === id).map((t) => t.id);
+    set((s) => ({
+      accounts: s.accounts.filter((x) => x.id !== id),
+      trades: s.trades.filter((t) => t.accountId !== id),
+      selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId,
+    }));
+    reportSync(backend.deleteTrades(removedTradeIds));
     reportSync(backend.deleteAccount(id));
   },
 
   addStrategy: (st) => {
-    assertStrategyIntegrity(st, get());
     set((s) => ({ strategies: [...s.strategies, st] }));
     reportSync(backend.upsertStrategy(st));
   },
   updateStrategy: (st) => {
-    assertStrategyIntegrity(st, get(), true);
     set((s) => ({ strategies: s.strategies.map((x) => (x.id === st.id ? st : x)) }));
     reportSync(backend.upsertStrategy(st));
   },
   deleteStrategy: (id) => {
-    if (get().trades.some((t) => t.strategyId === id)) {
-      throw new Error("This strategy is referenced by historical trades. Archive it instead of deleting it.");
-    }
-    set((s) => ({ strategies: s.strategies.filter((x) => x.id !== id) }));
+    const changed = get()
+      .trades.filter((t) => t.strategyId === id)
+      .map((t) => ({ ...t, strategyId: undefined }));
+    set((s) => ({
+      strategies: s.strategies.filter((x) => x.id !== id),
+      trades: s.trades.map((t) => (t.strategyId === id ? { ...t, strategyId: undefined } : t)),
+    }));
     reportSync(backend.deleteStrategy(id));
+    if (changed.length) reportSync(backend.upsertTrades(changed));
   },
 
   addMissed: (m) => {

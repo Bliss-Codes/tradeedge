@@ -41,8 +41,6 @@ export class SupabaseBackend implements Backend {
       sb.from(TABLES.review).select("data"),
       sb.from("profiles").select("custom_tags, profile").maybeSingle(),
     ]);
-    const failed = [accounts, trades, strategies, missed, reviews, profile].find((r) => r.error);
-    if (failed?.error) throw failed.error;
     const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) => (r.data ?? []).map((x) => x.data);
     return {
       accounts: rows<Account>(accounts),
@@ -125,11 +123,11 @@ export class SupabaseBackend implements Backend {
   async clearAll() {
     const sb = db();
     const uid = await userId();
-    const results = await Promise.all(Object.values(TABLES).map((t) => sb.from(t).delete().eq("user_id", uid)));
-    const failed = results.find((r) => r.error);
-    if (failed?.error) throw failed.error;
-    const { error } = await sb.from("profiles").upsert({ user_id: uid, custom_tags: [] });
-    if (error) throw error;
+    // RLS already scopes to the user; the filter is belt-and-suspenders.
+    await Promise.all(
+      Object.values(TABLES).map((t) => sb.from(t).delete().eq("user_id", uid))
+    );
+    await sb.from("profiles").upsert({ user_id: uid, custom_tags: [] });
   }
 }
 
