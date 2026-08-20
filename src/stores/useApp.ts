@@ -130,12 +130,9 @@ export const useApp = create<AppState>((set, get) => ({
     }
     try {
       const snap = await backend.fetchAll();
-      set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true, syncError: null });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Unable to load your TradeEdge data.";
-      console.error("TradeEdge data load failed:", e);
-      // Never replace a potentially valid dataset with EMPTY_SNAPSHOT on a load failure.
-      set({ hydrated: true, syncError: msg });
+      set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true });
+    } catch {
+      set({ hydrated: true });
     }
   },
 
@@ -169,23 +166,13 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.upsertAccount(a));
   },
   deleteAccount: (id) => {
-    const account = get().accounts.find((x) => x.id === id);
-    if (!account) return;
-    const hasHistoricalTrades = get().trades.some((t) => t.accountId === id);
-    if (hasHistoricalTrades) {
-      const archived = { ...account, archived: true };
-      set((s) => ({
-        accounts: s.accounts.map((x) => (x.id === id ? archived : x)),
-        selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId,
-        syncError: "This account contains historical trades, so it was archived instead of deleted.",
-      }));
-      reportSync(backend.upsertAccount(archived));
-      return;
-    }
+    const removedTradeIds = get().trades.filter((t) => t.accountId === id).map((t) => t.id);
     set((s) => ({
       accounts: s.accounts.filter((x) => x.id !== id),
+      trades: s.trades.filter((t) => t.accountId !== id),
       selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId,
     }));
+    reportSync(backend.deleteTrades(removedTradeIds));
     reportSync(backend.deleteAccount(id));
   },
 
@@ -198,15 +185,15 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.upsertStrategy(st));
   },
   deleteStrategy: (id) => {
-    const strategy = get().strategies.find((x) => x.id === id);
-    if (!strategy) return;
-    const hasHistoricalTrades = get().trades.some((t) => t.strategyId === id);
-    if (hasHistoricalTrades) {
-      set({ syncError: "This strategy is referenced by historical trades and cannot be deleted." });
-      return;
-    }
-    set((s) => ({ strategies: s.strategies.filter((x) => x.id !== id) }));
+    const changed = get()
+      .trades.filter((t) => t.strategyId === id)
+      .map((t) => ({ ...t, strategyId: undefined }));
+    set((s) => ({
+      strategies: s.strategies.filter((x) => x.id !== id),
+      trades: s.trades.map((t) => (t.strategyId === id ? { ...t, strategyId: undefined } : t)),
+    }));
     reportSync(backend.deleteStrategy(id));
+    if (changed.length) reportSync(backend.upsertTrades(changed));
   },
 
   addMissed: (m) => {

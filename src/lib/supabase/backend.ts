@@ -41,19 +41,13 @@ export class SupabaseBackend implements Backend {
       sb.from(TABLES.review).select("data"),
       sb.from("profiles").select("custom_tags, profile").maybeSingle(),
     ]);
-    const rows = <T,>(name: string, r: { data: { data: T }[] | null; error: { message?: string } | null }) => {
-      if (r.error) throw new Error(`Failed to load ${name}: ${r.error.message ?? "Supabase query failed"}`);
-      return (r.data ?? []).map((x) => x.data);
-    };
-    if (profile.error) {
-      throw new Error(`Failed to load profile: ${profile.error.message ?? "Supabase query failed"}`);
-    }
+    const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) => (r.data ?? []).map((x) => x.data);
     return {
-      accounts: rows<Account>("accounts", accounts),
-      trades: rows<Trade>("trades", trades),
-      strategies: rows<Strategy>("strategies", strategies),
-      missed: rows<MissedTrade>("missed trades", missed),
-      reviews: rows<DayReview>("day reviews", reviews),
+      accounts: rows<Account>(accounts),
+      trades: rows<Trade>(trades),
+      strategies: rows<Strategy>(strategies),
+      missed: rows<MissedTrade>(missed),
+      reviews: rows<DayReview>(reviews),
       customTags: (profile.data?.custom_tags as string[] | undefined) ?? [],
       customViolations: ((profile.data?.profile as Profile | undefined)?.customViolations as string[] | undefined) ?? [],
       customEmotions: ((profile.data?.profile as Profile | undefined)?.customEmotions as string[] | undefined) ?? [],
@@ -108,51 +102,32 @@ export class SupabaseBackend implements Backend {
   }
 
   async replaceAll(snapshot: Snapshot) {
-    // Replace is an explicit destructive operation (sample load / backup restore).
-    // Write the incoming snapshot first, then remove records that are no longer present.
-    // This avoids turning a failed insert into an empty account.
+    await this.clearAll();
     const uid = await userId();
     const sb = db();
-    const itemsByTable: Record<string, { id: string }[]> = {
-      [TABLES.account]: snapshot.accounts,
-      [TABLES.trade]: snapshot.trades,
-      [TABLES.strategy]: snapshot.strategies,
-      [TABLES.missed]: snapshot.missed,
-      [TABLES.review]: snapshot.reviews,
-    };
-
-    for (const [table, items] of Object.entries(itemsByTable)) {
-      if (items.length === 0) continue;
+    const ins = async (table: string, items: { id: string }[]) => {
+      if (items.length === 0) return;
       const { error } = await sb.from(table).upsert(items.map((it) => ({ id: it.id, user_id: uid, data: it })));
       if (error) throw error;
-    }
-
-    const incomingIds = new Set<string>();
-    for (const [table, items] of Object.entries(itemsByTable)) {
-      items.forEach((it) => incomingIds.add(`${table}:${it.id}`));
-      const { data: existing, error } = await sb.from(table).select("id");
-      if (error) throw error;
-      const stale = (existing ?? []).map((x: { id: string }) => x.id).filter((id: string) => !incomingIds.has(`${table}:${id}`));
-      if (stale.length) {
-        const { error: deleteError } = await sb.from(table).delete().in("id", stale);
-        if (deleteError) throw deleteError;
-      }
-    }
-
-    await this.setCustomTags(snapshot.customTags);
-    await this.setProfile(snapshot.profile ?? {});
+    };
+    await Promise.all([
+      ins(TABLES.account, snapshot.accounts),
+      ins(TABLES.trade, snapshot.trades),
+      ins(TABLES.strategy, snapshot.strategies),
+      ins(TABLES.missed, snapshot.missed),
+      ins(TABLES.review, snapshot.reviews),
+      this.setCustomTags(snapshot.customTags),
+    ]);
   }
 
   async clearAll() {
     const sb = db();
     const uid = await userId();
-    const results = await Promise.all(
+    // RLS already scopes to the user; the filter is belt-and-suspenders.
+    await Promise.all(
       Object.values(TABLES).map((t) => sb.from(t).delete().eq("user_id", uid))
     );
-    const failed = results.find((r: { error: unknown }) => r.error);
-    if (failed?.error) throw failed.error;
-    const { error: profileError } = await sb.from("profiles").upsert({ user_id: uid, custom_tags: [], profile: {} });
-    if (profileError) throw profileError;
+    await sb.from("profiles").upsert({ user_id: uid, custom_tags: [] });
   }
 }
 
