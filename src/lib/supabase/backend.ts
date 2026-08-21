@@ -33,31 +33,25 @@ async function userId(): Promise<string> {
 export class SupabaseBackend implements Backend {
   async fetchAll(): Promise<Snapshot> {
     const sb = db();
-    const [accounts, trades, strategies, missed, reviews, profileRow, authUser] = await Promise.all([
+    const [accounts, trades, strategies, missed, reviews, profile] = await Promise.all([
       sb.from(TABLES.account).select("data"),
       sb.from(TABLES.trade).select("data"),
       sb.from(TABLES.strategy).select("data"),
       sb.from(TABLES.missed).select("data"),
       sb.from(TABLES.review).select("data"),
-      // Keep this query compatible with the existing profiles schema.
-      // The current table contains user_id + custom_tags only; profile data
-      // is stored in Supabase Auth user_metadata instead.
-      sb.from("profiles").select("custom_tags").maybeSingle(),
-      sb.auth.getUser(),
+      sb.from("profiles").select("custom_tags, profile").maybeSingle(),
     ]);
-    if (authUser.error) throw authUser.error;
     const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) => (r.data ?? []).map((x) => x.data);
-    const metadata = (authUser.data.user?.user_metadata?.tradeedge_profile ?? {}) as Profile;
     return {
       accounts: rows<Account>(accounts),
       trades: rows<Trade>(trades),
       strategies: rows<Strategy>(strategies),
       missed: rows<MissedTrade>(missed),
       reviews: rows<DayReview>(reviews),
-      customTags: (profileRow.data?.custom_tags as string[] | undefined) ?? [],
-      customViolations: metadata.customViolations ?? [],
-      customEmotions: metadata.customEmotions ?? [],
-      profile: metadata,
+      customTags: (profile.data?.custom_tags as string[] | undefined) ?? [],
+      customViolations: ((profile.data?.profile as Profile | undefined)?.customViolations as string[] | undefined) ?? [],
+      customEmotions: ((profile.data?.profile as Profile | undefined)?.customEmotions as string[] | undefined) ?? [],
+      profile: (profile.data?.profile as Profile | undefined) ?? {},
     };
   }
 
@@ -102,14 +96,26 @@ export class SupabaseBackend implements Backend {
   }
 
   async setProfile(profile: Profile) {
+    const uid = await userId();
     const sb = db();
-    // The existing profiles table intentionally stays untouched. Profile UI
-    // data lives in Supabase Auth metadata so this works with the user's
-    // current schema (profiles.user_id + profiles.custom_tags only).
-    const { error } = await sb.auth.updateUser({
-      data: { tradeedge_profile: profile },
-    });
-    if (error) throw error;
+
+    // Update the existing profile row first. This is more reliable on existing
+    // Supabase projects where the profiles table/policies may predate the
+    // current schema. If no row exists yet, create it explicitly.
+    const { data: updated, error: updateError } = await sb
+      .from("profiles")
+      .update({ profile })
+      .eq("user_id", uid)
+      .select("user_id")
+      .maybeSingle();
+
+    if (updateError) throw updateError;
+    if (updated) return;
+
+    const { error: insertError } = await sb
+      .from("profiles")
+      .insert({ user_id: uid, profile });
+    if (insertError) throw insertError;
   }
 
   async replaceAll(snapshot: Snapshot) {

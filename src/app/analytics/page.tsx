@@ -766,7 +766,6 @@ export default function AnalyticsPage() {
           ]} />
 
         <div className="ml-auto flex items-center gap-3">
-          <span className="font-mono text-xs text-mute">{trades.length} trades</span>
           {hasLinked && (
             <Tabs tabs={["By setup", "By execution"]} active={countMode} onChange={(v) => setCountMode(v as CountMode)} />
           )}

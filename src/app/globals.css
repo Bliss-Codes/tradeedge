@@ -521,11 +521,11 @@ input, select, textarea {
 /* Analytics polish — visual-only refinement inspired by the supplied
    professional analytics references. */
 .analytics-page {
-  --analytics-section-gap: 28px;
+  --analytics-section-gap: 20px;
   --analytics-card-gap: 14px;
 }
 .analytics-page .analytics-header {
-  min-height: 52px;
+  min-height: 42px;
 }
 .analytics-page .analytics-header h1 {
   letter-spacing: -.035em;
@@ -534,8 +534,8 @@ input, select, textarea {
   padding-bottom: 3px;
 }
 .analytics-page .analytics-filter-shell {
-  min-height: 48px;
-  padding: 10px 0 12px;
+  min-height: 40px;
+  padding: 6px 0 8px;
   border-top: 1px solid rgb(var(--edge) / .55);
   border-bottom: 1px solid rgb(var(--edge) / .55);
 }
@@ -589,7 +589,7 @@ input, select, textarea {
 
 @media (min-width: 1440px) {
   .analytics-page {
-    max-width: 1380px;
+    max-width: 1180px;
   }
 }
 @media (max-width: 1023px) {
@@ -884,3 +884,11 @@ input, select, textarea {
   background-color: rgb(244 248 245);
 }
 
+
+/* Analytics compact header: one trade count only, less empty vertical space. */
+.analytics-page { gap: 0; }
+.analytics-page > * + * { margin-top: 20px; }
+.analytics-page .analytics-header { margin-bottom: 0; }
+.analytics-page .analytics-filter-shell { margin-top: 0; }
+.analytics-page .analytics-filter-shell + .analytics-filter-shell { margin-top: 0; }
+.analytics-page .analytics-summary { white-space: nowrap; }
