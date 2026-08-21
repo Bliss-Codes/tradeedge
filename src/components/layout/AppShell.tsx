@@ -67,12 +67,14 @@ function SidebarProfile() {
   const chip = funded > 0 ? `${funded} funded` : "Free";
 
   const presetAvatars = [
-    { id: "bolt", label: "Bolt", bg: "linear-gradient(135deg,#052e1a,#16a34a)", mark: "⚡" },
-    { id: "wave", label: "Wave", bg: "linear-gradient(135deg,#082f49,#0ea5e9)", mark: "≈" },
-    { id: "orbit", label: "Orbit", bg: "linear-gradient(135deg,#312e81,#8b5cf6)", mark: "◉" },
-    { id: "sun", label: "Sun", bg: "linear-gradient(135deg,#713f12,#f59e0b)", mark: "✦" },
-    { id: "rose", label: "Rose", bg: "linear-gradient(135deg,#4c0519,#f43f5e)", mark: "◆" },
-    { id: "mono", label: "Mono", bg: "linear-gradient(135deg,#111827,#64748b)", mark: "P" },
+    { id: "emerald", label: "Emerald", src: "/avatars/emerald.svg" },
+    { id: "cobalt", label: "Cobalt", src: "/avatars/cobalt.svg" },
+    { id: "violet", label: "Violet", src: "/avatars/violet.svg" },
+    { id: "amber", label: "Amber", src: "/avatars/amber.svg" },
+    { id: "rose", label: "Rose", src: "/avatars/rose.svg" },
+    { id: "teal", label: "Teal", src: "/avatars/teal.svg" },
+    { id: "gold", label: "Gold", src: "/avatars/gold.svg" },
+    { id: "navy", label: "Navy", src: "/avatars/navy.svg" },
   ];
 
   const pickAvatar = (file: File | undefined) => {
@@ -111,12 +113,8 @@ function SidebarProfile() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={profile.avatarDataUrl} alt={name} className="h-full w-full object-cover" />
             ) : preset ? (
-              <span
-                className="flex h-full w-full items-center justify-center text-2xl font-semibold text-white"
-                style={{ background: preset.bg }}
-              >
-                {preset.mark}
-              </span>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preset.src} alt={preset.label} className="h-full w-full object-cover" />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-mute">
                 {name.slice(0, 2).toUpperCase()}
@@ -145,10 +143,10 @@ function SidebarProfile() {
                     type="button"
                     onClick={() => choosePreset(a.id)}
                     title={a.label}
-                    className="h-8 w-8 rounded-full text-sm text-white ring-1 ring-white/10 transition-transform hover:scale-110"
-                    style={{ background: a.bg }}
+                    className="h-9 w-9 overflow-hidden rounded-full ring-1 ring-edge transition-transform hover:scale-110 hover:ring-accent/60"
                   >
-                    {a.mark}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.src} alt={a.label} className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>

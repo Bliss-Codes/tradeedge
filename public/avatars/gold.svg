@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+<defs>
+ <radialGradient id="bg" cx="35%" cy="20%" r="90%"><stop offset="0" stop-color="#E2FBCE"/><stop offset=".45" stop-color="#076653"/><stop offset="1" stop-color="#06231D"/></radialGradient>
+ <linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#45,38,32"/><stop offset="1" stop-color="#103,73,39"/></linearGradient>
+ <radialGradient id="skin" cx="45%" cy="28%" r="80%"><stop offset="0" stop-color="#255,229,175"/><stop offset="1" stop-color="#245,204,155"/></radialGradient>
+ <filter id="shadow"><feGaussianBlur stdDeviation="3"/></filter>
+</defs>
+<rect width="160" height="160" rx="80" fill="url(#bg)"/>
+<ellipse cx="80" cy="154" rx="61" ry="38" fill="#06231D" opacity=".32" filter="url(#shadow)"/>
+<!-- shoulders -->
+<path d="M24 160c2-30 22-49 56-49s54 19 56 49" fill="url(#shirt)"/>
+<path d="M55 115c6 13 14 20 25 20s19-7 25-20v-17H55z" fill="url(#skin)"/>
+<!-- ears -->
+<ellipse cx="45" cy="72" rx="8" ry="13" fill="#245,204,155"/>
+<ellipse cx="115" cy="72" rx="8" ry="13" fill="#245,204,155"/>
+<!-- face -->
+<path d="M50 48c4-20 17-31 30-31s26 11 30 31v31c-3 21-16 35-30 35S53 100 50 79z" fill="url(#skin)"/>
+<!-- hair -->
+<path d="M49 58c-5-19 1-40 20-47 17-6 39 3 43 24 2 9 0 18-2 25l-8-12-3 9-10-16c-8 9-21 13-39 17z" fill="#87,57,34"/>
+<!-- brows -->
+<path d="M59 63q8-5 16 0M85 63q8-5 16 0" fill="none" stroke="#87,57,34" stroke-width="3" stroke-linecap="round"/>
+<!-- eyes -->
+<ellipse cx="68" cy="70" rx="3.2" ry="2.7" fill="#17211d"/>
+<ellipse cx="92" cy="70" rx="3.2" ry="2.7" fill="#17211d"/>
+<circle cx="69" cy="69" r=".8" fill="#fff"/>
+<circle cx="93" cy="69" r=".8" fill="#fff"/>
+<!-- nose -->
+<path d="M80 70c-2 8-4 13 2 14" fill="none" stroke="#196,145,102" stroke-width="2.2" stroke-linecap="round"/>
+<!-- mouth -->
+<path d="M72 91q8 6 16 0" fill="none" stroke="#210,169,130" stroke-width="2.4" stroke-linecap="round"/>
+<!-- hair side detail -->
+<path d="M51 58c0 14 1 22 6 28M109 57c0 13-1 22-6 29" fill="none" stroke="#87,57,34" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+<!-- collar -->
+<path d="M55 116l25 22 25-22 10 8-35 28-35-28z" fill="#68,44,22" opacity=".92"/>
+</svg>

@@ -3,47 +3,41 @@
 @tailwind utilities;
 
 /* Theme tokens as RGB channels so Tailwind opacity utilities keep working. */
- :root {
-  --bg: 6 35 29;        /* #06231D */
-  --surface: 12 52 44;   /* #0C342C */
-  --card: 7 102 83;      /* #076653 */
-  --edge: 31 92 79;
-  --ink: 255 253 238;    /* #FFFDEE */
-  --sub: 226 251 206;    /* #E2FBCE */
-  --mute: 164 194 179;
-  --accent: 227 239 38;  /* #E3EF26 */
-  --pos: 227 239 38;
-  --neg: 255 107 94;
-  --warn: 226 251 206;
-  --card-shadow: 0 20px 50px -34px rgba(0,0,0,.82);
-  --card-sheen: linear-gradient(180deg, rgba(255,253,238,.035), transparent 52%);
-  --card-line: inset 0 1px 0 rgba(255,253,238,.04);
-  --ambient:
-    radial-gradient(900px 520px at 35% -15%, rgba(227,239,38,.07), transparent 62%),
-    radial-gradient(700px 480px at 100% 0%, rgba(7,102,83,.22), transparent 60%),
-    linear-gradient(180deg, #06231D 0%, #0C342C 100%);
+  :root {
+  --bg: 7 10 14;
+  --surface: 13 17 22;
+  --card: 17 22 28;
+  --edge: 38 46 54;
+  --ink: 242 246 244;
+  --sub: 177 188 183;
+  --mute: 118 130 124;
+  --accent: 76 190 126;
+  --pos: 76 190 126;
+  --neg: 224 93 93;
+  --warn: 210 160 72;
+  --card-shadow: 0 18px 48px -36px rgba(0,0,0,.85);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.025), transparent 52%);
+  --card-line: inset 0 1px 0 rgba(255,255,255,.035);
+  --ambient: linear-gradient(180deg, #070A0E 0%, #0B0F13 100%);
 }
 
 
-  :root[data-theme="light"] {
-  --bg: 255 253 238;      /* #FFFDEE */
-  --surface: 242 248 243;
+   :root[data-theme="light"] {
+  --bg: 247 249 248;
+  --surface: 241 244 242;
   --card: 255 255 255;
-  --edge: 216 229 220;
-  --ink: 6 35 29;         /* #06231D */
-  --sub: 12 52 44;        /* #0C342C */
-  --mute: 103 126 115;
-  --accent: 227 239 38;   /* #E3EF26 */
-  --pos: 7 102 83;         /* #076653 */
-  --neg: 194 58 53;
-  --warn: 7 102 83;
-  --card-shadow: 0 18px 45px -32px rgba(6,35,29,.20);
-  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,253,238,.72));
+  --edge: 222 228 224;
+  --ink: 22 29 25;
+  --sub: 76 89 82;
+  --mute: 125 138 131;
+  --accent: 28 139 78;
+  --pos: 28 139 78;
+  --neg: 201 69 69;
+  --warn: 177 124 32;
+  --card-shadow: 0 16px 38px -30px rgba(17,40,27,.18);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,250,.94));
   --card-line: inset 0 1px 0 rgba(255,255,255,.95);
-  --ambient:
-    radial-gradient(800px 500px at 10% -12%, rgba(227,239,38,.10), transparent 62%),
-    radial-gradient(650px 450px at 100% 0%, rgba(226,251,206,.75), transparent 64%),
-    linear-gradient(180deg, #FFFDEE 0%, #F5F8F3 100%);
+  --ambient: linear-gradient(180deg, #FBFCFB 0%, #F5F7F6 100%);
 }
 
 
@@ -475,195 +469,154 @@ input, select, textarea {
 }
 
 
-/* TradeEdge brand palette — #06231D #0C342C #076653 #E3EF26 #E2FBCE #FFFDEE */
-body { color: rgb(var(--ink)); }
+
+/* Refined TradeEdge visual system
+   Neutral surfaces first. Green is a restrained brand/status accent. */
 
 .app-sidebar {
-  background:
-    linear-gradient(180deg, #06231D 0%, #0C342C 100%);
-  border-right-color: rgba(226,251,206,.12);
+  background: #0B0F13;
+  border-right-color: #20272D;
 }
-
 .brand-row {
-  background: rgba(6,35,29,.72);
-  border-bottom-color: rgba(226,251,206,.10);
+  background: #0B0F13;
+  border-bottom-color: #20272D;
 }
-
 .sidebar-profile {
-  background: linear-gradient(180deg, rgba(12,52,44,.82), rgba(6,35,29,.88));
-  border-bottom-color: rgba(226,251,206,.10);
+  background: #0B0F13;
+  border-bottom-color: #20272D;
 }
-
-.sidebar-nav .nav-item { color: rgba(255,253,238,.66); }
+.sidebar-nav .nav-item {
+  color: #8F9A94;
+}
 .sidebar-nav .nav-item:hover {
-  background: rgba(226,251,206,.08);
-  color: #FFFDEE;
+  background: #151B20;
+  color: #F2F6F4;
 }
 .sidebar-nav .nav-item-active {
-  background: #E3EF26;
-  color: #06231D;
-  box-shadow: 0 10px 28px -16px rgba(227,239,38,.72);
+  background: rgba(76,190,126,.12);
+  color: #75D49A;
+  box-shadow: inset 2px 0 0 #4CBE7E;
 }
-
 .sidebar-quick {
-  background:
-    radial-gradient(160px 120px at 100% 0%, rgba(227,239,38,.20), transparent 70%),
-    linear-gradient(135deg, #0C342C, #06231D);
-  border-color: rgba(226,251,206,.12);
+  background: linear-gradient(145deg,#12181D,#0C1115);
+  border-color: #283138;
 }
-
 .app-topbar {
-  background: rgba(6,35,29,.82);
-  border-bottom-color: rgba(226,251,206,.10);
+  background: rgba(11,15,19,.92);
+  border-bottom-color: #20272D;
 }
-
 .topbar-search,
 .topbar-action,
 .theme-toggle {
-  background: rgba(12,52,44,.68);
-  border-color: rgba(226,251,206,.14);
-  color: #E2FBCE;
+  background: #11161B;
+  border-color: #293138;
+  color: #AEB9B3;
 }
 .topbar-search:hover,
 .topbar-action:hover,
 .theme-toggle:hover {
-  background: #0C342C;
-  border-color: rgba(227,239,38,.35);
-  color: #FFFDEE;
+  background: #171D22;
+  border-color: #3A454C;
+  color: #F2F6F4;
 }
-
 .ui-card,
 .premium-card {
-  background-color: #0C342C;
-  border-color: rgba(226,251,206,.12);
+  background: #11161B;
+  border-color: #293138;
 }
-
 .dashboard-page .dashboard-kpi {
-  background:
-    radial-gradient(130px 90px at 100% 0%, rgba(227,239,38,.06), transparent 72%),
-    #0C342C;
+  background: #11161B;
 }
-
 .dashboard-page .dashboard-kpi:hover {
-  border-color: rgba(227,239,38,.25);
-  box-shadow: 0 20px 42px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,253,238,.045);
+  border-color: #3A454C;
+  box-shadow: 0 18px 38px -30px rgba(0,0,0,.72);
 }
-
 .kpi-hero {
-  background:
-    radial-gradient(220px 160px at 100% 0%, rgba(227,239,38,.22), transparent 70%),
-    linear-gradient(135deg, #076653 0%, #0C342C 62%, #06231D 100%);
-  border-color: rgba(227,239,38,.24);
+  background: linear-gradient(145deg,#163C2A,#10271D);
+  border-color: rgba(76,190,126,.22);
 }
+.text-accent,
+.text-pos { color: #4CBE7E; }
+.bg-accent,
+.bg-pos { background-color: #4CBE7E; color: #07100B; }
 
-.te-button.bg-accent,
-.bg-accent {
-  background-color: #E3EF26;
-  color: #06231D;
+.avatar-picker {
+  border-color: #2A3339;
 }
-
-.text-accent { color: #E3EF26; }
-.text-pos { color: #E3EF26; }
-.bg-pos { background-color: #E3EF26; }
 
 :root[data-theme="light"] body {
-  color: #06231D;
+  color: #161D19;
 }
-
 :root[data-theme="light"] .app-sidebar {
-  background:
-    linear-gradient(180deg, #FFFDEE 0%, #F7FAF7 100%);
-  border-right-color: #D8E5DC;
+  background: #FFFFFF;
+  border-right-color: #E0E5E2;
 }
-
 :root[data-theme="light"] .brand-row {
-  background: rgba(255,253,238,.95);
-  border-bottom-color: #E0E9E2;
+  background: #FFFFFF;
+  border-bottom-color: #E5E9E7;
 }
-
 :root[data-theme="light"] .sidebar-profile {
-  background: rgba(255,255,255,.78);
-  border-bottom-color: #E0E9E2;
+  background: #FFFFFF;
+  border-bottom-color: #E5E9E7;
 }
-
 :root[data-theme="light"] .sidebar-nav .nav-item {
-  color: #456055;
+  color: #637169;
 }
 :root[data-theme="light"] .sidebar-nav .nav-item:hover {
-  background: #E2FBCE;
-  color: #06231D;
+  background: #F1F5F2;
+  color: #18201B;
 }
 :root[data-theme="light"] .sidebar-nav .nav-item-active {
-  background: #076653;
-  color: #FFFDEE;
-  box-shadow: 0 10px 26px -16px rgba(7,102,83,.62);
+  background: #EAF5EE;
+  color: #187343;
+  box-shadow: inset 2px 0 0 #1C8B4E;
 }
-
 :root[data-theme="light"] .sidebar-quick {
-  background:
-    radial-gradient(160px 120px at 100% 0%, rgba(227,239,38,.30), transparent 70%),
-    linear-gradient(135deg, #0C342C, #06231D);
-  color: #FFFDEE;
+  background: #10251A;
+  border-color: #1A3A29;
 }
-
 :root[data-theme="light"] .app-topbar {
-  background: rgba(255,253,238,.86);
-  border-bottom-color: #DFE8E1;
+  background: rgba(255,255,255,.94);
+  border-bottom-color: #E3E8E5;
 }
-
 :root[data-theme="light"] .topbar-search,
 :root[data-theme="light"] .topbar-action,
 :root[data-theme="light"] .theme-toggle {
   background: #FFFFFF;
-  border-color: #D8E5DC;
-  color: #0C342C;
+  border-color: #DDE4DF;
+  color: #5F6E66;
 }
-
 :root[data-theme="light"] .ui-card,
 :root[data-theme="light"] .premium-card,
 :root[data-theme="light"] .dashboard-page .dashboard-kpi {
   background: #FFFFFF;
-  border-color: #DCE7DF;
-  box-shadow: 0 16px 38px -30px rgba(6,35,29,.20), inset 0 1px 0 #FFFFFF;
+  border-color: #E0E6E2;
+  box-shadow: 0 14px 34px -28px rgba(18,46,30,.17);
 }
-
 :root[data-theme="light"] .dashboard-page .dashboard-kpi:hover {
-  border-color: #AFC7B7;
+  border-color: #C8D4CD;
 }
-
 :root[data-theme="light"] .kpi-hero {
-  background:
-    radial-gradient(220px 160px at 100% 0%, rgba(227,239,38,.28), transparent 70%),
-    linear-gradient(135deg, #076653 0%, #0C342C 100%);
-  color: #FFFDEE;
+  background: linear-gradient(145deg,#0F5F3A,#174C32);
+  border-color: #1A6B43;
 }
-
-:root[data-theme="light"] .dashboard-status {
-  background: #FFFFFF;
-  border-color: #D8E5DC;
-}
-
-:root[data-theme="light"] .text-ink { color: #06231D; }
-:root[data-theme="light"] .text-sub { color: #0C342C; }
-:root[data-theme="light"] .text-mute { color: #677E73; }
-:root[data-theme="light"] .text-accent { color: #076653; }
-:root[data-theme="light"] .text-pos { color: #076653; }
-:root[data-theme="light"] .bg-accent { background-color: #076653; color: #FFFDEE; }
-:root[data-theme="light"] .bg-pos { background-color: #076653; }
-
+:root[data-theme="light"] .text-accent,
+:root[data-theme="light"] .text-pos { color: #1C8B4E; }
+:root[data-theme="light"] .bg-accent,
+:root[data-theme="light"] .bg-pos { background-color: #1C8B4E; color: #FFFFFF; }
 :root[data-theme="light"] .dashboard-page .bg-surface {
-  background-color: #F0F5F1;
+  background-color: #F1F4F2;
 }
 :root[data-theme="light"] .dashboard-page .sync-banner {
-  background: #E2FBCE;
-  border-color: #BFDDBE;
-  color: #0C342C;
-}
-
-.avatar-picker {
-  border-color: rgba(226,251,206,.16);
+  background: #F1F7F3;
+  border-color: #D2E4D8;
+  color: #27613F;
 }
 :root[data-theme="light"] .avatar-picker {
   background: #FFFFFF;
-  border-color: #D8E5DC;
+  border-color: #DEE5E1;
+  box-shadow: 0 18px 40px -25px rgba(18,46,30,.22);
 }
+
+/* Keep the palette reference out of the actual UI: portraits are only used
+   inside the avatar chooser and do not tint the application surfaces. */
