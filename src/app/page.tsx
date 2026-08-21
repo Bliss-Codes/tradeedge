@@ -182,6 +182,102 @@ function CapitalSplit({ currency }: { currency: string }) {
   );
 }
 
+
+function PerformanceVisuals({
+  adherence,
+  wins,
+  losses,
+  breakevens,
+  streak,
+}: {
+  adherence: number;
+  wins: number;
+  losses: number;
+  breakevens: number;
+  streak: number;
+}) {
+  const total = Math.max(1, wins + losses + breakevens);
+  const clean = Math.max(0, Math.min(100, adherence));
+  const circumference = 2 * Math.PI * 42;
+  const dash = (clean / 100) * circumference;
+
+  return (
+    <Card className="performance-visuals overflow-hidden p-0">
+      <div className="grid lg:grid-cols-[1.15fr_1fr_1fr]">
+        <div className="relative overflow-hidden p-5 sm:p-6">
+          <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/8 blur-3xl" aria-hidden="true" />
+          <div className="relative flex items-center gap-5">
+            <div className="relative h-24 w-24 shrink-0">
+              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-label={`${Math.round(clean)} percent rule adherence`}>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgb(var(--surface))" strokeWidth="8" />
+                <circle
+                  cx="50" cy="50" r="42" fill="none"
+                  stroke="rgb(var(--accent))" strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray={`${dash} ${circumference - dash}`}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="font-mono text-xl font-bold text-ink">{Math.round(clean)}%</span>
+                <span className="text-[8px] uppercase tracking-wider text-mute">rules</span>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Discipline pulse</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight text-ink">Execution quality</div>
+              <p className="mt-1 max-w-xs text-xs leading-relaxed text-mute">How consistently your recent trades followed the rules you defined.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-edge p-5 sm:p-6 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">Trade outcomes</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight text-ink">Win / loss balance</div>
+            </div>
+            <span className="font-mono text-xs text-mute">{total} total</span>
+          </div>
+          <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-surface">
+            <div className="bg-pos transition-all" style={{ width: `${(wins / total) * 100}%` }} />
+            <div className="bg-warn transition-all" style={{ width: `${(breakevens / total) * 100}%` }} />
+            <div className="bg-neg transition-all" style={{ width: `${(losses / total) * 100}%` }} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+            <div><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-pos" />{wins}W</div>
+            <div><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-warn" />{breakevens}BE</div>
+            <div><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-neg" />{losses}L</div>
+          </div>
+        </div>
+
+        <div className="border-t border-edge p-5 sm:p-6 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">Current rhythm</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight text-ink">
+                {streak > 0 ? "Winning streak" : streak < 0 ? "Losing streak" : "Flat"}
+              </div>
+            </div>
+            <div className={`font-mono text-3xl font-bold ${streak > 0 ? "text-pos" : streak < 0 ? "text-neg" : "text-mute"}`}>
+              {streak === 0 ? "—" : Math.abs(streak)}
+            </div>
+          </div>
+          <div className="mt-5 flex h-12 items-end gap-1.5">
+            {[.28,.46,.36,.63,.54,.78,.68,.92].map((h, i) => (
+              <span
+                key={i}
+                className={`flex-1 rounded-t-sm ${streak < 0 ? "bg-neg/25" : "bg-accent/30"}`}
+                style={{ height: `${h * 100}%` }}
+              />
+            ))}
+            <span className={`ml-1 w-1.5 rounded-full ${streak > 0 ? "bg-pos" : streak < 0 ? "bg-neg" : "bg-mute"}`} style={{ height: "100%" }} />
+          </div>
+          <div className="mt-2 text-[11px] text-mute">Recent performance rhythm</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const trades = useVisibleTrades();
   const currency = useDisplayCurrency();
@@ -290,6 +386,13 @@ export default function DashboardPage() {
           sub={stats.currentStreak > 0 ? "winning" : stats.currentStreak < 0 ? "losing" : "flat"}
         />
       </div>
+      <PerformanceVisuals
+        adherence={adherence}
+        wins={stats.wins}
+        losses={stats.losses}
+        breakevens={stats.breakevens}
+        streak={stats.currentStreak}
+      />
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />
         <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={-1} />

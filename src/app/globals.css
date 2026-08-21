@@ -427,3 +427,32 @@ input, select, textarea {
     grid-template-columns: 1.35fr repeat(5, 1fr);
   }
 }
+
+
+/* Dashboard visual summary */
+.performance-visuals {
+  border-radius: 22px;
+  border-color: rgb(var(--edge) / .72);
+  background-image: var(--card-sheen);
+  box-shadow: var(--card-shadow), var(--card-line);
+}
+.performance-visuals > div > div {
+  min-height: 156px;
+}
+.performance-visuals .bg-accent\/8 {
+  background: rgb(var(--accent) / .08);
+}
+:root[data-theme="light"] .performance-visuals {
+  background: #fff;
+  border-color: rgb(224 231 226);
+  box-shadow: 0 16px 38px -30px rgba(18,57,36,.22), inset 0 1px 0 white;
+}
+:root[data-theme="light"] .performance-visuals > div > div {
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,250,.92));
+}
+:root[data-theme="light"] .performance-visuals .border-edge {
+  border-color: rgb(228 234 230);
+}
+:root[data-theme="light"] .performance-visuals .bg-surface {
+  background-color: rgb(240 246 242);
+}
