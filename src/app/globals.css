@@ -620,3 +620,148 @@ input, select, textarea {
     min-height: 0;
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Analytics refinement
+   Borrowed from the strongest visual conventions in the supplied FXReplay
+   references: controlled content width, quiet filter chrome, strong section
+   rhythm, consistent card geometry, and generous chart breathing room.
+   No data, calculations, persistence, or Supabase behavior is changed.
+   ───────────────────────────────────────────────────────────────────────── */
+.analytics-page {
+  --analytics-section-gap: 34px;
+  --analytics-card-gap: 16px;
+  --analytics-radius: 16px;
+}
+.analytics-page > * {
+  min-width: 0;
+}
+.analytics-header {
+  min-height: 52px;
+}
+.analytics-header h1 {
+  letter-spacing: -.035em;
+}
+.analytics-summary {
+  padding-bottom: 3px;
+}
+.analytics-filter-shell {
+  border-top: 1px solid rgb(var(--edge) / .55);
+  border-bottom: 1px solid rgb(var(--edge) / .55);
+  padding: 12px 0;
+}
+.analytics-filter-shell .rounded-full {
+  min-height: 32px;
+}
+.analytics-page .premium-card {
+  border-radius: var(--analytics-radius);
+  padding: 20px;
+}
+.analytics-page .section-title {
+  margin-bottom: 14px;
+  color: rgb(var(--ink));
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: -.015em;
+  text-transform: none;
+}
+.analytics-page .section-title + .grid,
+.analytics-page .section-title + .premium-card {
+  margin-top: 0;
+}
+.analytics-page .premium-card:hover {
+  border-color: rgb(var(--edge) / .95);
+}
+.analytics-page .space-y-8 > * + * {
+  margin-top: var(--analytics-section-gap);
+}
+.analytics-page .side-analysis-card {
+  min-height: 250px;
+  padding: 20px;
+}
+.analytics-page .side-chart-content {
+  min-height: 150px;
+}
+.analytics-page .side-analysis-card .side-chart-content > div {
+  max-width: 430px;
+}
+.analytics-page .session-analysis-grid > * {
+  min-height: 250px;
+}
+.analytics-page .session-analysis-grid > * > div:first-child {
+  margin-bottom: 2px;
+}
+.analytics-page .session-analysis-grid svg {
+  max-height: 205px;
+}
+.analytics-page .analytics-header + .analytics-filter-shell {
+  margin-top: -4px;
+}
+.analytics-page .analytics-filter-shell + .flex {
+  margin-top: -18px;
+}
+.analytics-page .analytics-filter-shell + .flex + .flex {
+  margin-top: 0;
+}
+
+/* Professional chart containers: slightly darker/quiet interior so data
+   carries the visual weight rather than the chrome. */
+.analytics-page .premium-card svg {
+  shape-rendering: geometricPrecision;
+}
+.analytics-page .premium-card .font-mono {
+  letter-spacing: -.015em;
+}
+.analytics-page [class*="border-edge"] {
+  border-color: rgb(var(--edge) / .72);
+}
+
+/* Monthly grid / calendar: tighter cells with stronger grouping. */
+.analytics-page .grid-cols-\[56px_repeat\(12\,1fr\)_72px\] {
+  gap: 6px;
+}
+.analytics-page .grid-cols-\[56px_repeat\(12\,1fr\)_72px\] > * {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Positive / negative states stay restrained. */
+.analytics-page .text-pos {
+  text-shadow: 0 0 20px rgb(var(--pos) / .08);
+}
+.analytics-page .text-neg {
+  text-shadow: 0 0 20px rgb(var(--neg) / .06);
+}
+
+@media (min-width: 1440px) {
+  .analytics-page {
+    max-width: 1380px;
+  }
+}
+@media (max-width: 1023px) {
+  .analytics-page {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+@media (max-width: 639px) {
+  .analytics-page {
+    padding-left: 14px;
+    padding-right: 14px;
+    --analytics-section-gap: 26px;
+  }
+  .analytics-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .analytics-page .premium-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+  .analytics-page .section-title {
+    font-size: 14px;
+  }
+}
