@@ -83,27 +83,57 @@ body { background: var(--ambient), rgb(var(--bg)); background-attachment: fixed;
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
-/* TradeEdge UI polish layer */
-/* Visual-only changes: no Supabase, state, database, or trading logic changes. */
+
+/* TradeEdge refined visual system */
 :root {
-  --te-bg: #080b10;
-  --te-surface: #0d121a;
-  --te-surface-elevated: #111823;
-  --te-border: rgba(148,163,184,.12);
-  --te-border-strong: rgba(148,163,184,.18);
-  --te-text: #f1f5f9;
-  --te-muted: #94a3b8;
-  --te-positive: #22c55e;
-  --te-negative: #ef4444;
-  --te-warning: #f59e0b;
+  --bg: 8 11 16;
+  --surface: 13 18 26;
+  --card: 15 21 30;
+  --edge: 35 44 56;
+  --ink: 241 245 249;
+  --sub: 203 213 225;
+  --mute: 123 136 153;
+  --accent: 163 230 53;
+  --pos: 34 197 94;
+  --neg: 239 68 68;
+  --warn: 245 158 11;
+  --card-shadow: 0 12px 34px -24px rgba(0,0,0,.95);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 45%);
+  --card-line: inset 0 1px 0 rgba(255,255,255,.025);
+  --ambient: radial-gradient(900px 480px at 50% -15%, rgba(163,230,53,.035), transparent 62%),
+             radial-gradient(700px 460px at 100% 0%, rgba(96,165,250,.025), transparent 58%);
 }
-html { text-rendering: optimizeLegibility; }
-body { background: var(--te-bg); color: var(--te-text); }
-button,input,select,textarea {
-  transition: background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,opacity .14s ease;
+body { letter-spacing: -0.005em; }
+.premium-card {
+  border-color: rgb(var(--edge) / .72);
+  box-shadow: var(--card-shadow), var(--card-line);
 }
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {
-  outline: 2px solid rgba(34,197,94,.5);
-  outline-offset: 2px;
+.dashboard-page .dashboard-kpi {
+  min-height: 156px;
 }
-::selection { background: rgba(34,197,94,.2); }
+.dashboard-page .dashboard-kpi:not(.dashboard-kpi--hero) {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.018), transparent 55%);
+}
+.dashboard-page .dashboard-kpi:hover {
+  transform: translateY(-1px);
+  border-color: rgb(var(--edge) / .95);
+  box-shadow: 0 16px 38px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.035);
+}
+.dashboard-page .dashboard-secondary .premium-card {
+  min-height: 112px;
+  padding: 1rem 1.15rem;
+}
+.kpi-hero {
+  border-color: rgba(163,230,53,.18);
+  box-shadow: 0 18px 42px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.045);
+}
+.te-button:hover:not(:disabled) { transform: translateY(-1px); }
+.te-button:active:not(:disabled) { transform: translateY(0); }
+button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
+::selection { background: rgb(var(--accent) / .2); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--edge) / .85); border-radius: 8px; border: 2px solid rgb(var(--bg)); }
+@media (max-width: 639px) {
+  .dashboard-page { gap: 1.5rem; }
+  .dashboard-page .dashboard-kpi { min-height: 136px; }
+}

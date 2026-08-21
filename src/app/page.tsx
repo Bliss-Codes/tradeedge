@@ -53,29 +53,29 @@ function KpiIcon({ d, className = "" }: { d: string; className?: string }) {
 function KpiCard({ icon, label, value, sub, tone = 0, hero = false }: { icon: string; label: string; value: string; sub?: string; tone?: number; hero?: boolean }) {
   if (hero) {
     return (
-      <div className="kpi-hero relative overflow-hidden rounded-2xl p-5" style={{ color: "rgb(var(--kpi-hero-ink))" }}>
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+      <div className="kpi-hero dashboard-kpi dashboard-kpi--hero relative overflow-hidden rounded-2xl border p-5" style={{ color: "rgb(var(--kpi-hero-ink))" }}>
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
             <KpiIcon d={icon} />
           </div>
         </div>
-        <div className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{label}</div>
-        <div className="mt-1 font-mono text-2xl font-bold tabular-nums">{value}</div>
-        {sub && <div className="mt-1 text-xs" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{sub}</div>}
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{label}</div>
+        <div className="mt-1.5 font-mono text-[1.65rem] font-bold tracking-tight tabular-nums">{value}</div>
+        {sub && <div className="mt-1 text-[11px]" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{sub}</div>}
       </div>
     );
   }
   const valTone = tone > 0 ? "text-pos" : tone < 0 ? "text-neg" : "text-ink";
   return (
-    <div className="premium-card relative overflow-hidden rounded-2xl border border-edge bg-card p-5">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface text-sub">
+    <div className="premium-card dashboard-kpi relative overflow-hidden rounded-2xl border border-edge bg-card p-5">
+      <div className="mb-5 flex items-center justify-between">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-sub">
           <KpiIcon d={icon} />
         </div>
       </div>
-      <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className={`mt-1 font-mono text-2xl font-bold tabular-nums ${valTone}`}>{value}</div>
-      {sub && <div className="mt-1 text-xs text-mute">{sub}</div>}
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">{label}</div>
+      <div className={`mt-1.5 font-mono text-[1.65rem] font-bold tracking-tight tabular-nums ${valTone}`}>{value}</div>
+      {sub && <div className="mt-1 text-[11px] text-mute">{sub}</div>}
     </div>
   );
 }
@@ -176,12 +176,6 @@ export default function DashboardPage() {
   const stats = useMemo(() => computeStats(trades), [trades]);
   const adh = useMemo(() => adherenceDetail(trades), [trades]);
   const adherence = adh.pct;
-  /** Share of trades that had a written thesis — the single strongest predictor
-   *  in this journal's own data (documented setups vastly outperform blanks). */
-  const thesisRate = useMemo(
-    () => (trades.length ? (trades.filter((t) => (t.thesis ?? "").trim()).length / trades.length) * 100 : 0),
-    [trades]
-  );
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const daily = useMemo(() => dailyPnl(trades), [trades]);
   const money = useMemo(() => {
@@ -225,11 +219,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-page space-y-8">
       <WeeklyFocusBanner />
       <RiskBanner />
       {/* Headline KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {/* Adherence leads on purpose: what you see first is what you optimise for.
             P&L is the outcome; adherence is the behaviour that produces it. */}
         <KpiCard
@@ -240,7 +234,7 @@ export default function DashboardPage() {
           sub={
             adh.total === 0
               ? "no trades yet"
-              : `${adh.followed} of ${adh.total} clean${adh.noThesis > 0 ? ` · ${adh.noThesis} with no thesis` : ""}`
+              : `${adh.followed} of ${adh.total} reviewed`
           }
         />
         <KpiCard
@@ -259,7 +253,7 @@ export default function DashboardPage() {
           sub={stats.currentStreak > 0 ? "winning" : stats.currentStreak < 0 ? "losing" : "flat"}
         />
       </div>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="dashboard-secondary grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />
         <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={-1} />
         <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD, currency).replace("-", "")}`} tone={-1} />
@@ -267,7 +261,7 @@ export default function DashboardPage() {
       </div>
 
       {/* P&L charts */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <SectionTitle action={<Link href="/analytics" className="text-xs text-accent hover:underline">Open analytics →</Link>}>
             Daily net cumulative P&L
@@ -291,7 +285,7 @@ export default function DashboardPage() {
       <CalendarPanel />
 
       {/* Periods */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <PeriodCard label="Today" trades={today} currency={currency} />
         <PeriodCard label="This week" trades={week} currency={currency} />
         <PeriodCard label="This month" trades={month} currency={currency} />
