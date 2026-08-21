@@ -814,6 +814,15 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {dataset === "live" && stage === "all" && mixedStages && (
+        <div className="rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-xs text-sub">
+          <span className="font-medium text-warn">Mixed capital stages.</span> Challenge P&amp;L is notional — you never
+          receive it, and it is usually traded at a different risk %. Blending it with funded money makes the equity
+          curve and every money stat misleading. Switch to <span className="font-medium">Funded</span> for real earnings,
+          or <span className="font-medium">Challenge</span> to review pass attempts. R-based stats stay comparable either way.
+        </div>
+      )}
+
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
       {hasLinked && countMode === "By setup" && (
