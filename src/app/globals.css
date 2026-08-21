@@ -533,3 +533,90 @@ input, select, textarea {
 .side-analysis-card .side-chart-content svg {
   flex-shrink: 0;
 }
+
+
+/* Analytics polish — layout discipline inspired by professional analytics
+   products, while preserving TradeEdge's existing visual identity. */
+.analytics-page {
+  --analytics-section-gap: 32px;
+  padding-bottom: 48px;
+}
+.analytics-page > .space-y-8 > * + * {
+  margin-top: var(--analytics-section-gap);
+}
+.analytics-page .section-title {
+  margin-bottom: 14px;
+  color: rgb(var(--ink));
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  text-transform: none;
+}
+.analytics-page .premium-card {
+  border-radius: 16px;
+  padding: 20px;
+}
+.analytics-page .premium-card:hover {
+  border-color: rgb(var(--edge) / .9);
+}
+.analytics-page .side-analysis-card {
+  min-height: 248px;
+  padding: 20px;
+}
+.analytics-page .side-card-header {
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+.analytics-page .side-chart-content--balanced {
+  min-height: 148px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.analytics-page .side-analysis-card .side-chart-content--balanced > div {
+  width: min(100%, 430px);
+}
+.analytics-page .side-analysis-card .side-chart-content--balanced svg {
+  max-height: 148px;
+}
+.analytics-page .side-analysis-card > p {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.analytics-page .session-analysis-grid > * {
+  min-height: 250px;
+}
+.analytics-page .session-analysis-grid svg {
+  max-height: 205px;
+}
+.analytics-page .analytics-filter-bar {
+  min-height: 40px;
+}
+.analytics-page .analytics-filter-bar + .analytics-active-filters {
+  margin-top: -2px;
+}
+.analytics-page .analytics-section-spacer {
+  margin-top: 36px;
+}
+
+@media (min-width: 1280px) {
+  .analytics-page {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+@media (max-width: 767px) {
+  .analytics-page {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 32px;
+  }
+  .analytics-page .premium-card {
+    padding: 16px;
+  }
+  .analytics-page .side-analysis-card {
+    min-height: 0;
+  }
+}

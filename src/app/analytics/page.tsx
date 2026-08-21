@@ -694,7 +694,7 @@ export default function AnalyticsPage() {
   const dirtyStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length > 0)), [trades]);
 
   return (
-    <div className="space-y-6">
+    <div className="analytics-page w-full max-w-[1360px] mx-auto space-y-8 px-4 sm:px-6 xl:px-8">
       {/* Compact pill filters — chips below show only what's active, so the
           bar stays quiet until you use it. */}
       <div className="flex flex-wrap items-center gap-2">
@@ -888,7 +888,7 @@ export default function AnalyticsPage() {
           </Card>
 
           {/* RR analytics strip — mirrors the inspiration's compact metric row. */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <MiniMetric
               label="Avg planned RR"
               value={planned.n ? planned.avg.toFixed(2) : "—"}
@@ -1012,8 +1012,8 @@ export default function AnalyticsPage() {
             <SectionTitle>Performance by side</SectionTitle>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Card className="side-analysis-card">
-                <div className="mb-4 text-sm font-medium text-sub">Trade split</div>
-                <div className="side-chart-content">
+                <div className="side-card-header mb-2 text-sm font-medium text-sub">Trade split</div>
+                <div className="side-chart-content side-chart-content--balanced">
                   <Donut
                     slices={[
                       { label: "Long", value: sideSplit.longN, color: "rgb(var(--pos))" },
@@ -1024,8 +1024,8 @@ export default function AnalyticsPage() {
                 </div>
               </Card>
               <Card className="side-analysis-card">
-                <div className="mb-4 text-sm font-medium text-sub">Win rate by side</div>
-                <div className="side-chart-content">
+                <div className="side-card-header mb-2 text-sm font-medium text-sub">Win rate by side</div>
+                <div className="side-chart-content side-chart-content--balanced">
                   <RingCompare
                     size={132}
                     rings={[
@@ -1042,7 +1042,7 @@ export default function AnalyticsPage() {
                 </p>
               </Card>
             </div>
-            <Card className="mt-4">
+            <Card className="mt-3">
               <GroupTable rows={bySide} keyLabel="Side" currency={currency} />
             </Card>
           </div>
