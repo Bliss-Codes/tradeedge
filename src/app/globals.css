@@ -82,3 +82,28 @@ body { background: var(--ambient), rgb(var(--bg)); background-attachment: fixed;
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* TradeEdge UI polish layer */
+/* Visual-only changes: no Supabase, state, database, or trading logic changes. */
+:root {
+  --te-bg: #080b10;
+  --te-surface: #0d121a;
+  --te-surface-elevated: #111823;
+  --te-border: rgba(148,163,184,.12);
+  --te-border-strong: rgba(148,163,184,.18);
+  --te-text: #f1f5f9;
+  --te-muted: #94a3b8;
+  --te-positive: #22c55e;
+  --te-negative: #ef4444;
+  --te-warning: #f59e0b;
+}
+html { text-rendering: optimizeLegibility; }
+body { background: var(--te-bg); color: var(--te-text); }
+button,input,select,textarea {
+  transition: background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,opacity .14s ease;
+}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {
+  outline: 2px solid rgba(34,197,94,.5);
+  outline-offset: 2px;
+}
+::selection { background: rgba(34,197,94,.2); }
