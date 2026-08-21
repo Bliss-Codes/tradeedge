@@ -613,3 +613,30 @@ input, select, textarea {
     border-radius: 14px;
   }
 }
+
+/* Analytics spacing cleanup: reduce stacked gaps between the header,
+   filters, scope banner, tabs, and first chart. */
+.analytics-page {
+  row-gap: 20px;
+}
+.analytics-page .analytics-header {
+  min-height: 44px;
+}
+.analytics-page .analytics-header + .analytics-filter-shell {
+  margin-top: -4px;
+}
+.analytics-page .analytics-filter-shell + .flex {
+  margin-top: -12px;
+}
+.analytics-page .analytics-filter-shell + .flex + .flex {
+  margin-top: -2px;
+}
+.analytics-page .analytics-filter-shell + .flex + .flex + .premium-card,
+.analytics-page .analytics-filter-shell + .premium-card {
+  margin-top: 0;
+}
+@media (max-width: 639px) {
+  .analytics-page {
+    row-gap: 16px;
+  }
+}

@@ -694,7 +694,7 @@ export default function AnalyticsPage() {
   const dirtyStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length > 0)), [trades]);
 
   return (
-    <div className="analytics-page mx-auto w-full max-w-[1360px] space-y-8 px-4 pb-12 sm:px-6 xl:px-8">
+    <div className="analytics-page mx-auto w-full max-w-[1360px] space-y-5 px-4 pb-12 sm:px-6 xl:px-8">
       {/* Compact pill filters — chips below show only what's active, so the
           bar stays quiet until you use it. */}
       <div className="analytics-header flex flex-wrap items-end justify-between gap-4">
