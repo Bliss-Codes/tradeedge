@@ -241,7 +241,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="dashboard-page space-y-6">
+    <div className="space-y-6">
       <div className="dashboard-intro flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Performance overview</div>

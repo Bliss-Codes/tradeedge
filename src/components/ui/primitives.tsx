@@ -236,9 +236,10 @@ export function Tabs({
   tabs: string[];
   active: string;
   onChange: (t: string) => void;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-xl border border-edge bg-surface p-1">
+    <div className={`flex flex-wrap gap-1 rounded-xl border border-edge bg-surface p-1 ${className ?? ""}`}>
       {tabs.map((t) => (
         <button
           key={t}

@@ -26,7 +26,6 @@ import {
   avgPlannedRR,
   breakevenMisses,
   filterByMoneyScope,
-  moneySplit,
   MoneyScope,
   monthlyPerformance,
   signColor,
@@ -537,7 +536,6 @@ export default function AnalyticsPage() {
   // Edge metrics must count IDEAS, not fills — otherwise the same setup taken on
   // 3 accounts inflates the sample 3x and overstates confidence in the edge.
   const scoped = useMemo(() => filterByMoneyScope(rawVisible, accounts, moneyScope), [rawVisible, accounts, moneyScope]);
-  const split = useMemo(() => moneySplit(rawVisible, accounts), [rawVisible, accounts]);
   const visible = useMemo(
     () => (countMode === "By setup" ? dedupeBySetup(scoped) : scoped),
     [scoped, countMode]
@@ -694,10 +692,10 @@ export default function AnalyticsPage() {
   const dirtyStats = useMemo(() => computeStats(trades.filter((t) => t.violations.length > 0)), [trades]);
 
   return (
-    <div className="analytics-page mx-auto w-full max-w-[1180px] space-y-6 px-4 pb-12 sm:px-6 xl:px-6">
+    <div className="analytics-page mx-auto w-full max-w-[1360px] space-y-4 px-4 pb-12 sm:px-6 xl:px-8">
       {/* Compact pill filters — chips below show only what's active, so the
           bar stays quiet until you use it. */}
-      <div className="analytics-header flex flex-wrap items-end justify-between gap-4">
+      <div className="analytics-header flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.03em] text-ink sm:text-[28px]">Analytics</h1>
           <p className="mt-1 text-xs text-mute">Review performance, execution quality, and where your edge is strongest.</p>
@@ -773,7 +771,7 @@ export default function AnalyticsPage() {
       </div>
 
       {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome || fType) && (
-        <div className="-mt-3 flex flex-wrap items-center gap-1.5">
+        <div className="-mt-1 flex flex-wrap items-center gap-1.5">
           {fRange !== "all" && <FilterChip label={`last ${fRange} days`} onClear={() => setFRange("all")} />}
           {fStrategy && <FilterChip label={strategies.find((x) => x.id === fStrategy)?.name ?? "strategy"} onClear={() => setFStrategy("")} />}
           {fSession && <FilterChip label={fSession} onClear={() => setFSession("")} />}
@@ -789,39 +787,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {split.challengeTrades > 0 && (
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-edge bg-surface/40 px-4 py-2.5 text-xs">
-          <span className="text-mute">
-            {moneyScope === "Real money"
-              ? "Showing funded accounts only — this is withdrawable profit."
-              : moneyScope === "Challenge"
-              ? "Showing evaluation accounts only — this P&L is score, not money."
-              : "Showing everything — dollar totals mix real profit with challenge score."}
-          </span>
-          <span className="ml-auto flex items-center gap-4 font-mono">
-            <span className={signColor(split.realPnl)}>
-              real {fmtMoney(split.realPnl, currency)}
-              <span className="ml-1 text-[10px] text-mute">({split.realTrades})</span>
-            </span>
-            <span className="text-mute">
-              challenge {fmtMoney(split.challengePnl, currency)}
-              <span className="ml-1 text-[10px]">({split.challengeTrades})</span>
-            </span>
-          </span>
-        </div>
-      )}
-
-      {dataset !== "live" && (
-        <div className="rounded-xl border border-accent/30 bg-accent/[0.05] px-4 py-3 text-xs text-sub">
-          <span className="font-medium text-accent">
-            {dataset === "backtest" ? "Backtest results" : "Forward test results"}.
-          </span>{" "}
-          Same analytics, separate book — these never mix into live performance. Manual backtests typically overstate
-          live results by 20–30%, so treat expectancy here as a ceiling rather than a forecast.
-        </div>
-      )}
-
-      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+      <Tabs tabs={TABS} active={tab} onChange={setTab} className="analytics-tabs flex-nowrap overflow-x-auto whitespace-nowrap" />
 
       {hasLinked && countMode === "By setup" && (
         <p className="-mt-2 text-[11px] text-mute">
@@ -851,7 +817,7 @@ export default function AnalyticsPage() {
       ) : (
       <>
       {tab === "Overview" && (
-        <div className="space-y-8">
+        <div className="space-y-5">
           <Card>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
