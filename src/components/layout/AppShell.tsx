@@ -51,13 +51,14 @@ function Icon({ d }: { d: string }) {
 }
 
 
-/** Sidebar profile: avatar, name, and plan chip. Click the avatar to change it. */
+/** Sidebar profile: avatar, name, plan chip, preset avatars and photo upload. */
 function SidebarProfile() {
   const profile = useApp((s) => s.profile);
   const setProfile = useApp((s) => s.setProfile);
   const user = useApp((s) => s.user);
   const accounts = useApp((s) => s.accounts);
   const [editing, setEditing] = useState(false);
+  const [avatarMenu, setAvatarMenu] = useState(false);
   const [draft, setDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -65,44 +66,128 @@ function SidebarProfile() {
   const funded = accounts.filter((a) => !a.archived && a.type === "Funded").length;
   const chip = funded > 0 ? `${funded} funded` : "Free";
 
+  const presetAvatars = [
+    { id: "bolt", label: "Bolt", bg: "linear-gradient(135deg,#052e1a,#16a34a)", mark: "⚡" },
+    { id: "wave", label: "Wave", bg: "linear-gradient(135deg,#082f49,#0ea5e9)", mark: "≈" },
+    { id: "orbit", label: "Orbit", bg: "linear-gradient(135deg,#312e81,#8b5cf6)", mark: "◉" },
+    { id: "sun", label: "Sun", bg: "linear-gradient(135deg,#713f12,#f59e0b)", mark: "✦" },
+    { id: "rose", label: "Rose", bg: "linear-gradient(135deg,#4c0519,#f43f5e)", mark: "◆" },
+    { id: "mono", label: "Mono", bg: "linear-gradient(135deg,#111827,#64748b)", mark: "P" },
+  ];
+
   const pickAvatar = (file: File | undefined) => {
     if (!file) return;
-    if (file.size > 512 * 1024) return; // keep the snapshot small
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 1024 * 1024) return;
     const reader = new FileReader();
-    reader.onload = () => setProfile({ avatarDataUrl: String(reader.result) });
+    reader.onload = () => {
+      setProfile({ avatarDataUrl: String(reader.result) });
+      setAvatarMenu(false);
+    };
     reader.readAsDataURL(file);
   };
+
+  const choosePreset = (id: string) => {
+    setProfile({ avatarDataUrl: `preset:${id}` });
+    setAvatarMenu(false);
+  };
+
+  const preset = profile?.avatarDataUrl?.startsWith("preset:")
+    ? presetAvatars.find((a) => a.id === profile.avatarDataUrl?.slice(7))
+    : undefined;
 
   return (
     <div className="sidebar-profile border-b border-edge px-5 pb-5">
       <div className="flex flex-col items-center text-center">
         <div className="relative">
           <button
-            onClick={() => fileRef.current?.click()}
-            className="group relative h-16 w-16 overflow-hidden rounded-full border border-edge bg-surface"
-            title="Change photo"
+            onClick={() => setAvatarMenu((v) => !v)}
+            className="group relative h-[68px] w-[68px] overflow-hidden rounded-full border border-edge bg-surface shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-md"
+            title="Change avatar"
+            aria-label="Change avatar"
+            aria-expanded={avatarMenu}
           >
-            {profile?.avatarDataUrl ? (
+            {profile?.avatarDataUrl?.startsWith("data:image/") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={profile.avatarDataUrl} alt={name} className="h-full w-full object-cover" />
+            ) : preset ? (
+              <span
+                className="flex h-full w-full items-center justify-center text-2xl font-semibold text-white"
+                style={{ background: preset.bg }}
+              >
+                {preset.mark}
+              </span>
             ) : (
               <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-mute">
                 {name.slice(0, 2).toUpperCase()}
               </span>
             )}
-            <span className="absolute inset-0 hidden items-center justify-center bg-bg/70 text-[10px] text-ink group-hover:flex">
+            <span className="absolute inset-0 flex items-end justify-center bg-black/0 pb-1 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:bg-black/45 group-hover:opacity-100">
               Change
             </span>
           </button>
-          <span className="absolute -right-2 -top-1 rounded-full bg-accent px-2 py-0.5 text-[9px] font-semibold text-bg">
+
+          <span className="absolute -right-2 -top-1 rounded-full bg-accent px-2 py-0.5 text-[9px] font-semibold text-bg shadow-sm">
             {chip}
           </span>
+
+          {avatarMenu && (
+            <div className="avatar-picker absolute left-1/2 top-[78px] z-50 w-64 -translate-x-1/2 rounded-2xl border border-edge bg-card p-3 text-left shadow-2xl">
+              <div className="mb-2 px-1">
+                <div className="text-xs font-semibold text-ink">Profile avatar</div>
+                <div className="text-[10px] text-mute">Choose an avatar or upload your own photo.</div>
+              </div>
+
+              <div className="grid grid-cols-6 gap-2">
+                {presetAvatars.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => choosePreset(a.id)}
+                    title={a.label}
+                    className="h-8 w-8 rounded-full text-sm text-white ring-1 ring-white/10 transition-transform hover:scale-110"
+                    style={{ background: a.bg }}
+                  >
+                    {a.mark}
+                  </button>
+                ))}
+              </div>
+
+              <div className="my-3 h-px bg-edge" />
+
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="flex w-full items-center gap-2.5 rounded-xl border border-edge bg-surface px-3 py-2 text-xs font-medium text-ink transition-colors hover:border-accent/40 hover:bg-accent/5"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-accent">↑</span>
+                <span>
+                  <span className="block">Upload photo</span>
+                  <span className="block text-[9px] font-normal text-mute">JPG, PNG or WebP · max 1 MB</span>
+                </span>
+              </button>
+
+              {profile?.avatarDataUrl && (
+                <button
+                  type="button"
+                  onClick={() => { setProfile({ avatarDataUrl: undefined }); setAvatarMenu(false); }}
+                  className="mt-2 w-full rounded-lg px-2 py-1.5 text-[10px] text-mute hover:bg-neg/5 hover:text-neg"
+                >
+                  Remove avatar
+                </button>
+              )}
+            </div>
+          )}
+
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             className="hidden"
-            onChange={(e) => pickAvatar(e.target.files?.[0])}
+            onChange={(e) => {
+              pickAvatar(e.target.files?.[0]);
+              e.currentTarget.value = "";
+            }}
           />
         </div>
 
@@ -129,7 +214,6 @@ function SidebarProfile() {
     </div>
   );
 }
-
 function Sidebar() {
   const pathname = usePathname();
   return (

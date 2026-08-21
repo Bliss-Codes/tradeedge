@@ -456,3 +456,18 @@ input, select, textarea {
 :root[data-theme="light"] .performance-visuals .bg-surface {
   background-color: rgb(240 246 242);
 }
+
+
+.avatar-picker {
+  animation: avatar-picker-in 120ms ease-out;
+  transform-origin: top center;
+}
+@keyframes avatar-picker-in {
+  from { opacity: 0; transform: translate(-50%, -4px) scale(.98); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+:root[data-theme="light"] .avatar-picker {
+  background: white;
+  border-color: rgb(222 230 225);
+  box-shadow: 0 20px 45px -25px rgba(11, 58, 34, .3);
+}
