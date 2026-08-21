@@ -6,7 +6,7 @@ import { signColor } from "@/lib/metrics";
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`premium-card relative overflow-hidden rounded-2xl border border-edge bg-card p-5 transition-all duration-200 ${className}`}
+      className={`premium-card relative overflow-hidden rounded-2xl border border-edge bg-card p-5 transition-colors ${className}`}
     >
       {children}
     </div>
@@ -16,7 +16,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between">
-      <h2 className="text-sm font-medium uppercase tracking-widest text-mute">{children}</h2>
+      <h2 className="section-title text-[11px] font-semibold uppercase tracking-[0.15em] text-mute">{children}</h2>
       {action}
     </div>
   );
@@ -25,9 +25,9 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
 export function Stat({ label, value, tone, hint }: { label: string; value: string; tone?: number; hint?: string }) {
   return (
     <Card className="min-w-0">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-mute">{label}</div>
-      <div className="mt-2.5 flex items-baseline gap-1.5">
-        <span className={`truncate font-mono text-[1.65rem] font-semibold tracking-tight ${tone !== undefined ? signColor(tone) : "text-ink"}`}>{value}</span>
+      <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span className={`truncate font-mono text-2xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>{value}</span>
         {tone !== undefined && tone !== 0 && <span className={`text-sm ${signColor(tone)}`}>{tone > 0 ? "↑" : "↓"}</span>}
       </div>
       {hint && <div className="mt-1 text-xs text-mute">{hint}</div>}
@@ -61,7 +61,7 @@ export function Button({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-xl px-4 py-2 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${styles} ${className}`}
+      className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${styles} ${className}`}
     >
       {children}
     </button>
@@ -238,13 +238,13 @@ export function Tabs({
   onChange: (t: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-xl border border-edge bg-surface/70 p-1">
+    <div className="flex flex-wrap gap-1 rounded-xl border border-edge bg-surface p-1">
       {tabs.map((t) => (
         <button
           key={t}
           onClick={() => onChange(t)}
           className={`rounded-lg px-3.5 py-1.5 text-sm transition-colors ${
-            active === t ? "bg-card text-ink shadow-[0_2px_12px_-6px_rgb(0_0_0_/_0.8)]" : "text-mute hover:bg-card/50 hover:text-sub"
+            active === t ? "bg-card text-ink shadow-sm" : "text-mute hover:text-sub"
           }`}
         >
           {t}

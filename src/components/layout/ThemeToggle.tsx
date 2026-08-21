@@ -26,7 +26,7 @@ export function ThemeToggle() {
       onClick={toggle}
       title={theme === "dark" ? "Switch to light" : "Switch to dark"}
       aria-label="Toggle theme"
-      className="flex h-9 w-9 items-center justify-center rounded-xl border border-edge bg-surface text-mute transition-colors hover:text-sub"
+      className="theme-toggle flex h-9 w-9 items-center justify-center rounded-xl border border-edge bg-surface text-mute transition-all hover:text-ink"
     >
       {theme === "dark" ? (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

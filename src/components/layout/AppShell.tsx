@@ -74,7 +74,7 @@ function SidebarProfile() {
   };
 
   return (
-    <div className="border-b border-edge px-5 pb-5">
+    <div className="sidebar-profile border-b border-edge px-5 pb-5">
       <div className="flex flex-col items-center text-center">
         <div className="relative">
           <button
@@ -133,17 +133,17 @@ function SidebarProfile() {
 function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-edge bg-card lg:flex">
-      <div className="flex items-center gap-2.5 px-5 py-5">
+    <aside className="app-sidebar fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-edge lg:flex">
+      <div className="brand-row flex items-center gap-3 px-5 py-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="TradeEdge" className="h-9 w-9 rounded-xl object-cover" />
+        <img src="/logo.png" alt="TradeEdge" className="brand-logo h-9 w-9 rounded-xl object-cover" />
         <div>
           <div className="text-sm font-semibold tracking-tight text-ink">TradeEdge</div>
           <div className="text-[10px] uppercase tracking-widest text-mute">Journal &amp; Analytics</div>
         </div>
       </div>
       <SidebarProfile />
-      <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4 pt-4">
+      <nav className="sidebar-nav flex-1 space-y-5 overflow-y-auto px-3 pb-4 pt-4">
         {NAV_GROUPS.map((group) => (
           <div key={group.heading}>
             <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-mute/70">{group.heading}</div>
@@ -154,8 +154,8 @@ function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                      active ? "bg-accent text-bg shadow-[0_4px_16px_-6px_rgb(var(--accent)/0.55)]" : "text-ink hover:bg-surface"
+                    className={`nav-item relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                      active ? "nav-item-active bg-accent text-bg shadow-[0_8px_22px_-10px_rgb(var(--accent)/0.65)]" : "text-sub hover:bg-surface hover:text-ink"
                     }`}
                   >
                     <Icon d={item.icon} />
@@ -167,8 +167,8 @@ function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="px-3 pb-4">
-        <div className="rounded-2xl bg-gradient-to-br from-ink/95 to-ink p-4 text-bg" style={{ background: "linear-gradient(135deg, rgb(var(--ink)), rgb(var(--ink)/0.85))" }}>
+      <div className="sidebar-footer px-3 pb-4">
+        <div className="sidebar-quick rounded-2xl p-4 text-bg" style={{ background: "linear-gradient(135deg, rgb(var(--ink)), rgb(var(--ink)/0.85))" }}>
           <div className="text-sm font-semibold" style={{ color: "rgb(var(--card))" }}>Log faster</div>
           <div className="mt-0.5 text-[11px]" style={{ color: "rgb(var(--mute))" }}>Record a trade in a few taps.</div>
           <Link href="/journal?new=1" className="mt-3 flex items-center justify-center rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-bg">
@@ -341,19 +341,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (cloud && authReady && !user) return <AuthScreen />;
 
   return (
-    <div className="min-h-screen bg-bg text-ink">
+    <div className="app-shell min-h-screen bg-bg text-ink">
       <Sidebar />
-      <div className="lg:pl-60">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-edge bg-bg/80 px-5 py-3 backdrop-blur lg:px-8">
+      <div className="app-content lg:pl-[248px]">
+        <header className="app-topbar sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-edge bg-bg/80 px-5 py-3.5 backdrop-blur-xl lg:px-8">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="TradeEdge" className="h-7 w-7 rounded-lg object-cover lg:hidden" />
-            <h1 className="text-base font-semibold tracking-tight">{title}</h1>
+            <div><div className="topbar-eyebrow hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-mute sm:block">Trading workspace</div><h1 className="text-base font-semibold tracking-tight">{title}</h1></div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSearchOpen(true)}
-              className="hidden items-center gap-2 rounded-xl border border-edge bg-card px-3 py-2 text-sm text-mute transition-colors hover:text-sub sm:flex"
+              className="topbar-search hidden items-center gap-2 rounded-xl border border-edge bg-card px-3 py-2 text-sm text-mute transition-all sm:flex"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="7" />
@@ -367,31 +367,31 @@ export default function AppShell({ children }: { children: ReactNode }) {
             {cloud && user && (
               <div className="hidden items-center gap-2 sm:flex">
                 <span className="max-w-32 truncate text-xs text-mute" title={user.email ?? ""}>{user.email}</span>
-                <button onClick={() => void signOut()} className="rounded-xl border border-edge bg-card px-3 py-2 text-sm text-mute transition-colors hover:text-sub">
+                <button onClick={() => void signOut()} className="topbar-action rounded-xl border border-edge bg-card px-3 py-2 text-sm text-mute transition-all hover:text-ink">
                   Sign out
                 </button>
               </div>
             )}
           </div>
         </header>
-        <nav className="flex gap-1 overflow-x-auto border-b border-edge bg-surface px-3 py-2 lg:hidden">
+        <nav className="mobile-nav flex gap-1 overflow-x-auto border-b border-edge bg-surface px-3 py-2 lg:hidden">
           {NAV.map((n) => {
             const active = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
             return (
-              <Link key={n.href} href={n.href} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs ${active ? "bg-card text-ink" : "text-ink/70"}`}>
+              <Link key={n.href} href={n.href} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition-colors ${active ? "bg-card text-ink shadow-sm" : "text-mute hover:text-ink"}`}>
                 {n.label}
               </Link>
             );
           })}
         </nav>
-        <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+        <main className="app-main mx-auto max-w-[1440px] px-5 py-7 lg:px-8 lg:py-8">
           {syncError && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-neg/40 bg-neg/10 px-4 py-2.5 text-xs text-neg">
+            <div className="sync-banner mb-5 flex items-center justify-between gap-3 rounded-xl border border-neg/30 bg-neg/10 px-4 py-3 text-xs text-neg">
               <span>Cloud save failed: {syncError} — your change is only on this device. Check your connection or Supabase setup, then retry.</span>
               <button onClick={clearSyncError} className="shrink-0 rounded-lg border border-neg/40 px-2 py-1 hover:bg-neg/15">Dismiss</button>
             </div>
           )}
-          {hydrated ? children : <div className="py-24 text-center text-sm text-mute">Loading your journal…</div>}
+          {hydrated ? children : <div className="loading-state flex min-h-[55vh] items-center justify-center text-sm text-mute"><div className="flex items-center gap-3"><span className="loading-dot h-2 w-2 rounded-full bg-accent"></span><span>Loading your journal…</span></div></div>}
         </main>
       </div>
       <GlobalSearch />

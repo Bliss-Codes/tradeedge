@@ -53,29 +53,49 @@ function KpiIcon({ d, className = "" }: { d: string; className?: string }) {
 function KpiCard({ icon, label, value, sub, tone = 0, hero = false }: { icon: string; label: string; value: string; sub?: string; tone?: number; hero?: boolean }) {
   if (hero) {
     return (
-      <div className="kpi-hero dashboard-kpi dashboard-kpi--hero relative overflow-hidden rounded-2xl border p-5" style={{ color: "rgb(var(--kpi-hero-ink))" }}>
-        <div className="mb-5 flex items-center justify-between">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-            <KpiIcon d={icon} />
+      <div className="kpi-hero dashboard-hero-kpi relative min-h-[168px] overflow-hidden rounded-[22px] p-5" style={{ color: "rgb(var(--kpi-hero-ink))" }}>
+        <div className="hero-kpi-grid absolute inset-0 opacity-40" aria-hidden="true" />
+        <div className="hero-kpi-glow absolute -right-10 -top-10 h-36 w-36 rounded-full bg-accent/20 blur-3xl" aria-hidden="true" />
+        <div className="relative z-10 flex h-full flex-col">
+          <div className="flex items-center justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/12 ring-1 ring-white/10">
+              <KpiIcon d={icon} />
+            </div>
+            <span className="rounded-full border border-white/15 bg-white/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/70">
+              Discipline
+            </span>
+          </div>
+          <div className="mt-auto">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{label}</div>
+            <div className="mt-1 font-mono text-3xl font-bold tabular-nums tracking-tight">{value}</div>
+            {sub && <div className="mt-1 text-xs" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{sub}</div>}
           </div>
         </div>
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{label}</div>
-        <div className="mt-1.5 font-mono text-[1.65rem] font-bold tracking-tight tabular-nums">{value}</div>
-        {sub && <div className="mt-1 text-[11px]" style={{ color: "rgb(var(--kpi-hero-sub))" }}>{sub}</div>}
+        <svg className="hero-kpi-spark absolute bottom-3 right-4 h-12 w-28 opacity-70" viewBox="0 0 112 48" fill="none" aria-hidden="true">
+          <path d="M2 40C14 37 18 27 29 30C39 33 43 16 53 20C64 24 69 13 77 16C88 20 91 6 110 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M2 40C14 37 18 27 29 30C39 33 43 16 53 20C64 24 69 13 77 16C88 20 91 6 110 8V48H2Z" fill="url(#heroFill)"/>
+          <defs><linearGradient id="heroFill" x1="56" y1="8" x2="56" y2="48" gradientUnits="userSpaceOnUse"><stop stopColor="white" stopOpacity=".18"/><stop offset="1" stopColor="white" stopOpacity="0"/></linearGradient></defs>
+        </svg>
       </div>
     );
   }
   const valTone = tone > 0 ? "text-pos" : tone < 0 ? "text-neg" : "text-ink";
   return (
-    <div className="premium-card dashboard-kpi relative overflow-hidden rounded-2xl border border-edge bg-card p-5">
-      <div className="mb-5 flex items-center justify-between">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-sub">
-          <KpiIcon d={icon} />
+    <div className="premium-card dashboard-kpi relative min-h-[168px] overflow-hidden rounded-[22px] border border-edge bg-card p-5">
+      <div className="kpi-card-accent absolute right-0 top-0 h-20 w-20 rounded-full opacity-0 blur-2xl" aria-hidden="true" />
+      <div className="relative z-10 flex h-full flex-col">
+        <div className="flex items-center justify-between">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-sub ring-1 ring-edge/60">
+            <KpiIcon d={icon} />
+          </div>
+          <span className={`h-1.5 w-1.5 rounded-full ${tone > 0 ? "bg-pos" : tone < 0 ? "bg-neg" : "bg-edge"}`} />
+        </div>
+        <div className="mt-auto">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">{label}</div>
+          <div className={`mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight ${valTone}`}>{value}</div>
+          {sub && <div className="mt-1 text-xs text-mute">{sub}</div>}
         </div>
       </div>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">{label}</div>
-      <div className={`mt-1.5 font-mono text-[1.65rem] font-bold tracking-tight tabular-nums ${valTone}`}>{value}</div>
-      {sub && <div className="mt-1 text-[11px] text-mute">{sub}</div>}
     </div>
   );
 }
@@ -176,6 +196,12 @@ export default function DashboardPage() {
   const stats = useMemo(() => computeStats(trades), [trades]);
   const adh = useMemo(() => adherenceDetail(trades), [trades]);
   const adherence = adh.pct;
+  /** Share of trades that had a written thesis — the single strongest predictor
+   *  in this journal's own data (documented setups vastly outperform blanks). */
+  const thesisRate = useMemo(
+    () => (trades.length ? (trades.filter((t) => (t.thesis ?? "").trim()).length / trades.length) * 100 : 0),
+    [trades]
+  );
   const curve = useMemo(() => equityCurve(trades, "pnl"), [trades]);
   const daily = useMemo(() => dailyPnl(trades), [trades]);
   const money = useMemo(() => {
@@ -219,11 +245,22 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="dashboard-page space-y-8">
+    <div className="space-y-6">
+      <div className="dashboard-intro flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Performance overview</div>
+          <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">Your trading at a glance.</h2>
+          <p className="mt-1 max-w-2xl text-sm text-mute">A clean view of performance, discipline and risk — without the noise.</p>
+        </div>
+        <div className="dashboard-status rounded-xl border border-edge bg-card px-3.5 py-2.5 text-xs text-mute">
+          <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-pos align-middle"></span>
+          Journal synced
+        </div>
+      </div>
       <WeeklyFocusBanner />
       <RiskBanner />
       {/* Headline KPIs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="dashboard-kpis grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         {/* Adherence leads on purpose: what you see first is what you optimise for.
             P&L is the outcome; adherence is the behaviour that produces it. */}
         <KpiCard
@@ -234,7 +271,7 @@ export default function DashboardPage() {
           sub={
             adh.total === 0
               ? "no trades yet"
-              : `${adh.followed} of ${adh.total} reviewed`
+              : `${adh.followed} of ${adh.total} clean${adh.noThesis > 0 ? ` · ${adh.noThesis} with no thesis` : ""}`
           }
         />
         <KpiCard
@@ -253,7 +290,7 @@ export default function DashboardPage() {
           sub={stats.currentStreak > 0 ? "winning" : stats.currentStreak < 0 ? "losing" : "flat"}
         />
       </div>
-      <div className="dashboard-secondary grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />
         <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={-1} />
         <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD, currency).replace("-", "")}`} tone={-1} />
@@ -261,7 +298,7 @@ export default function DashboardPage() {
       </div>
 
       {/* P&L charts */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card>
           <SectionTitle action={<Link href="/analytics" className="text-xs text-accent hover:underline">Open analytics →</Link>}>
             Daily net cumulative P&L
@@ -285,7 +322,7 @@ export default function DashboardPage() {
       <CalendarPanel />
 
       {/* Periods */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <PeriodCard label="Today" trades={today} currency={currency} />
         <PeriodCard label="This week" trades={week} currency={currency} />
         <PeriodCard label="This month" trades={month} currency={currency} />

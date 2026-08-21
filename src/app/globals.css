@@ -4,41 +4,46 @@
 
 /* Theme tokens as RGB channels so Tailwind opacity utilities keep working. */
 :root {
-  --bg: 10 11 10;
-  --surface: 28 31 28;
-  --card: 20 22 20;
-  --edge: 42 47 42;
-  --ink: 255 255 255;
-  --sub: 226 230 224;
-  --mute: 138 144 136;
+  --bg: 7 10 14;
+  --surface: 12 17 23;
+  --card: 16 22 29;
+  --edge: 38 48 60;
+  --ink: 244 247 250;
+  --sub: 202 211 221;
+  --mute: 125 139 154;
   --accent: 163 230 53;
   --pos: 34 197 94;
   --neg: 239 68 68;
   --warn: 245 158 11;
-  --card-shadow: 0 10px 34px -14px rgba(0, 0, 0, 0.75);
-  --card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 42%);
-  --card-line: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-  --ambient: radial-gradient(1000px 560px at 50% -10%, rgba(163, 230, 53, 0.06), transparent 60%),
-    radial-gradient(800px 500px at 100% 0%, rgba(163, 230, 53, 0.035), transparent 55%);
+  --card-shadow: 0 18px 48px -32px rgba(0,0,0,.95);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.032), transparent 48%);
+  --card-line: inset 0 1px 0 rgba(255,255,255,.035);
+  --ambient: radial-gradient(900px 520px at 50% -18%, rgba(163,230,53,.045), transparent 62%),
+             radial-gradient(720px 500px at 100% 0%, rgba(56,189,248,.025), transparent 60%);
 }
 
-:root[data-theme="light"] {
-  --bg: 233 236 232;
-  --surface: 238 240 235;
+
+ :root[data-theme="light"] {
+  --bg: 244 247 245;
+  --surface: 238 243 240;
   --card: 255 255 255;
-  --edge: 221 226 218;
-  --ink: 22 28 20;
-  --sub: 66 76 62;
-  --mute: 116 126 112;
-  --accent: 21 122 62;
-  --pos: 21 140 70;
-  --neg: 209 44 44;
-  --warn: 190 108 10;
-  --card-shadow: 0 8px 24px -12px rgba(18, 40, 20, 0.16);
-  --card-sheen: none;
-  --card-line: 0 0 0 0 transparent;
-  --ambient: linear-gradient(transparent, transparent);
+  --edge: 224 231 226;
+  --ink: 17 25 21;
+  --sub: 70 83 75;
+  --mute: 123 137 128;
+  --accent: 5 104 61;
+  --pos: 10 145 76;
+  --neg: 205 58 58;
+  --warn: 181 117 15;
+  --card-shadow: 0 18px 45px -32px rgba(11, 46, 28, .22);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,250,.9));
+  --card-line: inset 0 1px 0 rgba(255,255,255,.9);
+  --ambient:
+    radial-gradient(800px 500px at 12% -12%, rgba(21, 128, 73, .07), transparent 62%),
+    radial-gradient(650px 450px at 100% 0%, rgba(53, 145, 95, .045), transparent 62%),
+    linear-gradient(180deg, rgb(250 252 250) 0%, rgb(244 247 245) 100%);
 }
+
 
 /* Premium card: subtle top sheen + soft shadow + hairline highlight for depth */
 .premium-card {
@@ -84,56 +89,341 @@ body { background: var(--ambient), rgb(var(--bg)); background-attachment: fixed;
 }
 
 
-/* TradeEdge refined visual system */
-:root {
-  --bg: 8 11 16;
-  --surface: 13 18 26;
-  --card: 15 21 30;
-  --edge: 35 44 56;
-  --ink: 241 245 249;
-  --sub: 203 213 225;
-  --mute: 123 136 153;
-  --accent: 163 230 53;
-  --pos: 34 197 94;
-  --neg: 239 68 68;
-  --warn: 245 158 11;
-  --card-shadow: 0 12px 34px -24px rgba(0,0,0,.95);
-  --card-sheen: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 45%);
-  --card-line: inset 0 1px 0 rgba(255,255,255,.025);
-  --ambient: radial-gradient(900px 480px at 50% -15%, rgba(163,230,53,.035), transparent 62%),
-             radial-gradient(700px 460px at 100% 0%, rgba(96,165,250,.025), transparent 58%);
+/* ─────────────────────────────────────────────────────────
+   TradeEdge modern visual system
+   Presentation only — no data or application logic.
+   ───────────────────────────────────────────────────────── */
+html { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+body {
+  min-height: 100vh;
+  background: var(--ambient), rgb(var(--bg));
+  background-attachment: fixed;
+  letter-spacing: -0.006em;
 }
-body { letter-spacing: -0.005em; }
+
+.app-shell { isolation: isolate; }
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgb(var(--card)), rgb(var(--surface)) 70%, rgb(var(--bg)));
+  box-shadow: 12px 0 40px -38px rgba(0,0,0,.9);
+}
+.brand-row { border-bottom: 1px solid rgb(var(--edge) / .55); }
+.brand-logo {
+  box-shadow: 0 8px 20px -10px rgb(var(--accent) / .55);
+}
+.sidebar-profile { background: linear-gradient(180deg, rgb(var(--card)), rgb(var(--card) / .92)); }
+.sidebar-nav .nav-item svg { opacity: .78; }
+.sidebar-nav .nav-item-active svg { opacity: 1; }
+.sidebar-quick {
+  background:
+    radial-gradient(140px 100px at 100% 0%, rgb(var(--accent) / .18), transparent 70%),
+    linear-gradient(135deg, rgb(var(--ink) / .09), rgb(var(--ink) / .03));
+  border: 1px solid rgb(var(--edge) / .65);
+}
+.app-topbar {
+  box-shadow: 0 10px 30px -28px rgba(0,0,0,.9);
+}
+.topbar-search {
+  min-width: 170px;
+  background: rgb(var(--card) / .72);
+}
+.topbar-search:hover,
+.topbar-action:hover,
+.theme-toggle:hover {
+  border-color: rgb(var(--edge) / 1);
+  background: rgb(var(--surface));
+  transform: translateY(-1px);
+}
+.account-selector { }
+.app-main { position: relative; }
+.dashboard-intro {
+  padding-bottom: 2px;
+}
+.dashboard-status {
+  box-shadow: 0 10px 26px -22px rgba(0,0,0,.8);
+}
+.ui-card,
 .premium-card {
+  background-image: var(--card-sheen);
   border-color: rgb(var(--edge) / .72);
   box-shadow: var(--card-shadow), var(--card-line);
 }
-.dashboard-page .dashboard-kpi {
-  min-height: 156px;
+.ui-card:hover {
+  border-color: rgb(var(--edge) / .92);
 }
-.dashboard-page .dashboard-kpi:not(.dashboard-kpi--hero) {
-  background-image: linear-gradient(180deg, rgba(255,255,255,.018), transparent 55%);
+.dashboard-page .dashboard-kpi {
+  min-height: 150px;
+  border-color: rgb(var(--edge) / .72);
 }
 .dashboard-page .dashboard-kpi:hover {
-  transform: translateY(-1px);
-  border-color: rgb(var(--edge) / .95);
-  box-shadow: 0 16px 38px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.035);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 42px -30px rgba(0,0,0,.95), var(--card-line);
 }
-.dashboard-page .dashboard-secondary .premium-card {
-  min-height: 112px;
-  padding: 1rem 1.15rem;
+.dashboard-page .dashboard-secondary .ui-card {
+  min-height: 108px;
+  background: rgb(var(--card) / .72);
 }
 .kpi-hero {
-  border-color: rgba(163,230,53,.18);
-  box-shadow: 0 18px 42px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.045);
+  border: 1px solid rgb(var(--accent) / .18);
+  background:
+    radial-gradient(180px 120px at 100% 0%, rgb(var(--accent) / .16), transparent 72%),
+    linear-gradient(135deg, rgb(20 55 35), rgb(11 27 19));
+  box-shadow: 0 22px 46px -32px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.05);
 }
+:root[data-theme="light"] .kpi-hero {
+  background:
+    radial-gradient(180px 120px at 100% 0%, rgba(255,255,255,.25), transparent 72%),
+    linear-gradient(135deg, rgb(20 112 68), rgb(15 87 52));
+}
+.section-title { color: rgb(var(--mute)); }
 .te-button:hover:not(:disabled) { transform: translateY(-1px); }
 .te-button:active:not(:disabled) { transform: translateY(0); }
-button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
-::selection { background: rgb(var(--accent) / .2); }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgb(var(--edge) / .85); border-radius: 8px; border: 2px solid rgb(var(--bg)); }
+input, select, textarea {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .025);
+}
+:root[data-theme="light"] input,
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea {
+  box-shadow: inset 0 1px 1px rgba(18,28,38,.03);
+}
+.mobile-nav { backdrop-filter: blur(18px); }
+.loading-dot { animation: te-pulse 1.2s ease-in-out infinite; }
+@keyframes te-pulse { 0%,100% { opacity:.35; transform:scale(.85) } 50% { opacity:1; transform:scale(1) } }
+
+@media (max-width: 1023px) {
+  .app-main { padding-top: 1.5rem; }
+}
 @media (max-width: 639px) {
-  .dashboard-page { gap: 1.5rem; }
-  .dashboard-page .dashboard-kpi { min-height: 136px; }
+  .dashboard-page .dashboard-kpi { min-height: 132px; }
+  .dashboard-page .dashboard-kpi .font-mono { font-size: 1.45rem; }
+}
+
+
+/* ───────── White theme: editorial / green-finance dashboard ───────── */
+:root[data-theme="light"] body {
+  font-family: "Montserrat", system-ui, sans-serif;
+  color: rgb(var(--ink));
+}
+
+:root[data-theme="light"] .app-sidebar {
+  background:
+    linear-gradient(180deg, rgb(255 255 255), rgb(250 252 250));
+  border-right-color: rgb(218 226 220);
+  box-shadow: 14px 0 45px -42px rgba(12, 49, 29, .30);
+}
+
+:root[data-theme="light"] .brand-row {
+  background: rgb(255 255 255 / .94);
+  border-bottom-color: rgb(231 236 233);
+}
+
+:root[data-theme="light"] .brand-logo {
+  box-shadow: 0 9px 25px -12px rgba(5, 104, 61, .45);
+}
+
+:root[data-theme="light"] .sidebar-profile {
+  background: linear-gradient(180deg, rgb(255 255 255), rgb(252 253 252));
+  border-bottom-color: rgb(231 236 233);
+}
+
+:root[data-theme="light"] .sidebar-nav .nav-item {
+  color: rgb(77 91 82);
+}
+
+:root[data-theme="light"] .sidebar-nav .nav-item:hover {
+  background: rgb(238 245 240);
+  color: rgb(17 25 21);
+}
+
+:root[data-theme="light"] .sidebar-nav .nav-item-active {
+  background: rgb(5 87 51);
+  color: white;
+  box-shadow: 0 10px 24px -16px rgba(5, 87, 51, .65);
+}
+
+:root[data-theme="light"] .sidebar-quick {
+  border: 0;
+  background:
+    radial-gradient(160px 120px at 100% 0%, rgba(74, 190, 116, .25), transparent 70%),
+    linear-gradient(135deg, rgb(5 73 43), rgb(4 45 28));
+  box-shadow: 0 20px 36px -26px rgba(5, 73, 43, .55);
+}
+
+:root[data-theme="light"] .sidebar-quick .text-sm {
+  color: white !important;
+}
+
+:root[data-theme="light"] .sidebar-quick .text-\[11px\] {
+  color: rgba(255,255,255,.65) !important;
+}
+
+:root[data-theme="light"] .app-topbar {
+  background: rgb(250 252 250 / .86);
+  border-bottom-color: rgb(225 232 227);
+}
+
+:root[data-theme="light"] .topbar-search,
+:root[data-theme="light"] .topbar-action,
+:root[data-theme="light"] .theme-toggle {
+  background: white;
+  border-color: rgb(221 229 224);
+  box-shadow: 0 5px 16px -14px rgba(8, 54, 30, .35);
+}
+
+:root[data-theme="light"] .app-main {
+  max-width: 1480px;
+}
+
+:root[data-theme="light"] .dashboard-page {
+  --dashboard-gap: 20px;
+}
+
+:root[data-theme="light"] .dashboard-intro {
+  padding: 2px 2px 4px;
+}
+
+:root[data-theme="light"] .dashboard-intro h2 {
+  font-size: clamp(1.7rem, 2.2vw, 2.25rem);
+  letter-spacing: -.045em;
+}
+
+:root[data-theme="light"] .dashboard-status {
+  background: white;
+  border-color: rgb(222 230 225);
+  box-shadow: 0 10px 25px -20px rgba(10, 61, 34, .35);
+}
+
+:root[data-theme="light"] .dashboard-kpis {
+  gap: 14px;
+}
+
+:root[data-theme="light"] .dashboard-kpi {
+  background:
+    radial-gradient(100px 70px at 100% 0%, rgba(16, 137, 76, .035), transparent 75%),
+    white !important;
+  border-color: rgb(224 231 226) !important;
+  box-shadow: 0 14px 34px -28px rgba(18, 57, 36, .22), inset 0 1px 0 white;
+}
+
+:root[data-theme="light"] .dashboard-kpi:hover {
+  border-color: rgb(194 209 198) !important;
+  box-shadow: 0 22px 40px -30px rgba(18, 57, 36, .28), inset 0 1px 0 white;
+}
+
+:root[data-theme="light"] .kpi-hero {
+  background:
+    radial-gradient(210px 150px at 100% 0%, rgba(112, 207, 143, .25), transparent 70%),
+    linear-gradient(135deg, rgb(5 89 52) 0%, rgb(8 117 67) 55%, rgb(13 92 55) 100%);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 24px 45px -30px rgba(4, 70, 39, .48), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+:root[data-theme="light"] .hero-kpi-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(135deg, black, transparent 75%);
+}
+
+:root[data-theme="light"] .hero-kpi-spark {
+  color: rgba(177, 239, 195, .95);
+}
+
+:root[data-theme="light"] .dashboard-secondary .ui-card,
+:root[data-theme="light"] .dashboard-page .premium-card {
+  background-color: white;
+}
+
+:root[data-theme="light"] .dashboard-page .ui-card,
+:root[data-theme="light"] .dashboard-page .premium-card {
+  border-radius: 20px;
+  border-color: rgb(225 232 227);
+}
+
+:root[data-theme="light"] .dashboard-page .ui-card:hover {
+  border-color: rgb(208 220 212);
+}
+
+:root[data-theme="light"] .dashboard-page .section-title {
+  color: rgb(92 108 98);
+}
+
+:root[data-theme="light"] .dashboard-page .font-mono {
+  color: rgb(17 25 21);
+}
+
+:root[data-theme="light"] .dashboard-page .text-pos,
+:root[data-theme="light"] .dashboard-page .text-accent {
+  color: rgb(7 132 70);
+}
+
+:root[data-theme="light"] .dashboard-page .bg-surface {
+  background-color: rgb(241 246 243);
+}
+
+:root[data-theme="light"] .dashboard-page .bg-card {
+  background-color: white;
+}
+
+:root[data-theme="light"] .dashboard-page .dashboard-secondary .ui-card {
+  min-height: 116px;
+}
+
+:root[data-theme="light"] .dashboard-page .dashboard-secondary {
+  gap: 14px;
+}
+
+:root[data-theme="light"] .dashboard-page .dashboard-secondary > * {
+  box-shadow: 0 10px 28px -25px rgba(17, 62, 38, .22);
+}
+
+:root[data-theme="light"] .dashboard-page .sync-banner {
+  background: rgb(239 248 242);
+  border-color: rgb(195 222 204);
+  color: rgb(8 105 57);
+}
+
+:root[data-theme="light"] .mobile-nav {
+  background: rgb(250 252 250 / .92);
+  border-bottom-color: rgb(225 232 227);
+}
+
+:root[data-theme="light"] .premium-card {
+  box-shadow: 0 16px 38px -30px rgba(18, 57, 36, .22), inset 0 1px 0 white;
+}
+
+:root[data-theme="light"] .te-button {
+  box-shadow: 0 8px 20px -14px rgba(5, 104, 61, .38);
+}
+
+:root[data-theme="light"] .te-button.bg-accent {
+  background: rgb(5 104 61);
+  color: white;
+}
+
+:root[data-theme="light"] .te-button.bg-accent:hover {
+  background: rgb(4 87 51);
+}
+
+:root[data-theme="light"] input,
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea {
+  background: white;
+  border-color: rgb(221 229 224);
+}
+
+:root[data-theme="light"] input:focus,
+:root[data-theme="light"] select:focus,
+:root[data-theme="light"] textarea:focus {
+  border-color: rgb(100 166 126);
+  box-shadow: 0 0 0 3px rgba(22,128,76,.09);
+}
+
+@media (min-width: 1280px) {
+  :root[data-theme="light"] .dashboard-kpis {
+    grid-template-columns: 1.35fr repeat(5, 1fr);
+  }
 }
