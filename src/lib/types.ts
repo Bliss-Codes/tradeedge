@@ -265,7 +265,7 @@ export interface Profile {
   displayName?: string;
   avatarDataUrl?: string;
   tagline?: string;
-  /** User-defined violation and emotion labels, kept in the profile jsonb. */
+  /** User-defined violation and emotion labels, stored with the profile metadata. */
   customViolations?: string[];
   customEmotions?: string[];
 }

@@ -521,8 +521,8 @@ input, select, textarea {
 /* Analytics polish — visual-only refinement inspired by the supplied
    professional analytics references. */
 .analytics-page {
-  --analytics-section-gap: 34px;
-  --analytics-card-gap: 16px;
+  --analytics-section-gap: 28px;
+  --analytics-card-gap: 14px;
 }
 .analytics-page .analytics-header {
   min-height: 52px;
