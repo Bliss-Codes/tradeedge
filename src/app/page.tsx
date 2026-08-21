@@ -261,11 +261,23 @@ export default function DashboardPage() {
         <KpiCard icon="M4 20V10 M10 20V4 M16 20v-7 M22 20H2" label="Profit factor" value={fmtPF(stats.profitFactor)} sub="gross win ÷ loss" visual="pf" />
         <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} tone={money.expectancy > 0 ? 1 : money.expectancy < 0 ? -1 : 0} visual="expectancy" />
       </div>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />
-        <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={-1} />
-        <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD, currency).replace("-", "")}`} tone={-1} />
-        <Stat label="Total trades" value={String(stats.total)} />
+      <div className="dashboard-secondary-kpis grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="dashboard-secondary-kpi">
+          <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={0} />
+          <span className="dashboard-secondary-indicator dashboard-secondary-indicator-pos" aria-label="largest winning trade">↑</span>
+        </div>
+        <div className="dashboard-secondary-kpi">
+          <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={0} />
+          <span className="dashboard-secondary-indicator dashboard-secondary-indicator-neg" aria-label="largest losing trade">↓</span>
+        </div>
+        <div className="dashboard-secondary-kpi">
+          <Stat label="Max drawdown" value={`−${fmtMoney(money.maxDD, currency).replace("-", "")}`} tone={0} />
+          <span className="dashboard-secondary-indicator dashboard-secondary-indicator-neg" aria-label="maximum drawdown">↓</span>
+        </div>
+        <div className="dashboard-secondary-kpi">
+          <Stat label="Total trades" value={String(stats.total)} tone={0} />
+          <span className="dashboard-secondary-indicator dashboard-secondary-indicator-neutral" aria-label="trade count">•</span>
+        </div>
       </div>
 
       {/* P&L charts */}

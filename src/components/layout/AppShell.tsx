@@ -59,7 +59,10 @@ function SidebarProfile() {
   const accounts = useApp((s) => s.accounts);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const presetAvatars = Array.from({ length: 20 }, (_, i) => `/avatars/avatar-${i + 1}.jpg`);
 
   const name = profile?.displayName?.trim() || user?.email?.split("@")[0] || "Trader";
   const funded = accounts.filter((a) => !a.archived && a.type === "Funded").length;
@@ -78,9 +81,9 @@ function SidebarProfile() {
       <div className="flex flex-col items-center text-center">
         <div className="relative">
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => setAvatarPickerOpen(true)}
             className="group relative h-16 w-16 overflow-hidden rounded-full border border-edge bg-surface"
-            title="Change photo"
+            title="Choose avatar or upload a photo"
           >
             {profile?.avatarDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -90,7 +93,7 @@ function SidebarProfile() {
                 {name.slice(0, 2).toUpperCase()}
               </span>
             )}
-            <span className="absolute inset-0 hidden items-center justify-center bg-bg/70 text-[10px] text-ink group-hover:flex">
+            <span className="absolute inset-0 hidden items-center justify-center bg-bg/75 text-[10px] font-medium text-ink group-hover:flex">
               Change
             </span>
           </button>
@@ -102,8 +105,66 @@ function SidebarProfile() {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => pickAvatar(e.target.files?.[0])}
+            onChange={(e) => {
+              pickAvatar(e.target.files?.[0]);
+              setAvatarPickerOpen(false);
+            }}
           />
+
+          {avatarPickerOpen && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onMouseDown={() => setAvatarPickerOpen(false)}>
+              <div
+                className="w-full max-w-[560px] overflow-hidden rounded-2xl border border-edge bg-surface shadow-2xl"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-edge px-5 py-4">
+                  <div>
+                    <div className="text-sm font-semibold text-ink">Choose your avatar</div>
+                    <div className="mt-0.5 text-[11px] text-mute">Pick an avatar or use your own photo.</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarPickerOpen(false)}
+                    className="rounded-lg px-2 py-1 text-sm text-mute hover:bg-bg hover:text-ink"
+                    aria-label="Close avatar picker"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-5 gap-3 p-5">
+                  {presetAvatars.map((src) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => {
+                        setProfile({ avatarDataUrl: src });
+                        setAvatarPickerOpen(false);
+                      }}
+                      className={`group relative aspect-square overflow-hidden rounded-full border-2 bg-bg transition-transform hover:scale-105 ${
+                        profile?.avatarDataUrl === src ? "border-accent ring-2 ring-accent/20" : "border-edge"
+                      }`}
+                      title="Select avatar"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between border-t border-edge px-5 py-4">
+                  <span className="text-[11px] text-mute">20 preset avatars</span>
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="rounded-lg border border-edge bg-bg px-3 py-2 text-xs font-medium text-ink hover:border-accent hover:text-accent"
+                  >
+                    Upload photo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {editing ? (
