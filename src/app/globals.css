@@ -518,144 +518,32 @@ input, select, textarea {
 }
 
 
-/* Performance-by-side spacing: align the two visual cards as one system. */
-.side-analysis-card {
-  min-height: 228px;
-}
-.side-chart-content {
-  min-height: 144px;
-  display: flex;
-  align-items: center;
-}
-.side-analysis-card .side-chart-content > div {
-  width: 100%;
-}
-.side-analysis-card .side-chart-content svg {
-  flex-shrink: 0;
-}
-
-
-/* Analytics polish — layout discipline inspired by professional analytics
-   products, while preserving TradeEdge's existing visual identity. */
-.analytics-page {
-  --analytics-section-gap: 32px;
-  padding-bottom: 48px;
-}
-.analytics-page > .space-y-8 > * + * {
-  margin-top: var(--analytics-section-gap);
-}
-.analytics-page .section-title {
-  margin-bottom: 14px;
-  color: rgb(var(--ink));
-  font-size: 15px;
-  line-height: 1.25;
-  letter-spacing: -.01em;
-  text-transform: none;
-}
-.analytics-page .premium-card {
-  border-radius: 16px;
-  padding: 20px;
-}
-.analytics-page .premium-card:hover {
-  border-color: rgb(var(--edge) / .9);
-}
-.analytics-page .side-analysis-card {
-  min-height: 248px;
-  padding: 20px;
-}
-.analytics-page .side-card-header {
-  height: 20px;
-  display: flex;
-  align-items: center;
-}
-.analytics-page .side-chart-content--balanced {
-  min-height: 148px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.analytics-page .side-analysis-card .side-chart-content--balanced > div {
-  width: min(100%, 430px);
-}
-.analytics-page .side-analysis-card .side-chart-content--balanced svg {
-  max-height: 148px;
-}
-.analytics-page .side-analysis-card > p {
-  margin-top: 12px;
-  padding-top: 12px;
-}
-.analytics-page .session-analysis-grid > * {
-  min-height: 250px;
-}
-.analytics-page .session-analysis-grid svg {
-  max-height: 205px;
-}
-.analytics-page .analytics-filter-bar {
-  min-height: 40px;
-}
-.analytics-page .analytics-filter-bar + .analytics-active-filters {
-  margin-top: -2px;
-}
-.analytics-page .analytics-section-spacer {
-  margin-top: 36px;
-}
-
-@media (min-width: 1280px) {
-  .analytics-page {
-    padding-left: 32px;
-    padding-right: 32px;
-  }
-}
-
-@media (max-width: 767px) {
-  .analytics-page {
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: 32px;
-  }
-  .analytics-page .premium-card {
-    padding: 16px;
-  }
-  .analytics-page .side-analysis-card {
-    min-height: 0;
-  }
-}
-
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Analytics refinement
-   Borrowed from the strongest visual conventions in the supplied FXReplay
-   references: controlled content width, quiet filter chrome, strong section
-   rhythm, consistent card geometry, and generous chart breathing room.
-   No data, calculations, persistence, or Supabase behavior is changed.
-   ───────────────────────────────────────────────────────────────────────── */
+/* Analytics polish — visual-only refinement inspired by the supplied
+   professional analytics references. */
 .analytics-page {
   --analytics-section-gap: 34px;
   --analytics-card-gap: 16px;
-  --analytics-radius: 16px;
 }
-.analytics-page > * {
-  min-width: 0;
-}
-.analytics-header {
+.analytics-page .analytics-header {
   min-height: 52px;
 }
-.analytics-header h1 {
+.analytics-page .analytics-header h1 {
   letter-spacing: -.035em;
 }
-.analytics-summary {
+.analytics-page .analytics-summary {
   padding-bottom: 3px;
 }
-.analytics-filter-shell {
+.analytics-page .analytics-filter-shell {
+  min-height: 48px;
+  padding: 10px 0 12px;
   border-top: 1px solid rgb(var(--edge) / .55);
   border-bottom: 1px solid rgb(var(--edge) / .55);
-  padding: 12px 0;
 }
-.analytics-filter-shell .rounded-full {
+.analytics-page .analytics-filter-shell > .rounded-full {
   min-height: 32px;
 }
 .analytics-page .premium-card {
-  border-radius: var(--analytics-radius);
+  border-radius: 16px;
   padding: 20px;
 }
 .analytics-page .section-title {
@@ -664,17 +552,6 @@ input, select, textarea {
   font-size: 15px;
   line-height: 1.25;
   letter-spacing: -.015em;
-  text-transform: none;
-}
-.analytics-page .section-title + .grid,
-.analytics-page .section-title + .premium-card {
-  margin-top: 0;
-}
-.analytics-page .premium-card:hover {
-  border-color: rgb(var(--edge) / .95);
-}
-.analytics-page .space-y-8 > * + * {
-  margin-top: var(--analytics-section-gap);
 }
 .analytics-page .side-analysis-card {
   min-height: 250px;
@@ -682,6 +559,9 @@ input, select, textarea {
 }
 .analytics-page .side-chart-content {
   min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .analytics-page .side-analysis-card .side-chart-content > div {
   max-width: 430px;
@@ -689,46 +569,17 @@ input, select, textarea {
 .analytics-page .session-analysis-grid > * {
   min-height: 250px;
 }
-.analytics-page .session-analysis-grid > * > div:first-child {
-  margin-bottom: 2px;
-}
 .analytics-page .session-analysis-grid svg {
   max-height: 205px;
 }
-.analytics-page .analytics-header + .analytics-filter-shell {
-  margin-top: -4px;
+.analytics-page .premium-card:hover {
+  border-color: rgb(var(--edge) / .95);
 }
-.analytics-page .analytics-filter-shell + .flex {
-  margin-top: -18px;
-}
-.analytics-page .analytics-filter-shell + .flex + .flex {
-  margin-top: 0;
+.analytics-page > .space-y-8 > * + * {
+  margin-top: var(--analytics-section-gap);
 }
 
-/* Professional chart containers: slightly darker/quiet interior so data
-   carries the visual weight rather than the chrome. */
-.analytics-page .premium-card svg {
-  shape-rendering: geometricPrecision;
-}
-.analytics-page .premium-card .font-mono {
-  letter-spacing: -.015em;
-}
-.analytics-page [class*="border-edge"] {
-  border-color: rgb(var(--edge) / .72);
-}
-
-/* Monthly grid / calendar: tighter cells with stronger grouping. */
-.analytics-page .grid-cols-\[56px_repeat\(12\,1fr\)_72px\] {
-  gap: 6px;
-}
-.analytics-page .grid-cols-\[56px_repeat\(12\,1fr\)_72px\] > * {
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Positive / negative states stay restrained. */
+/* Keep positive/negative states visible without making the page noisy. */
 .analytics-page .text-pos {
   text-shadow: 0 0 20px rgb(var(--pos) / .08);
 }
@@ -753,15 +604,12 @@ input, select, textarea {
     padding-right: 14px;
     --analytics-section-gap: 26px;
   }
-  .analytics-header {
+  .analytics-page .analytics-header {
     align-items: flex-start;
     flex-direction: column;
   }
   .analytics-page .premium-card {
     padding: 16px;
     border-radius: 14px;
-  }
-  .analytics-page .section-title {
-    font-size: 14px;
   }
 }
