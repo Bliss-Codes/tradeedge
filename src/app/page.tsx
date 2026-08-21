@@ -78,26 +78,18 @@ function KpiCard({ icon, label, value, sub, tone = 0, hero = false, visual }: { 
       </div>
     );
   }
-  const valTone = tone > 0 ? "text-pos" : tone < 0 ? "text-neg" : "text-ink";
   return (
-    <div className="premium-card dashboard-kpi relative min-h-[168px] overflow-hidden rounded-[22px] border border-edge bg-card p-5">
-      <div className="kpi-card-accent absolute right-0 top-0 h-20 w-20 rounded-full opacity-0 blur-2xl" aria-hidden="true" />
+    <div className="premium-card dashboard-kpi relative min-h-[176px] overflow-hidden rounded-[22px] border border-edge bg-card p-5">
       <div className="relative z-10 flex h-full flex-col">
-        <div className="flex items-center justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-sub ring-1 ring-edge/60">
-            <KpiIcon d={icon} />
-          </div>
-          <span className={`h-1.5 w-1.5 rounded-full ${tone > 0 ? "bg-pos" : tone < 0 ? "bg-neg" : "bg-edge"}`} />
-        </div>
-        <div className="mt-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">{label}</div>
-          <div className={`mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight ${valTone}`}>{value}</div>
-          {sub && <div className="mt-1 text-xs text-mute">{sub}</div>}
+        <div className="dashboard-kpi-copy">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-mute">{label}</div>
+          <div className="mt-3 font-mono text-[31px] font-bold leading-none tabular-nums tracking-[-0.035em] text-ink">{value}</div>
+          {sub && <div className="mt-3 text-xs text-mute">{sub}</div>}
         </div>
         {visual === "pnl" && <div className="dashboard-kpi-visual dashboard-kpi-spark" aria-hidden="true">{[22,34,28,42,38,58,52,72,64,84].map((h,i)=><span key={i} style={{height:`${h}%`}} />)}</div>}
-        {visual === "winrate" && <div className="dashboard-kpi-visual dashboard-kpi-segmented" aria-hidden="true"><span style={{width:`${Math.max(4,Math.min(96,Number(value.replace("%",""))))}%`}} /></div>}
-        {visual === "pf" && <div className="dashboard-kpi-visual dashboard-kpi-progress" aria-hidden="true"><span style={{width:`${Math.max(8,Math.min(100,Number(value)/3*100))}%`}} /></div>}
-        {visual === "expectancy" && <div className="dashboard-kpi-visual dashboard-kpi-expectancy" aria-hidden="true"><span /></div>}
+        {visual === "winrate" && <div className="dashboard-kpi-visual dashboard-kpi-ring" aria-hidden="true" style={{"--ring-value": `${Math.max(4,Math.min(96,Number(value.replace("%","")))) * 3.6}deg`} as React.CSSProperties}><span>{value}</span></div>}
+        {visual === "pf" && <div className="dashboard-kpi-visual dashboard-kpi-bars" aria-hidden="true">{[42,68,54,82,61].map((h,i)=><span key={i} style={{height:`${h}%`}} />)}</div>}
+        {visual === "expectancy" && <div className="dashboard-kpi-visual dashboard-kpi-expectancy" aria-hidden="true"><span className="dashboard-kpi-expectancy-dot" /><i /><b /></div>}
       </div>
     </div>
   );
