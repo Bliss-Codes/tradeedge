@@ -12,7 +12,6 @@ import { stageOf } from "@/stores/useApp";
 import { YearHeatmap } from "@/components/charts/YearHeatmap";
 import { isoWeekKey } from "@/lib/metrics";
 import Link from "next/link";
-import { RiskBanner } from "@/components/layout/RiskBanner";
 import { TradeModal } from "@/components/trades/TradeModal";
 import { TradeDetail } from "@/components/trades/TradeDetail";
 import { DayReviewModal } from "@/components/trades/DayReviewModal";
@@ -50,7 +49,7 @@ function KpiIcon({ d, className = "" }: { d: string; className?: string }) {
   );
 }
 
-function KpiCard({ icon, label, value, sub, tone = 0, hero = false }: { icon: string; label: string; value: string; sub?: string; tone?: number; hero?: boolean }) {
+function KpiCard({ icon, label, value, sub, tone = 0, hero = false, visual }: { icon: string; label: string; value: string; sub?: string; tone?: number; hero?: boolean; visual?: "pnl" | "winrate" | "pf" | "expectancy" }) {
   if (hero) {
     return (
       <div className="kpi-hero dashboard-hero-kpi relative min-h-[168px] overflow-hidden rounded-[22px] p-5" style={{ color: "rgb(var(--kpi-hero-ink))" }}>
@@ -90,11 +89,15 @@ function KpiCard({ icon, label, value, sub, tone = 0, hero = false }: { icon: st
           </div>
           <span className={`h-1.5 w-1.5 rounded-full ${tone > 0 ? "bg-pos" : tone < 0 ? "bg-neg" : "bg-edge"}`} />
         </div>
-        <div className="mt-auto">
+        <div className="mt-5">
           <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">{label}</div>
           <div className={`mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight ${valTone}`}>{value}</div>
           {sub && <div className="mt-1 text-xs text-mute">{sub}</div>}
         </div>
+        {visual === "pnl" && <div className="dashboard-kpi-visual dashboard-kpi-spark" aria-hidden="true">{[22,34,28,42,38,58,52,72,64,84].map((h,i)=><span key={i} style={{height:`${h}%`}} />)}</div>}
+        {visual === "winrate" && <div className="dashboard-kpi-visual dashboard-kpi-segmented" aria-hidden="true"><span style={{width:`${Math.max(4,Math.min(96,Number(value.replace("%",""))))}%`}} /></div>}
+        {visual === "pf" && <div className="dashboard-kpi-visual dashboard-kpi-progress" aria-hidden="true"><span style={{width:`${Math.max(8,Math.min(100,Number(value)/3*100))}%`}} /></div>}
+        {visual === "expectancy" && <div className="dashboard-kpi-visual dashboard-kpi-expectancy" aria-hidden="true"><span /></div>}
       </div>
     </div>
   );
@@ -183,101 +186,6 @@ function CapitalSplit({ currency }: { currency: string }) {
 }
 
 
-function PerformanceVisuals({
-  adherence,
-  wins,
-  losses,
-  breakevens,
-  streak,
-}: {
-  adherence: number;
-  wins: number;
-  losses: number;
-  breakevens: number;
-  streak: number;
-}) {
-  const total = Math.max(1, wins + losses + breakevens);
-  const clean = Math.max(0, Math.min(100, adherence));
-  const circumference = 2 * Math.PI * 42;
-  const dash = (clean / 100) * circumference;
-
-  return (
-    <Card className="performance-visuals overflow-hidden p-0">
-      <div className="grid lg:grid-cols-[1.15fr_1fr_1fr]">
-        <div className="relative overflow-hidden p-5 sm:p-6">
-          <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/8 blur-3xl" aria-hidden="true" />
-          <div className="relative flex items-center gap-5">
-            <div className="relative h-24 w-24 shrink-0">
-              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-label={`${Math.round(clean)} percent rule adherence`}>
-                <circle cx="50" cy="50" r="42" fill="none" stroke="rgb(var(--surface))" strokeWidth="8" />
-                <circle
-                  cx="50" cy="50" r="42" fill="none"
-                  stroke="rgb(var(--accent))" strokeWidth="8" strokeLinecap="round"
-                  strokeDasharray={`${dash} ${circumference - dash}`}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-xl font-bold text-ink">{Math.round(clean)}%</span>
-                <span className="text-[8px] uppercase tracking-wider text-mute">rules</span>
-              </div>
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Discipline pulse</div>
-              <div className="mt-1 text-lg font-semibold tracking-tight text-ink">Execution quality</div>
-              <p className="mt-1 max-w-xs text-xs leading-relaxed text-mute">How consistently your recent trades followed the rules you defined.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-edge p-5 sm:p-6 lg:border-l lg:border-t-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">Trade outcomes</div>
-              <div className="mt-1 text-lg font-semibold tracking-tight text-ink">Win / loss balance</div>
-            </div>
-            <span className="font-mono text-xs text-mute">{total} total</span>
-          </div>
-          <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-surface">
-            <div className="bg-pos transition-all" style={{ width: `${(wins / total) * 100}%` }} />
-            <div className="bg-warn transition-all" style={{ width: `${(breakevens / total) * 100}%` }} />
-            <div className="bg-neg transition-all" style={{ width: `${(losses / total) * 100}%` }} />
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-            <div><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-pos" />{wins}W</div>
-            <div><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-warn" />{breakevens}BE</div>
-            <div><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-neg" />{losses}L</div>
-          </div>
-        </div>
-
-        <div className="border-t border-edge p-5 sm:p-6 lg:border-l lg:border-t-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-mute">Current rhythm</div>
-              <div className="mt-1 text-lg font-semibold tracking-tight text-ink">
-                {streak > 0 ? "Winning streak" : streak < 0 ? "Losing streak" : "Flat"}
-              </div>
-            </div>
-            <div className={`font-mono text-3xl font-bold ${streak > 0 ? "text-pos" : streak < 0 ? "text-neg" : "text-mute"}`}>
-              {streak === 0 ? "—" : Math.abs(streak)}
-            </div>
-          </div>
-          <div className="mt-5 flex h-12 items-end gap-1.5">
-            {[.28,.46,.36,.63,.54,.78,.68,.92].map((h, i) => (
-              <span
-                key={i}
-                className={`flex-1 rounded-t-sm ${streak < 0 ? "bg-neg/25" : "bg-accent/30"}`}
-                style={{ height: `${h * 100}%` }}
-              />
-            ))}
-            <span className={`ml-1 w-1.5 rounded-full ${streak > 0 ? "bg-pos" : streak < 0 ? "bg-neg" : "bg-mute"}`} style={{ height: "100%" }} />
-          </div>
-          <div className="mt-2 text-[11px] text-mute">Recent performance rhythm</div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 export default function DashboardPage() {
   const trades = useVisibleTrades();
   const currency = useDisplayCurrency();
@@ -353,46 +261,14 @@ export default function DashboardPage() {
           Journal synced
         </div>
       </div>
-      <WeeklyFocusBanner />
-      <RiskBanner />
       {/* Headline KPIs */}
-      <div className="dashboard-kpis grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        {/* Adherence leads on purpose: what you see first is what you optimise for.
-            P&L is the outcome; adherence is the behaviour that produces it. */}
-        <KpiCard
-          hero
-          icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"
-          label="Rule adherence"
-          value={adh.total === 0 ? "—" : fmtPct(adherence)}
-          sub={
-            adh.total === 0
-              ? "no trades yet"
-              : `${adh.followed} of ${adh.total} clean${adh.noThesis > 0 ? ` · ${adh.noThesis} with no thesis` : ""}`
-          }
-        />
-        <KpiCard
-          icon="M3 17l6-6 4 4 8-8 M21 7v5h-5"
-          label="Net P&L"
-          value={fmtMoney(stats.netPnl, currency)}
-          sub={`${fmtR(stats.netRR)} · ${stats.total} trades`}
-        />
-        <KpiCard icon="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z" label="Win rate" value={fmtPct(stats.winRate)} sub={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} />
-        <KpiCard icon="M4 20V10 M10 20V4 M16 20v-7 M22 20H2" label="Profit factor" value={fmtPF(stats.profitFactor)} sub="gross win ÷ loss" />
-        <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} />
-        <KpiCard
-          icon="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"
-          label="Current streak"
-          value={stats.currentStreak === 0 ? "—" : `${Math.abs(stats.currentStreak)} ${stats.currentStreak > 0 ? "W" : "L"}`}
-          sub={stats.currentStreak > 0 ? "winning" : stats.currentStreak < 0 ? "losing" : "flat"}
-        />
+      <div className="dashboard-kpis grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <KpiCard hero icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" label="Rule adherence" value={adh.total === 0 ? "—" : fmtPct(adherence)} sub={adh.total === 0 ? "no trades yet" : `${adh.followed} of ${adh.total} clean${adh.noThesis > 0 ? ` · ${adh.noThesis} with no thesis` : ""}`} />
+        <KpiCard icon="M3 17l6-6 4 4 8-8 M21 7v5h-5" label="Net P&L" value={fmtMoney(stats.netPnl, currency)} sub={`${fmtR(stats.netRR)} · ${stats.total} trades`} tone={stats.netPnl > 0 ? 1 : stats.netPnl < 0 ? -1 : 0} visual="pnl" />
+        <KpiCard icon="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z" label="Win rate" value={fmtPct(stats.winRate)} sub={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} visual="winrate" />
+        <KpiCard icon="M4 20V10 M10 20V4 M16 20v-7 M22 20H2" label="Profit factor" value={fmtPF(stats.profitFactor)} sub="gross win ÷ loss" visual="pf" />
+        <KpiCard icon="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" label="Expectancy" value={fmtMoney(money.expectancy, currency)} sub={`${stats.avgRR.toFixed(2)}R / trade`} tone={money.expectancy > 0 ? 1 : money.expectancy < 0 ? -1 : 0} visual="expectancy" />
       </div>
-      <PerformanceVisuals
-        adherence={adherence}
-        wins={stats.wins}
-        losses={stats.losses}
-        breakevens={stats.breakevens}
-        streak={stats.currentStreak}
-      />
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat label="Largest win" value={fmtMoney(money.largestWin, currency)} tone={1} />
         <Stat label="Largest loss" value={fmtMoney(money.largestLoss, currency)} tone={-1} />

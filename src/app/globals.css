@@ -614,29 +614,7 @@ input, select, textarea {
   }
 }
 
-/* Analytics spacing cleanup: reduce stacked gaps between the header,
-   filters, scope banner, tabs, and first chart. */
-.analytics-page {
-  row-gap: 20px;
-}
-.analytics-page .analytics-header {
-  min-height: 44px;
-}
-.analytics-page .analytics-header + .analytics-filter-shell {
-  margin-top: -4px;
-}
-.analytics-page .analytics-filter-shell + .flex {
-  margin-top: -12px;
-}
-.analytics-page .analytics-filter-shell + .flex + .flex {
-  margin-top: -2px;
-}
-.analytics-page .analytics-filter-shell + .flex + .flex + .premium-card,
-.analytics-page .analytics-filter-shell + .premium-card {
-  margin-top: 0;
-}
-@media (max-width: 639px) {
-  .analytics-page {
-    row-gap: 16px;
-  }
-}
+
+/* Dashboard visual hierarchy: compact headline metrics with restrained data visuals. */
+.dashboard-kpis{align-items:stretch}.dashboard-kpi{min-height:172px}.dashboard-kpi-visual{position:absolute;left:20px;right:20px;bottom:17px;height:28px;pointer-events:none}.dashboard-kpi-spark{display:flex;align-items:end;gap:4px;opacity:.5}.dashboard-kpi-spark span{flex:1;min-width:3px;border-radius:3px 3px 1px 1px;background:linear-gradient(to top,rgb(var(--accent)/.12),rgb(var(--accent)/.55))}.dashboard-kpi-segmented,.dashboard-kpi-progress{overflow:hidden;height:5px;bottom:20px;border-radius:999px;background:rgb(var(--surface));box-shadow:inset 0 0 0 1px rgb(var(--edge)/.55)}.dashboard-kpi-segmented span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,rgb(var(--accent)/.45),rgb(var(--pos)))}.dashboard-kpi-progress span{display:block;height:100%;border-radius:inherit;background:rgb(var(--accent)/.72)}.dashboard-kpi-expectancy{height:5px;bottom:20px;border-radius:999px;background:linear-gradient(90deg,rgb(var(--neg)/.38) 0 48%,rgb(var(--edge)/.75) 48% 52%,rgb(var(--pos)/.5) 52% 100%)}.dashboard-kpi-expectancy span{position:absolute;top:-3px;left:66%;width:11px;height:11px;border-radius:50%;background:rgb(var(--pos));box-shadow:0 0 0 3px rgb(var(--pos)/.12)}
+@media(max-width:639px){.dashboard-kpi{min-height:158px}}
