@@ -671,7 +671,10 @@ input, select, textarea {
 .dashboard-secondary-kpi .text-pos,
 .dashboard-secondary-kpi .text-neg,
 .dashboard-secondary-kpi .text-ink {
-  color: rgb(var(--ink)) !important;
+  color: #ffffff !important;
+}
+.dashboard-secondary-kpi .font-mono {
+  color: #ffffff !important;
 }
 .dashboard-secondary-indicator-pos {
   color: #22c55e;

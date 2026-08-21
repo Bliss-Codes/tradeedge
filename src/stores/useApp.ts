@@ -67,7 +67,16 @@ interface AppState extends Snapshot {
 /** Fire-and-forget cloud writes: log + surface failures instead of swallowing them. */
 function reportSync(p: Promise<unknown>) {
   p.catch((e: unknown) => {
-    const msg = e instanceof Error ? e.message : "Cloud save failed";
+    const error = e as {
+      message?: string;
+      code?: string;
+      details?: string;
+      hint?: string;
+    };
+    const parts = [error?.message, error?.code && `code ${error.code}`, error?.details, error?.hint]
+      .filter(Boolean)
+      .join(" — ");
+    const msg = parts || (e instanceof Error ? e.message : "Cloud save failed");
     console.error("TradeEdge cloud sync failed:", e);
     useApp.setState({ syncError: msg });
   });

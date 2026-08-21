@@ -97,8 +97,25 @@ export class SupabaseBackend implements Backend {
 
   async setProfile(profile: Profile) {
     const uid = await userId();
-    const { error } = await db().from("profiles").upsert({ user_id: uid, profile });
-    if (error) throw error;
+    const sb = db();
+
+    // Update the existing profile row first. This is more reliable on existing
+    // Supabase projects where the profiles table/policies may predate the
+    // current schema. If no row exists yet, create it explicitly.
+    const { data: updated, error: updateError } = await sb
+      .from("profiles")
+      .update({ profile })
+      .eq("user_id", uid)
+      .select("user_id")
+      .maybeSingle();
+
+    if (updateError) throw updateError;
+    if (updated) return;
+
+    const { error: insertError } = await sb
+      .from("profiles")
+      .insert({ user_id: uid, profile });
+    if (insertError) throw insertError;
   }
 
   async replaceAll(snapshot: Snapshot) {
