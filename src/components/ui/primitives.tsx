@@ -232,6 +232,7 @@ export function Tabs({
   tabs,
   active,
   onChange,
+  className = "",
 }: {
   tabs: string[];
   active: string;
