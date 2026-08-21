@@ -516,3 +516,20 @@ input, select, textarea {
 .palette-warm-highlight {
   background: rgb(var(--brand-cream));
 }
+
+
+/* Performance-by-side spacing: align the two visual cards as one system. */
+.side-analysis-card {
+  min-height: 228px;
+}
+.side-chart-content {
+  min-height: 144px;
+  display: flex;
+  align-items: center;
+}
+.side-analysis-card .side-chart-content > div {
+  width: 100%;
+}
+.side-analysis-card .side-chart-content svg {
+  flex-shrink: 0;
+}

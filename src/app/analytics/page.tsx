@@ -1011,26 +1011,31 @@ export default function AnalyticsPage() {
           <div>
             <SectionTitle>Performance by side</SectionTitle>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Card>
-                <div className="mb-3 text-sm font-medium text-sub">Trade split</div>
-                <Donut
-                  slices={[
-                    { label: "Long", value: sideSplit.longN, color: "rgb(var(--pos))" },
-                    { label: "Short", value: sideSplit.shortN, color: "rgb(var(--accent))" },
-                  ]}
-                  center={{ value: String(sideSplit.longN + sideSplit.shortN), label: "trades" }}
-                />
+              <Card className="side-analysis-card">
+                <div className="mb-4 text-sm font-medium text-sub">Trade split</div>
+                <div className="side-chart-content">
+                  <Donut
+                    slices={[
+                      { label: "Long", value: sideSplit.longN, color: "rgb(var(--pos))" },
+                      { label: "Short", value: sideSplit.shortN, color: "rgb(var(--accent))" },
+                    ]}
+                    center={{ value: String(sideSplit.longN + sideSplit.shortN), label: "trades" }}
+                  />
+                </div>
               </Card>
-              <Card>
-                <div className="mb-3 text-sm font-medium text-sub">Win rate by side</div>
-                <RingCompare
-                  rings={[
-                    { label: "Long", value: sideSplit.longWR, max: 100, color: "rgb(var(--pos))" },
-                    { label: "Short", value: sideSplit.shortWR, max: 100, color: "rgb(var(--accent))" },
-                  ]}
-                  center={`${sideSplit.longN}L / ${sideSplit.shortN}S`}
-                />
-                <p className="mt-3 text-[11px] text-mute">
+              <Card className="side-analysis-card">
+                <div className="mb-4 text-sm font-medium text-sub">Win rate by side</div>
+                <div className="side-chart-content">
+                  <RingCompare
+                    size={132}
+                    rings={[
+                      { label: "Long", value: sideSplit.longWR, max: 100, color: "rgb(var(--pos))" },
+                      { label: "Short", value: sideSplit.shortWR, max: 100, color: "rgb(var(--accent))" },
+                    ]}
+                    center={`${sideSplit.longN}L / ${sideSplit.shortN}S`}
+                  />
+                </div>
+                <p className="mt-4 border-t border-edge/60 pt-3 text-[11px] leading-relaxed text-mute">
                   {Math.abs(sideSplit.longWR - sideSplit.shortWR) >= 15 && sideSplit.longN >= 3 && sideSplit.shortN >= 3
                     ? `${sideSplit.longWR > sideSplit.shortWR ? "Longs" : "Shorts"} are winning materially more — worth checking whether the weaker side is worth trading at all.`
                     : "Both sides performing comparably."}
