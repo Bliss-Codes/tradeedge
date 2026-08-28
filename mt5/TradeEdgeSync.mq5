@@ -95,6 +95,30 @@ string DealJson(ulong dealTicket)
 }
 
 //+------------------------------------------------------------------+
+bool SendHeartbeat()
+{
+   string body = "{";
+   body += "\"login\":" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + ",";
+   body += "\"userId\":\"" + UserId + "\",";
+   body += "\"accountId\":\"" + AccountId + "\",";
+   body += "\"deals\":[]}";
+
+   char post[]; char result[];
+   StringToCharArray(body, post, 0, StringLen(body), CP_UTF8);
+   string headers = "Content-Type: application/json\r\nx-sync-key: " + SecretKey + "\r\n";
+   string resultHeaders;
+   ResetLastError();
+   int status = WebRequest("POST", WebhookURL, headers, 8000, post, result, resultHeaders);
+   if(status == -1)
+   {
+      Print("TradeEdgeSync: connection test failed (", GetLastError(), "). Check Allow WebRequest and the URL.");
+      return false;
+   }
+   string resp = CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8);
+   Print("TradeEdgeSync: connection test → HTTP ", status, " ", resp);
+   return (status >= 200 && status < 300);
+}
+
 bool SendDeals(string dealsJsonArray, int count)
 {
    if(count == 0) return true;
@@ -129,6 +153,8 @@ int OnInit()
       Print("TradeEdgeSync: fill in SecretKey, UserId and AccountId in the EA inputs.");
       return(INIT_SUCCEEDED);
    }
+   if(!SendHeartbeat())
+      Print("TradeEdgeSync: connection test failed. Backfill will still be attempted if enabled.");
    if(BackfillDays > 0)
    {
       datetime from = TimeCurrent() - BackfillDays * 86400;

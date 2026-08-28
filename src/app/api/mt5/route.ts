@@ -5,13 +5,11 @@ import { sessionFromDate, Session } from "@/lib/types";
 /**
  * MT5 → TradeEdge sync endpoint.
  *
- * The TradeEdgeSync EA posts closed deals here. Auth is a shared secret
- * (MT5_SYNC_SECRET) checked against the x-sync-key header. Inserts use the
- * Supabase service-role key (server-only env var) with deterministic ids
- * (mt5-{login}-{ticket}) so re-sends and backfills never duplicate.
+ * The TradeEdgeSync EA posts closed deals here. Each user gets a private
+ * sync token stored in Supabase Auth user metadata, so one user's MT5
+ * connection cannot be used to write into another user's journal.
  *
- * Required Vercel env vars:
- *   MT5_SYNC_SECRET            — any long random string; same value goes in the EA input
+ * Required Vercel env var:
  *   SUPABASE_SERVICE_ROLE_KEY  — Supabase dashboard → Settings → API → service_role
  */
 
@@ -49,7 +47,7 @@ export async function GET() {
     ok: true,
     endpoint: "POST deals here from the TradeEdgeSync EA",
     configured: {
-      MT5_SYNC_SECRET: Boolean(process.env.MT5_SYNC_SECRET),
+      PER_USER_SYNC_TOKEN: true,
       SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
       NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
     },
@@ -57,17 +55,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.MT5_SYNC_SECRET;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  if (!secret || !serviceKey || !url) {
-    return NextResponse.json({ error: "Sync not configured. Set MT5_SYNC_SECRET and SUPABASE_SERVICE_ROLE_KEY in Vercel." }, { status: 500 });
+  if (!serviceKey || !url) {
+    return NextResponse.json({ error: "Sync not configured. Set SUPABASE_SERVICE_ROLE_KEY in Vercel." }, { status: 500 });
   }
-  if (req.headers.get("x-sync-key") !== secret) {
-    return NextResponse.json({ error: "Invalid sync key" }, { status: 401 });
-  }
-
   let body: SyncBody;
   try {
     body = (await req.json()) as SyncBody;
@@ -79,6 +72,40 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  // Prefer a private per-user token stored in Auth metadata. This lets the
+  // EA authenticate as the intended TradeEdge user without exposing a global
+  // secret that could write to any user's journal.
+  const providedKey = req.headers.get("x-sync-key") ?? "";
+  let authenticated = false;
+
+  {
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(String(body.userId));
+    if (authError || !authUser.user) {
+      return NextResponse.json({ error: "Unknown TradeEdge user" }, { status: 401 });
+    }
+    const expectedToken = authUser.user.user_metadata?.tradeedge_mt5_sync_token;
+    if (!expectedToken || providedKey !== expectedToken) {
+      return NextResponse.json({ error: "Invalid MT5 sync token" }, { status: 401 });
+    }
+    authenticated = true;
+  }
+
+  if (!authenticated) {
+    return NextResponse.json({ error: "Invalid MT5 sync token" }, { status: 401 });
+  }
+
+  const { data: accountRows, error: accountError } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("id", String(body.accountId))
+    .eq("user_id", String(body.userId))
+    .limit(1);
+
+  if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 });
+  if (!accountRows?.length) {
+    return NextResponse.json({ error: "TradeEdge account not found for this user" }, { status: 403 });
+  }
 
   const rows = body.deals
     .filter((d) => d && d.ticket != null && d.symbol && d.openTimeUtc)
