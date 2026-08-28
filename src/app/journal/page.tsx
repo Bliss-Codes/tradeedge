@@ -211,13 +211,27 @@ function JournalInner() {
             <Button onClick={() => setLogOpen(true)}>Log trade</Button>
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-mute">Pair</span>
+          <button
+            type="button"
+            onClick={() => setPair("")}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${pair === "" ? "border-accent/50 bg-accent/10 text-ink" : "border-edge bg-surface text-mute hover:text-sub"}`}
+          >
+            All
+          </button>
+          {pairOptions.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPair(p)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${pair === p ? "border-accent/50 bg-accent/10 text-ink" : "border-edge bg-surface text-mute hover:border-accent/30 hover:text-sub"}`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-2">
-          <div className="min-w-[120px] flex-1">
-            <Select value={pair} onChange={(e) => setPair(e.target.value)}>
-              <option value="">All pairs</option>
-              {pairOptions.map((p) => <option key={p}>{p}</option>)}
-            </Select>
-          </div>
           <div className="min-w-[120px] flex-1">
             <Select value={session} onChange={(e) => setSession(e.target.value)}>
               <option value="">All sessions</option>
@@ -253,6 +267,13 @@ function JournalInner() {
             </Select>
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-edge/60 pt-2 text-xs text-mute">
+        <span>{pair ? `${pair} · ` : ""}{filtered.length} trade{filtered.length === 1 ? "" : "s"} shown</span>
+        {pair && (
+          <button type="button" onClick={() => setPair("")} className="text-mute hover:text-ink">Clear pair</button>
+        )}
       </div>
 
       {filtered.length === 0 ? (

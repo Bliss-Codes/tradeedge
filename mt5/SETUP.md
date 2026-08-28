@@ -2,16 +2,15 @@
 
 Every trade you close in MT5 appears in TradeEdge automatically. One-time setup, ~10 minutes.
 
-## 1. One server env var in Vercel
+## 1. Two env vars in Vercel
 Vercel → your project → Settings → Environment Variables → add:
 
 | Name | Value |
 |---|---|
+| `MT5_SYNC_SECRET` | Any long random string (e.g. from https://randomkeygen.com). You'll paste the same value into the EA. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Project Settings → API → **service_role** key. ⚠️ Server-only secret — never put it in the EA or share it. |
 
-Then **Redeploy** (Deployments → ⋯ → Redeploy) so the var takes effect.
-
-TradeEdge generates a **private per-user MT5 token** from Settings. The token is stored in Supabase Auth metadata and is what you paste into the EA. There is no shared MT5 secret.
+Then **Redeploy** (Deployments → ⋯ → Redeploy) so the vars take effect.
 
 ## 2. Install the EA in MT5
 1. In MT5: **File → Open Data Folder** → `MQL5/Experts/` → copy `TradeEdgeSync.mq5` there.
@@ -24,7 +23,7 @@ Drag **TradeEdgeSync** from the Navigator onto any chart (one chart is enough �
 | Input | Value |
 |---|---|
 | `WebhookURL` | `https://your-app.vercel.app/api/mt5` |
-| `SecretKey` | the private token generated in TradeEdge → Settings → MT5 auto-sync |
+| `SecretKey` | the same value as `MT5_SYNC_SECRET` |
 | `UserId` | TradeEdge → **Settings → MT5 auto-sync** |
 | `AccountId` | same place — the TradeEdge account these trades belong to |
 | `BackfillDays` | how much history to import on start (default 30; set 0 to disable) |
