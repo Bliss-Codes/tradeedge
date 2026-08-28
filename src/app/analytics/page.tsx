@@ -547,15 +547,19 @@ export default function AnalyticsPage() {
 
   // Horizontal filter bar — applies to every tab.
   const [fRange, setFRange] = useState("all");
+  const [fPair, setFPair] = useState("");
   const [fStrategy, setFStrategy] = useState("");
   const [fSession, setFSession] = useState("");
   const [fSide, setFSide] = useState("");
   const [fOutcome, setFOutcome] = useState("");
 
+  const pairOptions = useMemo(() => Array.from(new Set(visible.map((t) => t.pair))).sort(), [visible]);
+
   const trades = useMemo(() => {
     const days = fRange === "all" ? Infinity : parseInt(fRange, 10);
     const cutoff = days === Infinity ? -Infinity : Date.now() - days * 86400000;
     return visible.filter((t) => {
+      if (fPair && t.pair !== fPair) return false;
       if (fStrategy && t.strategyId !== fStrategy) return false;
       if (fSession && t.session !== fSession) return false;
       if (fSide && t.direction !== fSide) return false;
@@ -564,7 +568,7 @@ export default function AnalyticsPage() {
       if (new Date(t.date).getTime() < cutoff) return false;
       return true;
     });
-  }, [visible, fRange, fStrategy, fSession, fSide, fOutcome, fType]);
+  }, [visible, fRange, fPair, fStrategy, fSession, fSide, fOutcome, fType]);
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   /** Running series + averages powering the RR strip. */
@@ -609,7 +613,7 @@ export default function AnalyticsPage() {
     // Only accounts in the selected capital stage count — showing funded
     // analytics against combined funded+challenge capital is meaningless.
     const active = accounts.filter((a) => !a.archived && (stage === "all" || stageOf(a.type) === stage));
-    if (fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "") {
+    if (fPair === "" && fStrategy === "" && fSession === "" && fSide === "" && fOutcome === "" && fType === "") {
       const sel = useApp.getState().selectedAccountId;
       if (sel !== "all") {
         const acct = accounts.find((a) => a.id === sel);
@@ -619,7 +623,7 @@ export default function AnalyticsPage() {
       return active.reduce((s2, a) => s2 + (a.balance || 0), 0) || undefined;
     }
     return undefined;
-  }, [accounts, stage, fStrategy, fSession, fSide, fOutcome, fType]);
+  }, [accounts, stage, fPair, fStrategy, fSession, fSide, fOutcome, fType]);
   /** Account balance and its % change, for the chart header. */
   const balance = startingBalance !== undefined ? startingBalance + stats.netPnl : undefined;
   const pctChange = startingBalance ? (stats.netPnl / startingBalance) * 100 : undefined;
@@ -745,6 +749,8 @@ export default function AnalyticsPage() {
         )}
         <FilterPill label="Range" value={fRange === "all" ? "" : `${fRange}d`} onChange={setFRange}
           options={[["all", "All time"], ["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"]]} />
+        <FilterPill label="Pair" value={fPair} onChange={setFPair}
+          options={[["", "All pairs"], ...pairOptions.map((x) => [x, x] as [string, string])]} />
         <FilterPill label="Strategy" value={fStrategy} onChange={setFStrategy}
           options={[["", "All strategies"], ...strategies.map((x) => [x.id, x.name] as [string, string])]} />
         <FilterPill label="Session" value={fSession} onChange={setFSession}
@@ -770,16 +776,17 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {(fRange !== "all" || fStrategy || fSession || fSide || fOutcome || fType) && (
+      {(fRange !== "all" || fPair || fStrategy || fSession || fSide || fOutcome || fType) && (
         <div className="-mt-1 flex flex-wrap items-center gap-1.5">
           {fRange !== "all" && <FilterChip label={`last ${fRange} days`} onClear={() => setFRange("all")} />}
+          {fPair && <FilterChip label={fPair} onClear={() => setFPair("")} />}
           {fStrategy && <FilterChip label={strategies.find((x) => x.id === fStrategy)?.name ?? "strategy"} onClear={() => setFStrategy("")} />}
           {fSession && <FilterChip label={fSession} onClear={() => setFSession("")} />}
           {fSide && <FilterChip label={fSide} onClear={() => setFSide("")} />}
           {fOutcome && <FilterChip label={fOutcome} onClear={() => setFOutcome("")} />}
           {fType && <FilterChip label={fType.replace("type", "Type ")} onClear={() => setFType("")} />}
           <button
-            onClick={() => { setFRange("all"); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); setFType(""); }}
+            onClick={() => { setFRange("all"); setFPair(""); setFStrategy(""); setFSession(""); setFSide(""); setFOutcome(""); setFType(""); }}
             className="ml-1 text-[11px] text-mute underline-offset-2 hover:text-sub hover:underline"
           >
             Clear filters
