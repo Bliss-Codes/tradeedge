@@ -707,7 +707,7 @@ export default function AnalyticsPage() {
         <div className="analytics-summary font-mono text-[11px] text-mute">{trades.length} trades in view</div>
       </div>
 
-      <div className="analytics-filter-shell flex flex-wrap items-center gap-2">
+      <div className="analytics-filter-shell flex flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap">
         <div className="flex rounded-full border border-edge p-0.5">
           {([
             ["live", "Live"],
@@ -769,7 +769,7 @@ export default function AnalyticsPage() {
             ["unclassified", "Unclassified"],
           ]} />
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {hasLinked && (
             <Tabs tabs={["By setup", "By execution"]} active={countMode} onChange={(v) => setCountMode(v as CountMode)} />
           )}

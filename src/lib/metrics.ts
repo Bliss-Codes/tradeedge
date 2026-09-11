@@ -120,7 +120,20 @@ export function statsByGroup(trades: Trade[], key: (t: Trade) => string | undefi
 export function tagCombos(trades: Trade[], min = 1): GroupRow[] {
   const map = new Map<string, Trade[]>();
   for (const t of trades) {
-    const tags = [...new Set(t.tags)].sort();
+    // Defensive normalization keeps older/imported comma-joined tag data from
+    // becoming one giant analytics row. Tags are also deduplicated case-insensitively.
+    const seen = new Set<string>();
+    const tags = t.tags
+      .flatMap((tag) => tag.split(/[;,|]/))
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .filter((tag) => {
+        const key = tag.toLocaleLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => a.localeCompare(b));
     const combos: string[][] = [];
     for (let i = 0; i < tags.length; i++) {
       combos.push([tags[i]]);

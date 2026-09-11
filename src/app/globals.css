@@ -534,13 +534,22 @@ input, select, textarea {
   padding-bottom: 3px;
 }
 .analytics-page .analytics-filter-shell {
-  min-height: 40px;
-  padding: 6px 0 7px;
+  min-height: 38px;
+  padding: 4px 0 5px;
   border-top: 1px solid rgb(var(--edge) / .55);
   border-bottom: 1px solid rgb(var(--edge) / .55);
 }
 .analytics-page .analytics-filter-shell > .rounded-full {
-  min-height: 32px;
+  min-height: 30px;
+}
+.analytics-page .analytics-filter-shell::-webkit-scrollbar { display: none; }
+.analytics-page .analytics-filter-shell { scrollbar-width: none; }
+.analytics-page .analytics-filter-shell > * { flex: 0 0 auto; }
+.analytics-page .analytics-filter-shell select {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 12px;
+  padding-right: 28px;
 }
 
 .analytics-page .analytics-tabs {

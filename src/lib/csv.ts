@@ -56,6 +56,23 @@ const ALIASES: Record<string, string[]> = {
   notes: ["notes", "note", "comment", "comments", "remark", "remarks"],
 };
 
+
+/** Normalize tag fields from common CSV formats and prevent duplicate chips. */
+export function parseTags(value: string): string[] {
+  if (!value.trim()) return [];
+  const parts = value.split(/[;,|]/);
+  const seen = new Set<string>();
+  return parts
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .filter((tag) => {
+      const key = tag.toLocaleLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 /** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
 function normalizeDate(s: string): string {
   const m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})[ T](\d{2}:\d{2}(:\d{2})?)/);
@@ -67,7 +84,7 @@ function normalizeDate(s: string): string {
  * Import trades from CSV. Expected headers (case-insensitive, any order):
  * date, pair, direction, rr  — required
  * pnl, session, strategy, tags, notes — optional
- * Tags separated by ";" or "|".
+ * Tags separated by ";", "|", or "," (including quoted comma-separated fields).
  */
 export function tradesFromCSV(text: string, accountId: string, type: TradeType): { trades: Trade[]; errors: string[] } {
   // Strip UTF-8 BOM that Excel/Sheets prepend to the first cell.
@@ -131,7 +148,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       rr: isNaN(rr) ? 0 : rr,
       pnl: isNaN(pnl) ? 0 : pnl,
       session,
-      tags: get("tags") ? get("tags").split(/[;|]/).map((t) => t.trim()).filter(Boolean) : [],
+      tags: parseTags(get("tags"), ","),
       notes: get("notes") || undefined,
       violations: [],
       beforeImageIds: [],
