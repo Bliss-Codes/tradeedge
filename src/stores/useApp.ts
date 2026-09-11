@@ -8,6 +8,32 @@ import { supabase, isSupabaseEnabled } from "@/lib/supabase/client";
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
+/** Convert legacy comma/semicolon/pipe-delimited tag strings into real tag arrays. */
+export function normalizeTags(tags: unknown): string[] {
+  const values = Array.isArray(tags) ? tags : tags == null ? [] : [tags];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    for (const part of String(value).split(/[,;|]/)) {
+      const clean = part.trim();
+      if (!clean) continue;
+      const key = clean.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); out.push(clean); }
+    }
+  }
+  return out;
+}
+
+function normalizeSnapshotTags(snap: Snapshot): Snapshot {
+  return {
+    ...snap,
+    trades: (snap.trades ?? []).map((t) => ({ ...t, tags: normalizeTags(t.tags) })),
+    missed: (snap.missed ?? []).map((m) => ({ ...m, tags: normalizeTags(m.tags) })),
+    strategies: (snap.strategies ?? []).map((s) => ({ ...s, tags: normalizeTags(s.tags) })),
+    customTags: normalizeTags(snap.customTags ?? []),
+  };
+}
+
 export interface AuthUser {
   id: string;
   email: string | null;
@@ -138,8 +164,12 @@ export const useApp = create<AppState>((set, get) => ({
       return;
     }
     try {
-      const snap = await backend.fetchAll();
+      const snap = normalizeSnapshotTags(await backend.fetchAll());
       set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true });
+      // Repair legacy records in place without deleting or replacing unrelated data.
+      const raw = await backend.fetchAll();
+      const changed = snap.trades.filter((t, i) => JSON.stringify(t.tags) !== JSON.stringify(raw.trades?.[i]?.tags));
+      if (changed.length) reportSync(backend.upsertTrades(changed));
     } catch {
       set({ hydrated: true });
     }
@@ -149,12 +179,14 @@ export const useApp = create<AppState>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
 
   addTrade: (t) => {
-    set((s) => ({ trades: [t, ...s.trades] }));
-    reportSync(backend.upsertTrade(t));
+    const clean = { ...t, tags: normalizeTags(t.tags) };
+    set((s) => ({ trades: [clean, ...s.trades] }));
+    reportSync(backend.upsertTrade(clean));
   },
   updateTrade: (t) => {
-    set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? t : x)) }));
-    reportSync(backend.upsertTrade(t));
+    const clean = { ...t, tags: normalizeTags(t.tags) };
+    set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? clean : x)) }));
+    reportSync(backend.upsertTrade(clean));
   },
   deleteTrades: (ids) => {
     const drop = new Set(ids);
@@ -162,8 +194,9 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.deleteTrades(ids));
   },
   importTrades: (ts) => {
-    set((s) => ({ trades: [...ts, ...s.trades] }));
-    reportSync(backend.upsertTrades(ts));
+    const clean = ts.map((t) => ({ ...t, tags: normalizeTags(t.tags) }));
+    set((s) => ({ trades: [...clean, ...s.trades] }));
+    reportSync(backend.upsertTrades(clean));
   },
 
   addAccount: (a) => {
@@ -340,6 +373,6 @@ export function useAllTags(): string[] {
   const custom = useApp((s) => s.customTags);
   const trades = useApp((s) => s.trades);
   const used = new Set<string>([...DEFAULT_TAGS, ...custom]);
-  trades.forEach((t) => t.tags.forEach((tag) => used.add(tag)));
+  trades.forEach((t) => normalizeTags(t.tags).forEach((tag) => used.add(tag)));
   return Array.from(used).sort();
 }

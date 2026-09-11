@@ -57,15 +57,6 @@ const ALIASES: Record<string, string[]> = {
 };
 
 /** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
-
-/** Split imported tags regardless of whether the source uses commas, semicolons, or pipes. */
-function parseTags(value: string): string[] {
-  return value
-    .split(/[;,|]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
 function normalizeDate(s: string): string {
   const m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})[ T](\d{2}:\d{2}(:\d{2})?)/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}T${m[4]}`;
@@ -76,7 +67,7 @@ function normalizeDate(s: string): string {
  * Import trades from CSV. Expected headers (case-insensitive, any order):
  * date, pair, direction, rr  — required
  * pnl, session, strategy, tags, notes — optional
- * Tags separated by ";" or "|".
+ * Tags separated by commas, ";" or "|".
  */
 export function tradesFromCSV(text: string, accountId: string, type: TradeType): { trades: Trade[]; errors: string[] } {
   // Strip UTF-8 BOM that Excel/Sheets prepend to the first cell.
@@ -140,7 +131,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       rr: isNaN(rr) ? 0 : rr,
       pnl: isNaN(pnl) ? 0 : pnl,
       session,
-      tags: parseTags(get("tags")),
+      tags: get("tags") ? get("tags").split(/[,;|]/).map((t) => t.trim()).filter(Boolean) : [],
       notes: get("notes") || undefined,
       violations: [],
       beforeImageIds: [],

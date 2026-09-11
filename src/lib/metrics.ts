@@ -120,7 +120,7 @@ export function statsByGroup(trades: Trade[], key: (t: Trade) => string | undefi
 export function tagCombos(trades: Trade[], min = 1): GroupRow[] {
   const map = new Map<string, Trade[]>();
   for (const t of trades) {
-    const tags = [...new Set(t.tags)].sort();
+    const tags = [...new Set(t.tags.flatMap((tag) => String(tag).split(/[,;|]/).map((x) => x.trim()).filter(Boolean)))].sort();
     const combos: string[][] = [];
     for (let i = 0; i < tags.length; i++) {
       combos.push([tags[i]]);
