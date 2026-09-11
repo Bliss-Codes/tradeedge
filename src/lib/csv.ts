@@ -56,24 +56,16 @@ const ALIASES: Record<string, string[]> = {
   notes: ["notes", "note", "comment", "comments", "remark", "remarks"],
 };
 
+/** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
 
-/** Normalize tag fields from common CSV formats and prevent duplicate chips. */
-export function parseTags(value: string): string[] {
-  if (!value.trim()) return [];
-  const parts = value.split(/[;,|]/);
-  const seen = new Set<string>();
-  return parts
+/** Split imported tags regardless of whether the source uses commas, semicolons, or pipes. */
+function parseTags(value: string): string[] {
+  return value
+    .split(/[;,|]/)
     .map((tag) => tag.trim())
-    .filter(Boolean)
-    .filter((tag) => {
-      const key = tag.toLocaleLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    .filter(Boolean);
 }
 
-/** Normalize "2025/01/03 10:59:30" → ISO-parseable so every browser agrees. */
 function normalizeDate(s: string): string {
   const m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})[ T](\d{2}:\d{2}(:\d{2})?)/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}T${m[4]}`;
@@ -84,7 +76,7 @@ function normalizeDate(s: string): string {
  * Import trades from CSV. Expected headers (case-insensitive, any order):
  * date, pair, direction, rr  — required
  * pnl, session, strategy, tags, notes — optional
- * Tags separated by ";", "|", or "," (including quoted comma-separated fields).
+ * Tags separated by ";" or "|".
  */
 export function tradesFromCSV(text: string, accountId: string, type: TradeType): { trades: Trade[]; errors: string[] } {
   // Strip UTF-8 BOM that Excel/Sheets prepend to the first cell.
@@ -148,7 +140,7 @@ export function tradesFromCSV(text: string, accountId: string, type: TradeType):
       rr: isNaN(rr) ? 0 : rr,
       pnl: isNaN(pnl) ? 0 : pnl,
       session,
-      tags: parseTags(get("tags"), ","),
+      tags: parseTags(get("tags")),
       notes: get("notes") || undefined,
       violations: [],
       beforeImageIds: [],

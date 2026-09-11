@@ -8,33 +8,6 @@ import { supabase, isSupabaseEnabled } from "@/lib/supabase/client";
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-/** Normalize tag arrays from older imports/backups where multiple tags were stored
- * as one comma/semicolon/pipe-delimited string. */
-function normalizeTags(tags: unknown): string[] {
-  if (!Array.isArray(tags)) return [];
-  const seen = new Set<string>();
-  return tags
-    .flatMap((value) => String(value).split(/[;,|]/))
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .filter((value) => {
-      const key = value.toLocaleLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-function normalizeSnapshotTags(snap: Snapshot): Snapshot {
-  return {
-    ...snap,
-    trades: snap.trades.map((t) => ({ ...t, tags: normalizeTags(t.tags) })),
-    missed: snap.missed.map((m) => ({ ...m, tags: normalizeTags(m.tags) })),
-    strategies: snap.strategies.map((s) => ({ ...s, tags: normalizeTags(s.tags) })),
-    customTags: normalizeTags(snap.customTags),
-  };
-}
-
 export interface AuthUser {
   id: string;
   email: string | null;
@@ -165,14 +138,8 @@ export const useApp = create<AppState>((set, get) => ({
       return;
     }
     try {
-      const rawSnap = await backend.fetchAll();
-      const snap = normalizeSnapshotTags(rawSnap);
+      const snap = await backend.fetchAll();
       set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true });
-      // Persist the migration only when the stored snapshot actually changed,
-      // so normal hydration does not rewrite the entire backend.
-      if (JSON.stringify(rawSnap) !== JSON.stringify(snap)) {
-        void backend.replaceAll(snap).catch((e) => console.warn("Tag normalization save failed:", e));
-      }
     } catch {
       set({ hydrated: true });
     }
@@ -182,14 +149,12 @@ export const useApp = create<AppState>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
 
   addTrade: (t) => {
-    const clean = { ...t, tags: normalizeTags(t.tags) };
-    set((s) => ({ trades: [clean, ...s.trades] }));
-    reportSync(backend.upsertTrade(clean));
+    set((s) => ({ trades: [t, ...s.trades] }));
+    reportSync(backend.upsertTrade(t));
   },
   updateTrade: (t) => {
-    const clean = { ...t, tags: normalizeTags(t.tags) };
-    set((s) => ({ trades: s.trades.map((x) => (x.id === clean.id ? clean : x)) }));
-    reportSync(backend.upsertTrade(clean));
+    set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? t : x)) }));
+    reportSync(backend.upsertTrade(t));
   },
   deleteTrades: (ids) => {
     const drop = new Set(ids);
@@ -197,9 +162,8 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.deleteTrades(ids));
   },
   importTrades: (ts) => {
-    const clean = ts.map((t) => ({ ...t, tags: normalizeTags(t.tags) }));
-    set((s) => ({ trades: [...clean, ...s.trades] }));
-    reportSync(backend.upsertTrades(clean));
+    set((s) => ({ trades: [...ts, ...s.trades] }));
+    reportSync(backend.upsertTrades(ts));
   },
 
   addAccount: (a) => {
@@ -242,14 +206,12 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   addMissed: (m) => {
-    const clean = { ...m, tags: normalizeTags(m.tags) };
-    set((s) => ({ missed: [clean, ...s.missed] }));
-    reportSync(backend.upsertMissed(clean));
+    set((s) => ({ missed: [m, ...s.missed] }));
+    reportSync(backend.upsertMissed(m));
   },
   updateMissed: (m) => {
-    const clean = { ...m, tags: normalizeTags(m.tags) };
-    set((s) => ({ missed: s.missed.map((x) => (x.id === clean.id ? clean : x)) }));
-    reportSync(backend.upsertMissed(clean));
+    set((s) => ({ missed: s.missed.map((x) => (x.id === m.id ? m : x)) }));
+    reportSync(backend.upsertMissed(m));
   },
   deleteMissed: (id) => {
     set((s) => ({ missed: s.missed.filter((x) => x.id !== id) }));
@@ -300,18 +262,10 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   addCustomTag: (tag) => {
-    const incoming = normalizeTags([tag]);
-    if (!incoming.length) return;
-    const blocked = new Set(DEFAULT_TAGS.map((x) => x.toLocaleLowerCase()));
-    const existing = new Set(get().customTags.map((x) => x.toLocaleLowerCase()));
-    const additions = incoming.filter((x) => {
-      const key = x.toLocaleLowerCase();
-      if (blocked.has(key) || existing.has(key)) return false;
-      existing.add(key);
-      return true;
-    });
-    if (!additions.length) return;
-    const next = [...get().customTags, ...additions];
+    const clean = tag.trim();
+    if (!clean) return;
+    if (get().customTags.includes(clean) || DEFAULT_TAGS.includes(clean)) return;
+    const next = [...get().customTags, clean];
     set({ customTags: next });
     reportSync(backend.setCustomTags(next));
   },
@@ -323,7 +277,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   restoreBackup: (snap) => {
-    const full = normalizeSnapshotTags({ ...EMPTY_SNAPSHOT, ...snap });
+    const full = { ...EMPTY_SNAPSHOT, ...snap };
     set({ ...full, selectedAccountId: "all" });
     reportSync(backend.replaceAll(full));
   },
