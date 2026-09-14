@@ -84,6 +84,7 @@ interface AppState extends Snapshot {
   setProfile: (patch: Partial<Profile>) => void;
   addCustomViolation: (v: string) => void;
   addCustomEmotion: (v: string) => void;
+  addCustomMissedReason: (v: string) => void;
 
   loadSampleData: () => void;
   restoreBackup: (s: Snapshot) => void;
@@ -292,6 +293,18 @@ export const useApp = create<AppState>((set, get) => ({
     const next = [...existing, clean];
     set({ customEmotions: next });
     reportSync(backend.setProfile({ ...(get().profile ?? {}), customEmotions: next }));
+  },
+
+  addCustomMissedReason: (v) => {
+    const clean = v.trim();
+    if (!clean) return;
+    const existing = get().profile?.customMissedReasons ?? [];
+    const builtIns = ["Sleeping", "Working", "Hesitation", "Did Not See Setup", "News Event", "No Alert", "Other"];
+    if (existing.some((x) => x.toLowerCase() === clean.toLowerCase()) || builtIns.some((x) => x.toLowerCase() === clean.toLowerCase())) return;
+    const next = [...existing, clean];
+    const profile = { ...(get().profile ?? {}), customMissedReasons: next };
+    set({ profile });
+    reportSync(backend.setProfile(profile));
   },
 
   addCustomTag: (tag) => {

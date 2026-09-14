@@ -268,6 +268,7 @@ export interface Profile {
   /** User-defined violation and emotion labels, kept in the profile jsonb. */
   customViolations?: string[];
   customEmotions?: string[];
+  customMissedReasons?: string[];
 }
 
 export interface Snapshot {
