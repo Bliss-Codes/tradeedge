@@ -60,7 +60,7 @@ interface AppState extends Snapshot {
   setSelectedAccount: (id: string) => void;
   setSearchOpen: (open: boolean) => void;
 
-  addTrade: (t: Trade) => void;
+  addTrade: (t: Trade) => Promise<void>;
   updateTrade: (t: Trade) => void;
   deleteTrades: (ids: string[]) => void;
   importTrades: (ts: Trade[]) => void;
@@ -179,10 +179,15 @@ export const useApp = create<AppState>((set, get) => ({
   setSelectedAccount: (id) => set({ selectedAccountId: id }),
   setSearchOpen: (open) => set({ searchOpen: open }),
 
-  addTrade: (t) => {
+  addTrade: async (t) => {
     const clean = { ...t, tags: normalizeTags(t.tags) };
     set((s) => ({ trades: [clean, ...s.trades] }));
-    reportSync(backend.upsertTrade(clean));
+    try {
+      await backend.upsertTrade(clean);
+    } catch (e) {
+      reportSync(Promise.reject(e));
+      throw e;
+    }
   },
   updateTrade: (t) => {
     const clean = { ...t, tags: normalizeTags(t.tags) };

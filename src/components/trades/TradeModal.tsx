@@ -290,7 +290,7 @@ export function TradeModal({
   /** Sections that only mean something for trades you actually took. */
   const isBacktest = t.type === "backtest";
 
-  const save = () => {
+  const save = async () => {
     if (missing.length > 0) return;
     const final: Trade = { ...t, pair: t.pair.trim().toUpperCase() };
 
@@ -302,7 +302,7 @@ export function TradeModal({
 
     const extras = [...alsoOn].filter((id) => id && id !== final.accountId);
     if (extras.length === 0) {
-      addTrade(final);
+      await addTrade(final);
       onClose();
       return;
     }
@@ -310,7 +310,7 @@ export function TradeModal({
     // Same idea, multiple accounts: link them with one setupId so edge metrics
     // count the SETUP once, while each account keeps its own real money/DD.
     const setupId = crypto.randomUUID();
-    addTrade({ ...final, setupId });
+    await addTrade({ ...final, setupId });
     for (const accountId of extras) {
       const acct = accounts.find((a) => a.id === accountId);
       // Re-derive risk/PnL against THIS account's balance — 0.75% means a
@@ -327,7 +327,7 @@ export function TradeModal({
         afterImageIds: [],
       });
       if (!acct) continue;
-      addTrade(scaled);
+      await addTrade(scaled);
     }
     onClose();
   };
