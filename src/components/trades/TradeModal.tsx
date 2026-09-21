@@ -140,6 +140,7 @@ export function TradeModal({
   const strategies = useApp((s) => s.strategies);
   const allTrades = useApp((s) => s.trades);
   const selectedAccount = useApp((s) => s.selectedAccountId);
+  const activeAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts]);
   const addTrade = useApp((s) => s.addTrade);
   const addCustomViolation = useApp((s) => s.addCustomViolation);
   const addCustomEmotion = useApp((s) => s.addCustomEmotion);
@@ -153,10 +154,16 @@ export function TradeModal({
 
   const blank = useMemo<Trade>(() => {
     // Inherit your usual setup from the most recent trade so logging is mostly pre-filled.
-    const last = [...allTrades].sort((a, b) => b.date.localeCompare(a.date))[0];
+    const lastActive = [...allTrades]
+      .filter((trade) => activeAccounts.some((account) => account.id === trade.accountId))
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
     return {
       id: uid(),
-      accountId: selectedAccount !== "all" ? selectedAccount : last?.accountId ?? accounts[0]?.id ?? "",
+      // When "All accounts (active)" is selected, never inherit an archived
+      // account from the most recent historical trade.
+      accountId: selectedAccount !== "all"
+        ? selectedAccount
+        : lastActive?.accountId ?? activeAccounts[0]?.id ?? "",
       type: defaultType,
       pair: "",
       direction: "long",
@@ -164,8 +171,8 @@ export function TradeModal({
       rr: 0,
       pnl: 0,
       session: sessionFromDate(new Date()),
-      strategyId: last?.strategyId,
-      riskPercent: last?.riskPercent,
+      strategyId: lastActive?.strategyId,
+      riskPercent: lastActive?.riskPercent,
       tags: [],
       violations: [],
       beforeImageIds: [],
@@ -173,11 +180,13 @@ export function TradeModal({
       createdAt: new Date().toISOString(),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, activeAccounts]);
 
   const [t, setT] = useState<Trade>(existing ?? seed ?? blank);
   /** Extra accounts this same setup was executed on (multi-account logging). */
   const [alsoOn, setAlsoOn] = useState<Set<string>>(new Set());
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
   /** Off-plan trades still get logged — they just get labelled as such. */
   const [offPlan, setOffPlan] = useState(false);
   const [newTag, setNewTag] = useState("");
@@ -291,12 +300,16 @@ export function TradeModal({
   const isBacktest = t.type === "backtest";
 
   const save = async () => {
-    if (missing.length > 0) return;
-    const final: Trade = { ...t, pair: t.pair.trim().toUpperCase() };
+    setSaveError("");
+    if (missing.length > 0) {
+      setSaveError(`Complete the required fields: ${missing.join(", ")}`);
+      return;
+    }
 
-    // Wrap in try/catch so any unexpected error surfaces visibly
-    // instead of silently keeping the modal open ("nothing happens").
+    setSaving(true);
     try {
+      const final: Trade = { ...t, pair: t.pair.trim().toUpperCase() };
+
       if (existing) {
         updateTrade(final);
         onClose();
@@ -310,7 +323,6 @@ export function TradeModal({
         return;
       }
 
-      // Multi-account: same setup id so edge metrics count the SETUP once.
       const setupId = crypto.randomUUID();
       await addTrade({ ...final, setupId });
       for (const accountId of extras) {
@@ -330,14 +342,11 @@ export function TradeModal({
         await addTrade(scaled);
       }
       onClose();
-    } catch (e) {
-      // addTrade is now fire-and-forget (never throws for cloud errors),
-      // but guard against any unexpected runtime errors here.
-      const msg = e instanceof Error ? e.message : "Unexpected error saving trade.";
-      console.error("TradeModal save error:", e);
-      useApp.setState({ syncError: msg });
-      // Still close the modal — the trade was added to local state by addTrade.
-      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setSaveError(`Trade could not be saved: ${message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -434,8 +443,8 @@ export function TradeModal({
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Field label="Account">
             <Select value={t.accountId} onChange={(e) => set("accountId", e.target.value)}>
-              {accounts.length === 0 && <option value="">No accounts yet</option>}
-              {accounts.map((a) => (
+              {activeAccounts.length === 0 && <option value="">No active accounts</option>}
+              {(existing ? accounts : activeAccounts).map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
@@ -488,7 +497,7 @@ export function TradeModal({
           <div className="rounded-xl border border-edge bg-surface/40 px-4 py-3">
             <div className="text-xs font-medium uppercase tracking-wider text-mute">Also taken on</div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {accounts.filter((a) => a.id !== t.accountId).map((a) => {
+              {activeAccounts.filter((a) => a.id !== t.accountId).map((a) => {
                 const on = alsoOn.has(a.id);
                 return (
                   <button
@@ -838,7 +847,9 @@ export function TradeModal({
 
         <div className="flex items-center justify-between gap-3 border-t border-edge pt-4">
           <div className="text-xs text-mute">
-            {missing.length > 0 ? (
+            {saveError ? (
+              <span className="text-neg">{saveError}</span>
+            ) : missing.length > 0 ? (
               <span className="text-warn">Required: {missing.join(", ")}</span>
             ) : (
               <span className="text-pos">All required fields complete</span>
@@ -846,8 +857,8 @@ export function TradeModal({
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button onClick={save} disabled={missing.length > 0}>
-              {existing ? "Save changes" : "Save trade"}
+            <Button onClick={save} disabled={saving}>
+              {saving ? "Saving…" : existing ? "Save changes" : "Save trade"}
             </Button>
           </div>
         </div>

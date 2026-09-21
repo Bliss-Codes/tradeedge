@@ -1,10 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import {
-  Account, MissedTrade, Snapshot, Strategy, Trade,
-  DayReview, EMPTY_SNAPSHOT, DEFAULT_TAGS, Profile, VIOLATIONS, EMOTIONS,
-} from "@/lib/types";
+import { Account, MissedTrade, Snapshot, Strategy, Trade, DayReview, EMPTY_SNAPSHOT, DEFAULT_TAGS, Profile, VIOLATIONS, EMOTIONS } from "@/lib/types";
 import { backend } from "@/lib/data/backend";
 import { buildSampleData } from "@/lib/data/sample";
 import { supabase, isSupabaseEnabled } from "@/lib/supabase/client";
@@ -30,8 +27,8 @@ export function normalizeTags(tags: unknown): string[] {
 function normalizeSnapshotTags(snap: Snapshot): Snapshot {
   return {
     ...snap,
-    trades:     (snap.trades     ?? []).map((t) => ({ ...t, tags: normalizeTags(t.tags) })),
-    missed:     (snap.missed     ?? []).map((m) => ({ ...m, tags: normalizeTags(m.tags) })),
+    trades: (snap.trades ?? []).map((t) => ({ ...t, tags: normalizeTags(t.tags) })),
+    missed: (snap.missed ?? []).map((m) => ({ ...m, tags: normalizeTags(m.tags) })),
     strategies: (snap.strategies ?? []).map((s) => ({ ...s, tags: normalizeTags(s.tags) })),
     customTags: normalizeTags(snap.customTags ?? []),
   };
@@ -46,9 +43,10 @@ interface AppState extends Snapshot {
   hydrated: boolean;
   syncError: string | null;
   clearSyncError: () => void;
-  selectedAccountId: string;
+  selectedAccountId: string; // "all" or an account id
   searchOpen: boolean;
 
+  // auth (only meaningful when Supabase is enabled)
   cloud: boolean;
   authReady: boolean;
   user: AuthUser | null;
@@ -67,42 +65,44 @@ interface AppState extends Snapshot {
   deleteTrades: (ids: string[]) => void;
   importTrades: (ts: Trade[]) => void;
 
-  addAccount:    (a: Account)    => void;
-  updateAccount: (a: Account)    => void;
-  deleteAccount: (id: string)    => void;
+  addAccount: (a: Account) => void;
+  updateAccount: (a: Account) => void;
+  deleteAccount: (id: string) => void;
 
-  addStrategy:    (s: Strategy)  => void;
-  updateStrategy: (s: Strategy)  => void;
-  deleteStrategy: (id: string)   => void;
+  addStrategy: (s: Strategy) => void;
+  updateStrategy: (s: Strategy) => void;
+  deleteStrategy: (id: string) => void;
 
-  addMissed:    (m: MissedTrade) => void;
+  addMissed: (m: MissedTrade) => void;
   updateMissed: (m: MissedTrade) => void;
-  deleteMissed: (id: string)     => void;
+  deleteMissed: (id: string) => void;
 
   upsertReview: (r: DayReview) => void;
-  deleteReview: (id: string)   => void;
+  deleteReview: (id: string) => void;
 
-  addCustomTag:          (tag: string) => void;
-  setProfile:            (patch: Partial<Profile>) => void;
-  addCustomViolation:    (v: string) => void;
-  addCustomEmotion:      (v: string) => void;
+  addCustomTag: (tag: string) => void;
+  setProfile: (patch: Partial<Profile>) => void;
+  addCustomViolation: (v: string) => void;
+  addCustomEmotion: (v: string) => void;
   addCustomMissedReason: (v: string) => void;
 
   loadSampleData: () => void;
-  restoreBackup:  (s: Snapshot) => void;
+  restoreBackup: (s: Snapshot) => void;
   clearAll: () => Promise<void>;
 }
 
-/**
- * Fire-and-forget background sync. Failures surface as a banner (syncError)
- * instead of throwing — the local Zustand state is already updated, so the
- * user's data is safe until the next cloud write succeeds.
- */
+/** Fire-and-forget cloud writes: log + surface failures instead of swallowing them. */
 function reportSync(p: Promise<unknown>) {
   p.catch((e: unknown) => {
-    const error = e as { message?: string; code?: string; details?: string; hint?: string };
+    const error = e as {
+      message?: string;
+      code?: string;
+      details?: string;
+      hint?: string;
+    };
     const parts = [error?.message, error?.code && `code ${error.code}`, error?.details, error?.hint]
-      .filter(Boolean).join(" — ");
+      .filter(Boolean)
+      .join(" — ");
     const msg = parts || (e instanceof Error ? e.message : "Cloud save failed");
     console.error("TradeEdge cloud sync failed:", e);
     useApp.setState({ syncError: msg });
@@ -166,23 +166,11 @@ export const useApp = create<AppState>((set, get) => ({
     }
     try {
       const snap = normalizeSnapshotTags(await backend.fetchAll());
-
-      // Merge the server snapshot with any trades that were added locally
-      // while the fetch was in flight (fire-and-forget writes from addTrade).
-      // Without this merge, a trade saved optimistically to local state
-      // disappears if hydrate() runs before the Supabase write completes.
-      const current = get();
-      const serverIds = new Set(snap.trades.map((t) => t.id));
-      const pendingTrades = current.hydrated
-        ? []  // after first hydration, trust the server list
-        : current.trades.filter((t) => !serverIds.has(t.id)); // pre-hydration optimistic adds
-
-      set({
-        ...EMPTY_SNAPSHOT,
-        ...snap,
-        trades: [...pendingTrades, ...snap.trades],
-        hydrated: true,
-      });
+      set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true });
+      // Repair legacy records in place without deleting or replacing unrelated data.
+      const raw = await backend.fetchAll();
+      const changed = snap.trades.filter((t, i) => JSON.stringify(t.tags) !== JSON.stringify(raw.trades?.[i]?.tags));
+      if (changed.length) reportSync(backend.upsertTrades(changed));
     } catch {
       set({ hydrated: true });
     }
@@ -191,44 +179,26 @@ export const useApp = create<AppState>((set, get) => ({
   setSelectedAccount: (id) => set({ selectedAccountId: id }),
   setSearchOpen: (open) => set({ searchOpen: open }),
 
-  /**
-   * BUG FIX: addTrade no longer re-throws after the local state update.
-   *
-   * Previous behaviour:
-   *   1. set() added the trade to local Zustand state ✓
-   *   2. backend.upsertTrade() threw (Supabase error / localStorage quota)
-   *   3. addTrade re-threw the error
-   *   4. save() in TradeModal had no try/catch → unhandled rejection
-   *   5. onClose() never fired → modal stayed open → "nothing happened"
-   *
-   * Fixed behaviour:
-   *   1. set() adds the trade locally ✓
-   *   2. backend.upsertTrade() failure is treated as a sync error (banner)
-   *   3. addTrade resolves normally → save() calls onClose() → modal closes
-   *   4. syncError banner appears if the cloud write failed
-   *   5. Trade is visible immediately; cloud write retries on next mutation
-   */
-  addTrade: async (t: Trade) => {
+  addTrade: async (t) => {
     const clean = { ...t, tags: normalizeTags(t.tags) };
-    // Update local state first — this is immediate and never fails.
     set((s) => ({ trades: [clean, ...s.trades] }));
-    // Persist to backend as fire-and-forget; errors surface as a banner
-    // rather than blocking the modal or losing the local trade.
-    reportSync(backend.upsertTrade(clean));
+    try {
+      await backend.upsertTrade(clean);
+    } catch (e) {
+      reportSync(Promise.reject(e));
+      throw e;
+    }
   },
-
   updateTrade: (t) => {
     const clean = { ...t, tags: normalizeTags(t.tags) };
     set((s) => ({ trades: s.trades.map((x) => (x.id === t.id ? clean : x)) }));
     reportSync(backend.upsertTrade(clean));
   },
-
   deleteTrades: (ids) => {
     const drop = new Set(ids);
     set((s) => ({ trades: s.trades.filter((x) => !drop.has(x.id)) }));
     reportSync(backend.deleteTrades(ids));
   },
-
   importTrades: (ts) => {
     const clean = ts.map((t) => ({ ...t, tags: normalizeTags(t.tags) }));
     set((s) => ({ trades: [...clean, ...s.trades] }));
@@ -247,7 +217,7 @@ export const useApp = create<AppState>((set, get) => ({
     const removedTradeIds = get().trades.filter((t) => t.accountId === id).map((t) => t.id);
     set((s) => ({
       accounts: s.accounts.filter((x) => x.id !== id),
-      trades:   s.trades.filter((t) => t.accountId !== id),
+      trades: s.trades.filter((t) => t.accountId !== id),
       selectedAccountId: s.selectedAccountId === id ? "all" : s.selectedAccountId,
     }));
     reportSync(backend.deleteTrades(removedTradeIds));
@@ -263,10 +233,12 @@ export const useApp = create<AppState>((set, get) => ({
     reportSync(backend.upsertStrategy(st));
   },
   deleteStrategy: (id) => {
-    const changed = get().trades.filter((t) => t.strategyId === id).map((t) => ({ ...t, strategyId: undefined }));
+    const changed = get()
+      .trades.filter((t) => t.strategyId === id)
+      .map((t) => ({ ...t, strategyId: undefined }));
     set((s) => ({
       strategies: s.strategies.filter((x) => x.id !== id),
-      trades:     s.trades.map((t) => (t.strategyId === id ? { ...t, strategyId: undefined } : t)),
+      trades: s.trades.map((t) => (t.strategyId === id ? { ...t, strategyId: undefined } : t)),
     }));
     reportSync(backend.deleteStrategy(id));
     if (changed.length) reportSync(backend.upsertTrades(changed));
@@ -315,10 +287,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (existing.includes(clean) || (VIOLATIONS as readonly string[]).includes(clean)) return;
     const next = [...existing, clean];
     set({ customViolations: next });
-    // Persist in the profile jsonb so it survives page refresh.
-    const profile = { ...(get().profile ?? {}), customViolations: next };
-    set({ profile });
-    reportSync(backend.setProfile(profile));
+    reportSync(backend.setProfile({ ...(get().profile ?? {}), customViolations: next }));
   },
 
   addCustomEmotion: (v) => {
@@ -328,9 +297,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (existing.includes(clean) || (EMOTIONS as readonly string[]).includes(clean)) return;
     const next = [...existing, clean];
     set({ customEmotions: next });
-    const profile = { ...(get().profile ?? {}), customEmotions: next };
-    set({ profile });
-    reportSync(backend.setProfile(profile));
+    reportSync(backend.setProfile({ ...(get().profile ?? {}), customEmotions: next }));
   },
 
   addCustomMissedReason: (v) => {
@@ -338,10 +305,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!clean) return;
     const existing = get().profile?.customMissedReasons ?? [];
     const builtIns = ["Sleeping", "Working", "Hesitation", "Did Not See Setup", "News Event", "No Alert", "Other"];
-    if (
-      existing.some((x) => x.toLowerCase() === clean.toLowerCase()) ||
-      builtIns.some((x) => x.toLowerCase() === clean.toLowerCase())
-    ) return;
+    if (existing.some((x) => x.toLowerCase() === clean.toLowerCase()) || builtIns.some((x) => x.toLowerCase() === clean.toLowerCase())) return;
     const next = [...existing, clean];
     const profile = { ...(get().profile ?? {}), customMissedReasons: next };
     set({ profile });
@@ -375,8 +339,9 @@ export const useApp = create<AppState>((set, get) => ({
   },
 }));
 
-// ── Selectors ─────────────────────────────────────────────────────────────────
+// ── selectors ─────────────────────────────────────────────────────────
 
+/** Currency to display aggregate money in: the selected account's, else the first active account's. */
 export function useDisplayCurrency(): string {
   const accounts = useApp((s) => s.accounts);
   const selected = useApp((s) => s.selectedAccountId);
@@ -387,6 +352,13 @@ export function useDisplayCurrency(): string {
   return accounts.filter((a) => !a.archived)[0]?.currency ?? "USD";
 }
 
+/** Trades visible under the global account selector (live trades only). */
+/**
+ * Capital stage. Challenge P&L is NOTIONAL — you never receive it, and it is
+ * usually traded at a different risk %, so mixing it with funded money makes
+ * the equity curve and every money stat meaningless. Funded P&L is the only
+ * thing that converts to payouts.
+ */
 export type CapitalStage = "all" | "funded" | "challenge";
 
 export function stageOf(type: Account["type"]): CapitalStage | "other" {
@@ -396,46 +368,29 @@ export function stageOf(type: Account["type"]): CapitalStage | "other" {
 }
 
 export function useVisibleTrades(type: Trade["type"] = "live", stage: CapitalStage = "all"): Trade[] {
-  const trades   = useApp((s) => s.trades);
+  const trades = useApp((s) => s.trades);
   const accounts = useApp((s) => s.accounts);
   const selected = useApp((s) => s.selectedAccountId);
-
   const effective = selected === "all" || accounts.some((a) => a.id === selected) ? selected : "all";
-  const active    = accounts.filter((a) => !a.archived);
+  const active = accounts.filter((a) => !a.archived);
   const activeIds = new Set(active.map((a) => a.id));
-
   const stageOk = (accountId: string) => {
     if (stage === "all") return true;
     const acct = active.find((a) => a.id === accountId);
     return acct ? stageOf(acct.type) === stage : false;
   };
-
-  return trades.filter((t) => {
-    // Type must match the requested tab (live / backtest).
-    if (t.type !== type) return false;
-
-    // Account filter:
-    // - If the account exists in the store, apply normal active/selected logic.
-    // - If the accountId is NOT in the accounts list at all (race condition
-    //   where the trade was just added locally before Supabase accounts loaded),
-    //   still show the trade so it is never invisible to the user.
-    const accountKnown = accounts.some((a) => a.id === t.accountId);
-
-    if (accountKnown) {
-      if (effective !== "all" && t.accountId !== effective) return false;
-      if (effective === "all" && !activeIds.has(t.accountId)) return false;
-      if (!stageOk(t.accountId)) return false;
-    }
-    // accountKnown === false: account list hasn't hydrated yet — show the trade.
-
-    return true;
-  });
+  return trades.filter(
+    (t) =>
+      t.type === type &&
+      (effective === "all" ? activeIds.has(t.accountId) : t.accountId === effective) &&
+      stageOk(t.accountId)
+  );
 }
 
 export function useAllTags(): string[] {
   const custom = useApp((s) => s.customTags);
   const trades = useApp((s) => s.trades);
-  const used   = new Set<string>([...DEFAULT_TAGS, ...custom]);
+  const used = new Set<string>([...DEFAULT_TAGS, ...custom]);
   trades.forEach((t) => normalizeTags(t.tags).forEach((tag) => used.add(tag)));
   return Array.from(used).sort();
 }
