@@ -294,42 +294,51 @@ export function TradeModal({
     if (missing.length > 0) return;
     const final: Trade = { ...t, pair: t.pair.trim().toUpperCase() };
 
-    if (existing) {
-      updateTrade(final);
-      onClose();
-      return;
-    }
+    // Wrap in try/catch so any unexpected error surfaces visibly
+    // instead of silently keeping the modal open ("nothing happens").
+    try {
+      if (existing) {
+        updateTrade(final);
+        onClose();
+        return;
+      }
 
-    const extras = [...alsoOn].filter((id) => id && id !== final.accountId);
-    if (extras.length === 0) {
-      await addTrade(final);
-      onClose();
-      return;
-    }
+      const extras = [...alsoOn].filter((id) => id && id !== final.accountId);
+      if (extras.length === 0) {
+        await addTrade(final);
+        onClose();
+        return;
+      }
 
-    // Same idea, multiple accounts: link them with one setupId so edge metrics
-    // count the SETUP once, while each account keeps its own real money/DD.
-    const setupId = crypto.randomUUID();
-    await addTrade({ ...final, setupId });
-    for (const accountId of extras) {
-      const acct = accounts.find((a) => a.id === accountId);
-      // Re-derive risk/PnL against THIS account's balance — 0.75% means a
-      // different dollar amount (and different lots) on a 5K vs a 50K.
-      const scaled = derive({
-        ...final,
-        id: crypto.randomUUID(),
-        accountId,
-        setupId,
-        riskAmount: undefined,
-        pnl: 0,
-        createdAt: new Date().toISOString(),
-        beforeImageIds: [],
-        afterImageIds: [],
-      });
-      if (!acct) continue;
-      await addTrade(scaled);
+      // Multi-account: same setup id so edge metrics count the SETUP once.
+      const setupId = crypto.randomUUID();
+      await addTrade({ ...final, setupId });
+      for (const accountId of extras) {
+        const acct = accounts.find((a) => a.id === accountId);
+        const scaled = derive({
+          ...final,
+          id: crypto.randomUUID(),
+          accountId,
+          setupId,
+          riskAmount: undefined,
+          pnl: 0,
+          createdAt: new Date().toISOString(),
+          beforeImageIds: [],
+          afterImageIds: [],
+        });
+        if (!acct) continue;
+        await addTrade(scaled);
+      }
+      onClose();
+    } catch (e) {
+      // addTrade is now fire-and-forget (never throws for cloud errors),
+      // but guard against any unexpected runtime errors here.
+      const msg = e instanceof Error ? e.message : "Unexpected error saving trade.";
+      console.error("TradeModal save error:", e);
+      useApp.setState({ syncError: msg });
+      // Still close the modal — the trade was added to local state by addTrade.
+      onClose();
     }
-    onClose();
   };
 
   const review: { key: keyof Trade; label: string }[] = [

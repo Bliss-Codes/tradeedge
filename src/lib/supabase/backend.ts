@@ -1,22 +1,23 @@
 "use client";
 
-import { Account, DayReview, MissedTrade, Snapshot, Strategy, Trade, EMPTY_SNAPSHOT, Profile } from "@/lib/types";
+import { Account, DayReview, MissedTrade, Profile, Snapshot, Strategy, Trade, EMPTY_SNAPSHOT } from "@/lib/types";
 import { supabase, SCREENSHOT_BUCKET } from "@/lib/supabase/client";
 import type { Backend } from "@/lib/data/backend";
 
 /**
- * Each entity is stored as a row { id (text, client-generated), user_id (uuid),
- * data (jsonb) }. Storing the whole object as jsonb keeps the app's schema and
- * the database in lockstep — adding a field like `grade` needs no migration —
- * while RLS scopes every row to its owner. See supabase/schema.sql.
+ * Each entity row: { id (text), user_id (uuid), data (jsonb) }.
+ * Profile row: { user_id (pk), custom_tags (text[]), profile (jsonb) }.
+ *
+ * IMPORTANT — run supabase/schema.sql (or the migration scripts) before use.
+ * The profile column was added via 20260821_profile_sync_fix.sql.
  */
 
 const TABLES = {
-  account: "accounts",
-  trade: "trades",
+  account:  "accounts",
+  trade:    "trades",
   strategy: "strategies",
-  missed: "missed_trades",
-  review: "day_reviews",
+  missed:   "missed_trades",
+  review:   "day_reviews",
 } as const;
 
 function db() {
@@ -26,7 +27,7 @@ function db() {
 
 async function userId(): Promise<string> {
   const { data, error } = await db().auth.getUser();
-  if (error || !data.user) throw new Error("Not signed in.");
+  if (error || !data.user) throw new Error("Not signed in — please sign in again.");
   return data.user.id;
 }
 
@@ -39,19 +40,27 @@ export class SupabaseBackend implements Backend {
       sb.from(TABLES.strategy).select("data"),
       sb.from(TABLES.missed).select("data"),
       sb.from(TABLES.review).select("data"),
-      sb.from("profiles").select("custom_tags").maybeSingle(),
+      // Read both custom_tags and profile jsonb from the profiles table.
+      sb.from("profiles").select("custom_tags, profile").maybeSingle(),
     ]);
-    const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) => (r.data ?? []).map((x) => x.data);
+
+    const rows = <T,>(r: { data: { data: T }[] | null; error: unknown }) =>
+      (r.data ?? []).map((x) => x.data);
+
+    // profile.data is { custom_tags: string[], profile: Record<string,unknown> }
+    const profileRow = profile.data as { custom_tags?: string[]; profile?: Profile } | null;
+
     return {
-      accounts: rows<Account>(accounts),
-      trades: rows<Trade>(trades),
-      strategies: rows<Strategy>(strategies),
-      missed: rows<MissedTrade>(missed),
-      reviews: rows<DayReview>(reviews),
-      customTags: (profile.data?.custom_tags as string[] | undefined) ?? [],
-      customViolations: [],
-      customEmotions: [],
-      profile: {},
+      accounts:         rows<Account>(accounts),
+      trades:           rows<Trade>(trades),
+      strategies:       rows<Strategy>(strategies),
+      missed:           rows<MissedTrade>(missed),
+      reviews:          rows<DayReview>(reviews),
+      customTags:       profileRow?.custom_tags ?? [],
+      // Persisted in the profile jsonb column — not lost on page refresh.
+      customViolations: (profileRow?.profile as any)?.customViolations ?? [],
+      customEmotions:   (profileRow?.profile as any)?.customEmotions ?? [],
+      profile:          (profileRow?.profile as Profile | undefined) ?? {},
     };
   }
 
@@ -60,13 +69,25 @@ export class SupabaseBackend implements Backend {
     const { error } = await db().from(table).upsert({ id, user_id: uid, data });
     if (error) throw error;
   }
+
   private async del(table: string, ids: string[]) {
     if (ids.length === 0) return;
     const { error } = await db().from(table).delete().in("id", ids);
     if (error) throw error;
   }
 
-  upsertTrade = (t: Trade) => this.put(TABLES.trade, t.id, t);
+  upsertTrade    = (t: Trade)    => this.put(TABLES.trade,    t.id,  t);
+  upsertAccount  = (a: Account)  => this.put(TABLES.account,  a.id,  a);
+  upsertStrategy = (s: Strategy) => this.put(TABLES.strategy, s.id,  s);
+  upsertMissed   = (m: MissedTrade) => this.put(TABLES.missed, m.id, m);
+  upsertReview   = (r: DayReview)   => this.put(TABLES.review, r.id, r);
+
+  deleteTrades   = (ids: string[]) => this.del(TABLES.trade,    ids);
+  deleteAccount  = (id:  string)   => this.del(TABLES.account,  [id]);
+  deleteStrategy = (id:  string)   => this.del(TABLES.strategy, [id]);
+  deleteMissed   = (id:  string)   => this.del(TABLES.missed,   [id]);
+  deleteReview   = (id:  string)   => this.del(TABLES.review,   [id]);
+
   async upsertTrades(ts: Trade[]) {
     if (ts.length === 0) return;
     const uid = await userId();
@@ -75,76 +96,67 @@ export class SupabaseBackend implements Backend {
       .upsert(ts.map((t) => ({ id: t.id, user_id: uid, data: t })));
     if (error) throw error;
   }
-  deleteTrades = (ids: string[]) => this.del(TABLES.trade, ids);
 
-  upsertAccount = (a: Account) => this.put(TABLES.account, a.id, a);
-  deleteAccount = (id: string) => this.del(TABLES.account, [id]);
-
-  upsertStrategy = (s: Strategy) => this.put(TABLES.strategy, s.id, s);
-  deleteStrategy = (id: string) => this.del(TABLES.strategy, [id]);
-
-  upsertMissed = (m: MissedTrade) => this.put(TABLES.missed, m.id, m);
-  deleteMissed = (id: string) => this.del(TABLES.missed, [id]);
-
-  upsertReview = (r: DayReview) => this.put(TABLES.review, r.id, r);
-  deleteReview = (id: string) => this.del(TABLES.review, [id]);
-
+  /** Store custom_tags in the profiles table (text[] column). */
   async setCustomTags(tags: string[]) {
     const uid = await userId();
-    const { error } = await db().from("profiles").upsert({ user_id: uid, custom_tags: tags });
+    const { error } = await db()
+      .from("profiles")
+      .upsert({ user_id: uid, custom_tags: tags });
     if (error) throw error;
   }
 
+  /**
+   * Store the full profile object in the profiles.profile jsonb column.
+   * This replaces the old auth.updateUser() approach, which only worked
+   * per-session and was not read back by fetchAll().
+   */
   async setProfile(profile: Profile) {
-    // Profile details are stored in Supabase Auth metadata because the
-    // existing profiles table only contains user_id/custom_tags.
-    const sb = db();
-    const { data, error } = await sb.auth.getUser();
-    if (error || !data.user) throw error ?? new Error("Not signed in.");
-    const current = data.user.user_metadata ?? {};
-    const { error: updateError } = await sb.auth.updateUser({
-      data: { ...current, tradeedge_profile: profile },
-    });
-    if (updateError) throw updateError;
+    const uid = await userId();
+    const { error } = await db()
+      .from("profiles")
+      .upsert({ user_id: uid, profile });
+    if (error) throw error;
   }
 
   async replaceAll(snapshot: Snapshot) {
     await this.clearAll();
     const uid = await userId();
-    const sb = db();
+    const sb  = db();
     const ins = async (table: string, items: { id: string }[]) => {
       if (items.length === 0) return;
-      const { error } = await sb.from(table).upsert(items.map((it) => ({ id: it.id, user_id: uid, data: it })));
+      const { error } = await sb
+        .from(table)
+        .upsert(items.map((it) => ({ id: it.id, user_id: uid, data: it })));
       if (error) throw error;
     };
     await Promise.all([
-      ins(TABLES.account, snapshot.accounts),
-      ins(TABLES.trade, snapshot.trades),
+      ins(TABLES.account,  snapshot.accounts),
+      ins(TABLES.trade,    snapshot.trades),
       ins(TABLES.strategy, snapshot.strategies),
-      ins(TABLES.missed, snapshot.missed),
-      ins(TABLES.review, snapshot.reviews),
+      ins(TABLES.missed,   snapshot.missed),
+      ins(TABLES.review,   snapshot.reviews),
       this.setCustomTags(snapshot.customTags),
+      this.setProfile(snapshot.profile ?? {}),
     ]);
   }
 
   async clearAll() {
-    const sb = db();
+    const sb  = db();
     const uid = await userId();
-    // RLS already scopes to the user; the filter is belt-and-suspenders.
     await Promise.all(
       Object.values(TABLES).map((t) => sb.from(t).delete().eq("user_id", uid))
     );
-    await sb.from("profiles").upsert({ user_id: uid, custom_tags: [] });
+    await sb.from("profiles").upsert({ user_id: uid, custom_tags: [], profile: {} });
   }
 }
 
-// ── screenshot storage (Supabase Storage) ─────────────────────────────
-
+// ── Screenshot storage ────────────────────────────────────────────────────────
 function dataUrlToBlob(dataUrl: string): Blob {
   const [meta, b64] = dataUrl.split(",");
   const mime = /:(.*?);/.exec(meta)?.[1] ?? "image/jpeg";
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
+  const bin  = atob(b64);
+  const arr  = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
@@ -154,15 +166,16 @@ async function imagePath(id: string): Promise<string> {
 }
 
 export async function sbPutImage(id: string, dataUrl: string): Promise<void> {
-  const { error } = await db().storage.from(SCREENSHOT_BUCKET).upload(await imagePath(id), dataUrlToBlob(dataUrl), {
-    upsert: true,
-    contentType: "image/jpeg",
-  });
+  const { error } = await db()
+    .storage.from(SCREENSHOT_BUCKET)
+    .upload(await imagePath(id), dataUrlToBlob(dataUrl), { upsert: true, contentType: "image/jpeg" });
   if (error) throw error;
 }
 
 export async function sbGetImage(id: string): Promise<string | null> {
-  const { data, error } = await db().storage.from(SCREENSHOT_BUCKET).createSignedUrl(await imagePath(id), 3600);
+  const { data, error } = await db()
+    .storage.from(SCREENSHOT_BUCKET)
+    .createSignedUrl(await imagePath(id), 3600);
   if (error) return null;
   return data?.signedUrl ?? null;
 }
@@ -172,10 +185,11 @@ export async function sbDeleteImage(id: string): Promise<void> {
 }
 
 export async function sbClearImages(): Promise<void> {
-  const sb = db();
+  const sb     = db();
   const folder = await userId();
   const { data } = await sb.storage.from(SCREENSHOT_BUCKET).list(folder);
-  if (data?.length) await sb.storage.from(SCREENSHOT_BUCKET).remove(data.map((f) => `${folder}/${f.name}`));
+  if (data?.length)
+    await sb.storage.from(SCREENSHOT_BUCKET).remove(data.map((f) => `${folder}/${f.name}`));
 }
 
 export const EMPTY = EMPTY_SNAPSHOT;

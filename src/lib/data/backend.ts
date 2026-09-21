@@ -4,16 +4,6 @@ import { Account, DayReview, MissedTrade, Snapshot, Strategy, Trade, EMPTY_SNAPS
 import { isSupabaseEnabled } from "@/lib/supabase/client";
 import { SupabaseBackend } from "@/lib/supabase/backend";
 
-/**
- * The single seam between TradeEdge and storage. Granular per-entity
- * operations so a real backend writes one row per change instead of the
- * whole dataset every time.
- *
- * - LocalBackend keeps the original localStorage behavior (no account needed).
- * - SupabaseBackend persists per-user rows in Postgres with RLS.
- *
- * The store never imports either implementation directly — it uses `backend`.
- */
 export interface Backend {
   fetchAll(): Promise<Snapshot>;
 
@@ -36,7 +26,7 @@ export interface Backend {
   setCustomTags(tags: string[]): Promise<void>;
   setProfile(profile: Profile): Promise<void>;
 
-  replaceAll(snapshot: Snapshot): Promise<void>; // sample load / backup restore
+  replaceAll(snapshot: Snapshot): Promise<void>;
   clearAll(): Promise<void>;
 }
 
@@ -52,10 +42,22 @@ class LocalBackend implements Backend {
       return { ...EMPTY_SNAPSHOT };
     }
   }
+
   private write(s: Snapshot) {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(KEY, JSON.stringify(s));
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(s));
+    } catch (e) {
+      // QuotaExceededError — storage full. Throw a readable message so
+      // the caller can surface it to the user instead of swallowing it.
+      const msg =
+        e instanceof DOMException && e.name === "QuotaExceededError"
+          ? "Storage full. Export a backup then clear old data in Settings."
+          : "Could not save to local storage.";
+      throw new Error(msg);
+    }
   }
+
   private mutate(fn: (s: Snapshot) => void) {
     const s = this.read();
     fn(s);
@@ -82,75 +84,58 @@ class LocalBackend implements Backend {
   }
   async deleteTrades(ids: string[]) {
     const drop = new Set(ids);
-    this.mutate((s) => {
-      s.trades = s.trades.filter((x) => !drop.has(x.id));
-    });
+    this.mutate((s) => { s.trades = s.trades.filter((x) => !drop.has(x.id)); });
   }
   async upsertAccount(a: Account) {
     this.mutate((s) => {
       const i = s.accounts.findIndex((x) => x.id === a.id);
-      if (i >= 0) s.accounts[i] = a;
-      else s.accounts.push(a);
+      if (i >= 0) s.accounts[i] = a; else s.accounts.push(a);
     });
   }
   async deleteAccount(id: string) {
-    this.mutate((s) => {
-      s.accounts = s.accounts.filter((x) => x.id !== id);
-    });
+    this.mutate((s) => { s.accounts = s.accounts.filter((x) => x.id !== id); });
   }
   async upsertStrategy(st: Strategy) {
     this.mutate((s) => {
       const i = s.strategies.findIndex((x) => x.id === st.id);
-      if (i >= 0) s.strategies[i] = st;
-      else s.strategies.push(st);
+      if (i >= 0) s.strategies[i] = st; else s.strategies.push(st);
     });
   }
   async deleteStrategy(id: string) {
-    this.mutate((s) => {
-      s.strategies = s.strategies.filter((x) => x.id !== id);
-    });
+    this.mutate((s) => { s.strategies = s.strategies.filter((x) => x.id !== id); });
   }
   async upsertMissed(m: MissedTrade) {
     this.mutate((s) => {
       const i = s.missed.findIndex((x) => x.id === m.id);
-      if (i >= 0) s.missed[i] = m;
-      else s.missed.unshift(m);
+      if (i >= 0) s.missed[i] = m; else s.missed.unshift(m);
     });
   }
   async deleteMissed(id: string) {
-    this.mutate((s) => {
-      s.missed = s.missed.filter((x) => x.id !== id);
-    });
+    this.mutate((s) => { s.missed = s.missed.filter((x) => x.id !== id); });
   }
   async upsertReview(r: DayReview) {
     this.mutate((s) => {
-      const i = s.reviews.findIndex((x) => x.id === r.id || x.date === r.date);
-      if (i >= 0) s.reviews[i] = r;
-      else s.reviews.unshift(r);
+      const i = s.reviews.findIndex((x) => x.id === r.id);
+      if (i >= 0) s.reviews[i] = r; else s.reviews.unshift(r);
     });
   }
   async deleteReview(id: string) {
-    this.mutate((s) => {
-      s.reviews = s.reviews.filter((x) => x.id !== id);
-    });
+    this.mutate((s) => { s.reviews = s.reviews.filter((x) => x.id !== id); });
   }
   async setCustomTags(tags: string[]) {
-    this.mutate((s) => {
-      s.customTags = tags;
-    });
+    this.mutate((s) => { s.customTags = tags; });
   }
   async setProfile(profile: Profile) {
-    this.mutate((s) => {
-      s.profile = profile;
-    });
+    this.mutate((s) => { s.profile = profile; });
   }
   async replaceAll(snapshot: Snapshot) {
     this.write({ ...EMPTY_SNAPSHOT, ...snapshot });
   }
   async clearAll() {
-    if (typeof window === "undefined") return;
-    window.localStorage.removeItem(KEY);
+    if (typeof window !== "undefined") window.localStorage.removeItem(KEY);
   }
 }
 
-export const backend: Backend = isSupabaseEnabled ? new SupabaseBackend() : new LocalBackend();
+export const backend: Backend = isSupabaseEnabled
+  ? new SupabaseBackend()
+  : new LocalBackend();
