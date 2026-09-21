@@ -166,7 +166,23 @@ export const useApp = create<AppState>((set, get) => ({
     }
     try {
       const snap = normalizeSnapshotTags(await backend.fetchAll());
-      set({ ...EMPTY_SNAPSHOT, ...snap, hydrated: true });
+
+      // Merge the server snapshot with any trades that were added locally
+      // while the fetch was in flight (fire-and-forget writes from addTrade).
+      // Without this merge, a trade saved optimistically to local state
+      // disappears if hydrate() runs before the Supabase write completes.
+      const current = get();
+      const serverIds = new Set(snap.trades.map((t) => t.id));
+      const pendingTrades = current.hydrated
+        ? []  // after first hydration, trust the server list
+        : current.trades.filter((t) => !serverIds.has(t.id)); // pre-hydration optimistic adds
+
+      set({
+        ...EMPTY_SNAPSHOT,
+        ...snap,
+        trades: [...pendingTrades, ...snap.trades],
+        hydrated: true,
+      });
     } catch {
       set({ hydrated: true });
     }
@@ -383,20 +399,37 @@ export function useVisibleTrades(type: Trade["type"] = "live", stage: CapitalSta
   const trades   = useApp((s) => s.trades);
   const accounts = useApp((s) => s.accounts);
   const selected = useApp((s) => s.selectedAccountId);
+
   const effective = selected === "all" || accounts.some((a) => a.id === selected) ? selected : "all";
-  const active   = accounts.filter((a) => !a.archived);
+  const active    = accounts.filter((a) => !a.archived);
   const activeIds = new Set(active.map((a) => a.id));
+
   const stageOk = (accountId: string) => {
     if (stage === "all") return true;
     const acct = active.find((a) => a.id === accountId);
     return acct ? stageOf(acct.type) === stage : false;
   };
-  return trades.filter(
-    (t) =>
-      t.type === type &&
-      (effective === "all" ? activeIds.has(t.accountId) : t.accountId === effective) &&
-      stageOk(t.accountId)
-  );
+
+  return trades.filter((t) => {
+    // Type must match the requested tab (live / backtest).
+    if (t.type !== type) return false;
+
+    // Account filter:
+    // - If the account exists in the store, apply normal active/selected logic.
+    // - If the accountId is NOT in the accounts list at all (race condition
+    //   where the trade was just added locally before Supabase accounts loaded),
+    //   still show the trade so it is never invisible to the user.
+    const accountKnown = accounts.some((a) => a.id === t.accountId);
+
+    if (accountKnown) {
+      if (effective !== "all" && t.accountId !== effective) return false;
+      if (effective === "all" && !activeIds.has(t.accountId)) return false;
+      if (!stageOk(t.accountId)) return false;
+    }
+    // accountKnown === false: account list hasn't hydrated yet — show the trade.
+
+    return true;
+  });
 }
 
 export function useAllTags(): string[] {
