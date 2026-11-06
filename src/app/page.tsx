@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
-import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, adherenceDetail, signColor } from "@/lib/metrics";
+import { computeStats, equityCurve, dailyPnl, fmtPF, fmtPct, fmtR, fmtMoney, fmtDate, adherenceDetail, signColor, fmtTradeR } from "@/lib/metrics";
 import { buildInsights } from "@/lib/insights";
 import { Button, Card, EmptyState, OutcomePill, SectionTitle, Stat } from "@/components/ui/primitives";
 import { InsightsPanel } from "@/components/ui/InsightsPanel";
+import { EdgeScoreCard } from "@/components/ui/EdgeScoreCard";
+import { computeEdgeScore } from "@/lib/score";
 import { EquityCurve, DailyPnlBars } from "@/components/charts/EquityCurve";
 import { CalendarPanel } from "@/components/calendar/CalendarPanel";
 import { stageOf } from "@/stores/useApp";
@@ -79,11 +81,11 @@ function KpiCard({ icon, label, value, sub, tone = 0, hero = false, visual }: { 
     );
   }
   return (
-    <div className="premium-card dashboard-kpi relative min-h-[176px] overflow-hidden rounded-[22px] border border-edge bg-card p-5">
+    <div className="premium-card dashboard-kpi relative min-h-[176px] overflow-hidden rounded-[22px] border border-edge bg-card p-4 sm:p-5">
       <div className="relative z-10 flex h-full flex-col">
         <div className="dashboard-kpi-copy">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-mute">{label}</div>
-          <div className="mt-3 font-mono text-[31px] font-bold leading-none tabular-nums tracking-[-0.035em] text-ink">{value}</div>
+          <div className="mt-3 font-mono text-[24px] sm:text-[31px] font-bold leading-none tabular-nums tracking-[-0.035em] text-ink">{value}</div>
           {sub && <div className="mt-3 text-xs text-mute">{sub}</div>}
         </div>
         {visual === "pnl" && <div className="dashboard-kpi-visual dashboard-kpi-spark" aria-hidden="true">{[22,34,28,42,38,58,52,72,64,84].map((h,i)=><span key={i} style={{height:`${h}%`}} />)}</div>}
@@ -191,6 +193,7 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   const adh = useMemo(() => adherenceDetail(trades), [trades]);
+  const edgeScore = useMemo(() => computeEdgeScore(trades), [trades]);
   const adherence = adh.pct;
   /** Share of trades that had a written thesis — the single strongest predictor
    *  in this journal's own data (documented setups vastly outperform blanks). */
@@ -254,7 +257,7 @@ export default function DashboardPage() {
         </div>
       </div>
       {/* Headline KPIs */}
-      <div className="dashboard-kpis grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="dashboard-kpis grid grid-cols-2 gap-3 xl:grid-cols-5">
         <KpiCard hero icon="M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" label="Rule adherence" value={adh.total === 0 ? "—" : fmtPct(adherence)} sub={adh.total === 0 ? "no trades yet" : `${adh.followed} of ${adh.total} clean${adh.noThesis > 0 ? ` · ${adh.noThesis} with no thesis` : ""}`} />
         <KpiCard icon="M3 17l6-6 4 4 8-8 M21 7v5h-5" label="Net P&L" value={fmtMoney(stats.netPnl, currency)} sub={`${fmtR(stats.netRR)} · ${stats.total} trades`} tone={stats.netPnl > 0 ? 1 : stats.netPnl < 0 ? -1 : 0} visual="pnl" />
         <KpiCard icon="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6a6 6 0 100 12 6 6 0 000-12z M12 10a2 2 0 100 4 2 2 0 000-4z" label="Win rate" value={fmtPct(stats.winRate)} sub={`${stats.wins}W · ${stats.losses}L · ${stats.breakevens}BE`} visual="winrate" />
@@ -290,29 +293,15 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <SectionTitle>Net daily P&L</SectionTitle>
-          <DailyPnlBars days={daily} currency={currency} />
+          <DailyPnlBars days={daily} currency={currency} height={300} />
         </Card>
       </div>
 
-      <CapitalSplit currency={currency} />
-
-      <Card>
-        <SectionTitle action={<span className="text-xs text-mute">daily net P&amp;L</span>}>Trading rhythm</SectionTitle>
-        <YearHeatmap trades={trades} currency={currency} />
-      </Card>
-
-      {/* Trading calendar — full monthly/weekly view (moved from the old Calendar page) */}
-      <CalendarPanel />
-
-      {/* Periods */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <PeriodCard label="Today" trades={today} currency={currency} />
-        <PeriodCard label="This week" trades={week} currency={currency} />
-        <PeriodCard label="This month" trades={month} currency={currency} />
-      </div>
-
       {/* Insights — what to do, before the deep stats */}
-      <InsightsPanel insights={insights} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2"><InsightsPanel insights={insights} /></div>
+        <EdgeScoreCard score={edgeScore} />
+      </div>
 
       {/* Daily review nudge */}
       {!reviewedToday && (
@@ -324,6 +313,13 @@ export default function DashboardPage() {
           <Button onClick={() => setReviewOpen(true)}>Write today&apos;s review</Button>
         </Card>
       )}
+
+      {/* Periods */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <PeriodCard label="Today" trades={today} currency={currency} />
+        <PeriodCard label="This week" trades={week} currency={currency} />
+        <PeriodCard label="This month" trades={month} currency={currency} />
+      </div>
 
       {/* Recent trades */}
       <Card>
@@ -346,7 +342,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{outcomeOf(t) !== "be" ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
+                  <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{outcomeOf(t) !== "be" ? fmtMoney(t.pnl, currency) : fmtTradeR(t)}</span>
                   <OutcomePill rr={t.rr} pnl={t.pnl} />
                 </div>
               </button>
@@ -354,6 +350,18 @@ export default function DashboardPage() {
           </div>
         )}
       </Card>
+
+      <CapitalSplit currency={currency} />
+
+
+      <Card>
+        <SectionTitle action={<span className="text-xs text-mute">daily net P&amp;L</span>}>Trading rhythm</SectionTitle>
+        <YearHeatmap trades={trades} currency={currency} />
+      </Card>
+
+      {/* Trading calendar — full monthly/weekly view (moved from the old Calendar page) */}
+      <CalendarPanel />
+
 
       <TradeModal open={logOpen} onClose={() => setLogOpen(false)} />
       {selected && <TradeDetail trade={selected} onClose={() => setSelected(null)} />}

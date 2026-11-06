@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/stores/useApp";
 import { Modal } from "@/components/ui/primitives";
-import { fmtR } from "@/lib/metrics";
+import { fmtR, fmtTradeR } from "@/lib/metrics";
 import { AuthScreen } from "@/components/layout/AuthScreen";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
@@ -260,7 +260,7 @@ function AccountSelector() {
     <select
       value={value}
       onChange={(e) => setSelected(e.target.value)}
-      className="rounded-xl border border-edge bg-card px-3 py-2 text-sm text-ink focus:border-accent/60 focus:outline-none"
+      className="max-w-[9.5rem] truncate rounded-xl border border-edge bg-card px-3 py-2 text-sm text-ink focus:border-accent/60 focus:outline-none sm:max-w-none"
       aria-label="Account"
     >
       <option value="all">All accounts (active)</option>
@@ -340,7 +340,7 @@ function GlobalSearch() {
                   <span>
                     <span className="font-medium text-ink">{t.pair}</span> · {t.direction} · {new Date(t.date).toLocaleDateString()}
                   </span>
-                  <span className={`font-mono ${t.rr >= 0 ? "text-pos" : "text-neg"}`}>{fmtR(t.rr)}</span>
+                  <span className={`font-mono ${t.rr >= 0 ? "text-pos" : "text-neg"}`}>{fmtTradeR(t)}</span>
                 </button>
               ))}
             </div>
@@ -398,6 +398,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const title = NAV.find((n) => (n.href === "/" ? pathname === "/" : pathname.startsWith(n.href)))?.label ?? "TradeEdge";
 
+  // Public read-only share pages render without the app shell or sign-in.
+  if (pathname.startsWith("/share/")) return <div className="min-h-screen bg-bg text-ink">{children}</div>;
+
   // Cloud mode, signed out → show the auth screen instead of the app.
   if (cloud && authReady && !user) return <AuthScreen />;
 
@@ -405,11 +408,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell min-h-screen bg-bg text-ink">
       <Sidebar />
       <div className="app-content lg:pl-[248px]">
-        <header className="app-topbar sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-edge bg-bg/80 px-5 py-3.5 backdrop-blur-xl lg:px-8">
+        <header className="app-topbar sticky top-0 z-20 flex items-center justify-between gap-2 sm:gap-4 border-b border-edge bg-bg/80 px-5 py-3.5 backdrop-blur-xl lg:px-8">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="TradeEdge" className="h-7 w-7 rounded-lg object-cover lg:hidden" />
-            <div><div className="topbar-eyebrow hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-mute sm:block">Trading workspace</div><h1 className="text-base font-semibold tracking-tight">{title}</h1></div>
+            <div><div className="topbar-eyebrow hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-mute sm:block">Trading workspace</div><h1 className="whitespace-nowrap text-base font-semibold tracking-tight">{title}</h1></div>
           </div>
           <div className="flex items-center gap-2">
             <button

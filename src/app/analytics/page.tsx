@@ -137,7 +137,7 @@ function DisciplineTrend() {
     const rByWeek = new Map<string, number>();
     for (const t of trades) {
       const k = isoWeekKey(new Date(t.date));
-      rByWeek.set(k, (rByWeek.get(k) ?? 0) + t.rr);
+      rByWeek.set(k, (rByWeek.get(k) ?? 0) + (t.rrUnknown ? 0 : t.rr));
     }
     return weekly
       .map((r) => ({ week: r.date, rating: r.disciplineRating as number, r: rByWeek.get(r.date) ?? 0 }))
@@ -196,7 +196,7 @@ function KpiScorecard() {
 
   if (trades.length === 0) return null;
 
-  const wins = trades.filter((t) => outcomeOf(t) === "win");
+  const wins = trades.filter((t) => outcomeOf(t) === "win" && !t.rrUnknown);
   const avgWinR = wins.length ? wins.reduce((s, t) => s + Math.abs(t.rr), 0) / wins.length : 0;
 
   const axes: KpiAxis[] = [
@@ -231,7 +231,7 @@ function DisciplineScatter() {
     const rByWeek = new Map<string, number>();
     for (const t of trades) {
       const k = isoWeekKey(new Date(t.date));
-      rByWeek.set(k, (rByWeek.get(k) ?? 0) + t.rr);
+      rByWeek.set(k, (rByWeek.get(k) ?? 0) + (t.rrUnknown ? 0 : t.rr));
     }
     return reviews
       .filter((r) => r.scope === "week" && r.disciplineRating !== undefined)
@@ -429,8 +429,8 @@ function PlanVsOffPlan({ trades, currency }: { trades: Trade[]; currency: string
       return {
         n: list.length,
         wr: decided.length ? (decided.filter((t) => outcomeOf(t) === "win").length / decided.length) * 100 : 0,
-        r: list.reduce((a, t) => a + t.rr, 0),
-        exp: list.length ? list.reduce((a, t) => a + t.rr, 0) / list.length : 0,
+        r: list.reduce((a, t) => a + (t.rrUnknown ? 0 : t.rr), 0),
+        exp: list.some((t) => !t.rrUnknown) ? list.reduce((a, t) => a + (t.rrUnknown ? 0 : t.rr), 0) / list.filter((t) => !t.rrUnknown).length : 0,
         pnl: list.reduce((a, t) => a + t.pnl, 0),
       };
     };
@@ -575,7 +575,7 @@ export default function AnalyticsPage() {
   const planned = useMemo(() => avgPlannedRR(trades), [trades]);
   const beMiss = useMemo(() => breakevenMisses(trades), [trades]);
   const { rrSeries, winSeries, avgWinR, avgLossR } = useMemo(() => {
-    const ordered = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+    const ordered = [...trades].filter((t) => !t.rrUnknown).sort((a, b) => a.date.localeCompare(b.date));
     const rrSeries: number[] = [];
     let sum = 0;
     ordered.forEach((t, i) => { sum += t.rr; rrSeries.push(sum / (i + 1)); });
@@ -1024,7 +1024,7 @@ export default function AnalyticsPage() {
 
           <Card>
             <SectionTitle action={<span className="text-xs text-mute">{visible.length} trades</span>}>Outcome distribution</SectionTitle>
-            <RHistogram rs={visible.map((t) => t.rr)} />
+            <RHistogram rs={visible.filter((t) => !t.rrUnknown).map((t) => t.rr)} />
             <p className="mt-2 text-[11px] text-mute">
               A fat left tail past −1R means stops aren&apos;t holding. A healthy shape clusters losses at −1R and spreads winners right.
             </p>

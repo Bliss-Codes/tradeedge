@@ -6,6 +6,7 @@ import { download, snapshotToJSON, tradesToCSV } from "@/lib/csv";
 import { clearImages } from "@/lib/data/images";
 import { Button, Card, Modal, SectionTitle } from "@/components/ui/primitives";
 import { Snapshot } from "@/lib/types";
+import { MentorShare } from "@/components/settings/MentorShare";
 
 export default function SettingsPage() {
   const state = useApp();
@@ -59,6 +60,8 @@ export default function SettingsPage() {
           ))}
         </div>
       </Card>
+
+      <MentorShare />
 
       <Card>
         <SectionTitle>Export</SectionTitle>

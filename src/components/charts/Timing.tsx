@@ -139,7 +139,7 @@ export function DayOfWeek({ trades, currency = "USD" }: { trades: Trade[]; curre
     for (const t of trades) {
       const day = new Date(t.date).getDay();
       const prev = g.get(day) ?? { pnl: 0, n: 0, wins: 0, r: 0 };
-      g.set(day, { pnl: prev.pnl + t.pnl, n: prev.n + 1, wins: prev.wins + (t.pnl > 0 ? 1 : 0), r: prev.r + t.rr });
+      g.set(day, { pnl: prev.pnl + t.pnl, n: prev.n + 1, wins: prev.wins + (t.pnl > 0 ? 1 : 0), r: prev.r + (t.rrUnknown ? 0 : t.rr) });
     }
     return [1, 2, 3, 4, 5].map((d) => ({ day: d, label: DAYS[d], ...(g.get(d) ?? { pnl: 0, n: 0, wins: 0, r: 0 }) }));
   }, [trades]);

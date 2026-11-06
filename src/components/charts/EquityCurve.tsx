@@ -142,15 +142,19 @@ export function EquityCurve({ points, height = 280, mode = "R", currency = "USD"
           {xLabels.map((l, i) => (
             <span
               key={i}
-              className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] text-mute"
-              style={{ left: `${l.frac * 100}%`, bottom: -2 }}
+              className={`absolute whitespace-nowrap text-[10px] text-mute ${i % 2 === 1 && i !== xLabels.length - 1 ? "hidden sm:block" : ""}`}
+              style={{
+                left: `${l.frac * 100}%`,
+                bottom: -14,
+                transform: i === 0 ? "translateX(0)" : i === xLabels.length - 1 ? "translateX(-100%)" : "translateX(-50%)",
+              }}
             >
               {new Date(l.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
             </span>
           ))}
         </div>
       </div>
-      <div className="mt-5 flex justify-between pl-[46px] text-xs text-mute">
+      <div className="mt-9 flex justify-between pl-[46px] text-xs text-mute">
         <span>{hoverPoint ? new Date(hoverPoint.date).toLocaleDateString() : mode === "money" ? "Cumulative P&L" : "Cumulative R"}</span>
         <span className={`font-mono ${(hoverPoint ? hoverPoint.value : last) >= 0 ? "text-pos" : "text-neg"}`}>
           {hoverPoint ? fmt(hoverPoint.value) : hover === 0 ? fmt(0) : fmt(last)}
@@ -164,14 +168,14 @@ export function DailyPnlBars({ days, height = 220, currency = "USD" }: { days: {
   if (days.length === 0) {
     return <div className="flex items-center justify-center text-sm text-mute" style={{ height }}>No daily P&L yet.</div>;
   }
-  const max = Math.max(1, ...days.map((d) => Math.abs(d.pnl)));
-  // nice top tick
+  const recent = days.slice(-22); // keep it readable
+  // Scale to the bars actually drawn (older days used to inflate the axis).
+  const max = Math.max(1, ...recent.map((d) => Math.abs(d.pnl)));
   const exp = Math.floor(Math.log10(max));
   const f = max / Math.pow(10, exp);
-  const nf = f < 1.5 ? 1.5 : f < 3 ? 3 : f < 7 ? 7 : 10;
+  const nf = [1, 1.5, 2, 3, 5, 7.5, 10].find((n) => f <= n) ?? 10;
   const top = nf * Math.pow(10, exp);
   const ticks = [top, top / 2, 0, -top / 2, -top];
-  const recent = days.slice(-22); // keep it readable
   return (
     <div className="flex" style={{ height }}>
       <div className="flex w-14 shrink-0 flex-col justify-between py-1 pr-2 text-right">

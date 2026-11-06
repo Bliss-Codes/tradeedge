@@ -184,6 +184,8 @@ export interface Trade {
   riskAmount?: number;
   lotSize?: number;
   rr: number; // realized R multiple (negative for losses)
+  /** True when R could not be computed (e.g. synced trade with no stop loss). Excluded from all R-based stats until the user sets rr. */
+  rrUnknown?: boolean;
   pnl: number; // currency P&L
   session: Session;
   strategyId?: string;
@@ -294,6 +296,11 @@ export const EMPTY_SNAPSHOT: Snapshot = {
   customViolations: [],
   customEmotions: [],
 };
+
+/** Trades whose R multiple is real and should count in R-based statistics. */
+export function hasR(t: Pick<Trade, "rrUnknown">): boolean {
+  return !t.rrUnknown;
+}
 
 export function outcomeOf(t: Pick<Trade, "rr" | "pnl">): Outcome {
   const v = t.pnl !== 0 ? t.pnl : t.rr;

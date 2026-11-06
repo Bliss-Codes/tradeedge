@@ -1,4 +1,4 @@
-import { Trade, Account, outcomeOf } from "@/lib/types";
+import { Trade, Account, outcomeOf, hasR } from "@/lib/types";
 
 export interface Stats {
   total: number;
@@ -26,7 +26,8 @@ export function computeStats(trades: Trade[]): Stats {
     grossWin = 0,
     grossLoss = 0,
     largestWin = 0,
-    largestLoss = 0;
+    largestLoss = 0,
+    rKnown = 0;
 
   let equity = 0,
     peak = 0,
@@ -37,8 +38,10 @@ export function computeStats(trades: Trade[]): Stats {
     if (o === "win") wins++;
     else if (o === "loss") losses++;
     else be++;
-    netRR += t.rr;
     netPnl += t.pnl;
+    if (!hasR(t)) continue; // unknown R: counts for outcome and P&L, never for R stats
+    rKnown++;
+    netRR += t.rr;
     // Profit factor is computed in R, not money, deliberately: risk % differs
     // between challenge (higher) and funded (lower) accounts, so money-based
     // gross profit/loss would be distorted by position size rather than edge.
@@ -69,7 +72,7 @@ export function computeStats(trades: Trade[]): Stats {
     breakevens: be,
     winRate: decided ? (wins / decided) * 100 : 0,
     netRR,
-    avgRR: trades.length ? netRR / trades.length : 0,
+    avgRR: rKnown ? netRR / rKnown : 0,
     profitFactor: grossLoss > 0 ? grossWin / grossLoss : grossWin > 0 ? Infinity : 0,
     netPnl,
     largestWin,
@@ -85,7 +88,7 @@ export interface EquityPoint {
 }
 
 export function equityCurve(trades: Trade[], by: "rr" | "pnl" = "rr"): EquityPoint[] {
-  const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...trades].filter((t) => by !== "rr" || hasR(t)).sort((a, b) => a.date.localeCompare(b.date));
   let acc = 0;
   return sorted.map((t) => {
     acc += by === "rr" ? t.rr : t.pnl;
@@ -170,6 +173,7 @@ export interface ExecutionFinding {
 export function executionFindings(trades: Trade[]): ExecutionFinding[] {
   const out: ExecutionFinding[] = [];
   for (const t of trades) {
+    if (!hasR(t)) continue;
     const planned = plannedRR(t);
     if (planned === undefined || planned <= 0) continue;
     const realized = t.rr;
@@ -385,6 +389,8 @@ export function winLossSummary(trades: Trade[]): WinLossSummary {
   const losses = chron.filter((t) => outcomeOf(t) === "loss");
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
+  const winsR = wins.filter(hasR);
+  const lossesR = losses.filter(hasR);
 
   // consecutive runs
   const winRuns: number[] = [];
@@ -409,10 +415,10 @@ export function winLossSummary(trades: Trade[]): WinLossSummary {
   return {
     winners: wins.length,
     losers: losses.length,
-    bestWinR: wins.length ? Math.max(...wins.map((t) => t.rr)) : 0,
-    worstLossR: losses.length ? Math.min(...losses.map((t) => t.rr)) : 0,
-    avgWinR: avg(wins.map((t) => t.rr)),
-    avgLossR: avg(losses.map((t) => t.rr)),
+    bestWinR: winsR.length ? Math.max(...winsR.map((t) => t.rr)) : 0,
+    worstLossR: lossesR.length ? Math.min(...lossesR.map((t) => t.rr)) : 0,
+    avgWinR: avg(winsR.map((t) => t.rr)),
+    avgLossR: avg(lossesR.map((t) => t.rr)),
     avgWinPnl: avg(wins.map((t) => t.pnl)),
     avgLossPnl: avg(losses.map((t) => t.pnl)),
     grossWinPnl: sum(wins.map((t) => t.pnl)),
@@ -565,6 +571,7 @@ export function riskStatus(account: Account, trades: Trade[]): RiskStatus {
 // ── formatting helpers ────────────────────────────────────────────────
 
 export const fmtR = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}R`;
+export const fmtTradeR = (t: Pick<Trade, "rr" | "rrUnknown">) => (t.rrUnknown ? "n/a" : fmtR(t.rr));
 export const fmtPct = (v: number) => `${v.toFixed(1)}%`;
 export const fmtPF = (v: number) => (v === Infinity ? "∞" : v.toFixed(2));
 export const fmtMoney = (v: number, ccy = "USD") =>
@@ -610,8 +617,9 @@ export function dedupeBySetup(trades: Trade[]): Trade[] {
   const merged: Trade[] = [];
   for (const g of groups.values()) {
     const first = [...g].sort((a, b) => a.date.localeCompare(b.date))[0];
-    const avgR = g.reduce((s, t) => s + t.rr, 0) / g.length;
-    merged.push({ ...first, rr: avgR, pnl: g.reduce((s, t) => s + t.pnl, 0) });
+    const known = g.filter(hasR);
+    const avgR = known.length ? known.reduce((s, t) => s + t.rr, 0) / known.length : 0;
+    merged.push({ ...first, rr: avgR, rrUnknown: known.length === 0 ? true : undefined, pnl: g.reduce((s, t) => s + t.pnl, 0) });
   }
   return [...singles, ...merged].sort((a, b) => b.date.localeCompare(a.date));
 }

@@ -16,7 +16,7 @@ const MIN_SETUPS = 50;
 export function EdgeCheck({ trades }: { trades: Trade[] }) {
   const m = useMemo(() => {
     const counts = setupCounts(trades);
-    const ideas = dedupeBySetup(trades).filter((t) => t.rr !== 0 || outcomeOf(t) !== "be");
+    const ideas = dedupeBySetup(trades).filter((t) => !t.rrUnknown && (t.rr !== 0 || outcomeOf(t) !== "be"));
     const decided = ideas.filter((t) => outcomeOf(t) !== "be");
     const wins = decided.filter((t) => outcomeOf(t) === "win");
     const losses = decided.filter((t) => outcomeOf(t) === "loss");

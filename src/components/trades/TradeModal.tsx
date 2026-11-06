@@ -214,9 +214,11 @@ export function TradeModal({
       if (risk > 0) {
         const reward = out.direction === "long" ? out.exit - out.entry : out.entry - out.exit;
         out.rr = +(reward / risk).toFixed(2);
+        delete out.rrUnknown;
       }
     }
-    if (out.riskAmount != null && out.rr != null && !Number.isNaN(out.rr)) {
+    // Never overwrite a synced P&L with 0 × risk while R is still unknown.
+    if (!out.rrUnknown && out.riskAmount != null && out.rr != null && !Number.isNaN(out.rr)) {
       out.pnl = +(out.rr * out.riskAmount).toFixed(2);
     }
     return out;
@@ -228,7 +230,9 @@ export function TradeModal({
     setT((prev) => {
       const rr = v ?? 0;
       const pnl = prev.riskAmount != null ? +(rr * prev.riskAmount).toFixed(2) : prev.pnl;
-      return { ...prev, rr, pnl };
+      const next = { ...prev, rr, pnl };
+      delete next.rrUnknown;
+      return next;
     });
 
   const selectedStrategy = strategies.find((s) => s.id === t.strategyId);
@@ -607,6 +611,9 @@ export function TradeModal({
             <Field label="RR"><NumberInput value={t.rr} onChange={setRR} /></Field>
             <Field label="PnL"><NumberInput value={t.pnl} onChange={(v) => set("pnl", v ?? 0)} /></Field>
           </div>
+          {t.rrUnknown && (
+            <p className="-mt-1 text-xs text-warn">R unknown (no stop loss on sync). Excluded from R stats until you enter RR or a stop loss.</p>
+          )}
         </div>
         {(plannedRR(t) !== undefined || (t.entry != null && t.stopLoss != null && t.exit != null)) && (
           <div className="-mt-1 flex flex-wrap gap-4 rounded-xl border border-edge bg-surface/40 px-4 py-2 text-xs">

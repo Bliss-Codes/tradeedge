@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Trade } from "@/lib/types";
 import { useApp } from "@/stores/useApp";
-import { fmtDate, fmtMoney, fmtR, signColor, plannedRR } from "@/lib/metrics";
+import { fmtDate, fmtMoney, fmtR, signColor, plannedRR, fmtTradeR } from "@/lib/metrics";
 import { Button, Modal, OutcomePill, TagChip } from "@/components/ui/primitives";
 import { ImageThumb, Lightbox } from "@/components/trades/Images";
 
@@ -122,7 +122,7 @@ export function TradeDetail({
           <div className="space-y-4 rounded-xl border border-edge bg-surface/40 p-5">
             <div className="flex flex-wrap items-center gap-4">
               <OutcomePill rr={trade.rr} pnl={trade.pnl} />
-              <span className={`font-mono text-xl font-semibold ${signColor(trade.rr)}`}>{fmtR(trade.rr)}</span>
+              <span className={`font-mono text-xl font-semibold ${signColor(trade.rrUnknown ? 0 : trade.rr)}`}>{fmtTradeR(trade)}</span>
               {trade.pnl !== 0 && <span className={`font-mono text-sm ${signColor(trade.pnl)}`}>{fmtMoney(trade.pnl, account?.currency)}</span>}
               {trade.exit !== undefined && <span className="font-mono text-sm text-mute">Exit {trade.exit}</span>}
               {trade.emotionAfter && <span className="text-sm text-mute">Felt: {trade.emotionAfter}</span>}
@@ -130,7 +130,7 @@ export function TradeDetail({
 
             {(() => {
               const planned = plannedRR(trade);
-              if (planned === undefined) return null;
+              if (planned === undefined || trade.rrUnknown) return null;
               const capture = trade.rr / planned;
               let note: { text: string; cls: string } | null = null;
               if (trade.rr < -1.05) note = { text: `Lost ${trade.rr.toFixed(2)}R against a 1R stop — the stop was moved or the position was oversized.`, cls: "text-neg" };
@@ -138,7 +138,7 @@ export function TradeDetail({
               else if (capture >= 0.95) note = { text: `Captured the full ${planned.toFixed(2)}R target. Textbook execution.`, cls: "text-pos" };
               return (
                 <div className="flex items-center justify-between rounded-lg border border-edge bg-card px-3 py-2 text-sm">
-                  <span className="text-mute">Planned <span className="font-mono text-sub">{planned.toFixed(2)}R</span> · Realized <span className={`font-mono ${signColor(trade.rr)}`}>{fmtR(trade.rr)}</span></span>
+                  <span className="text-mute">Planned <span className="font-mono text-sub">{planned.toFixed(2)}R</span> · Realized <span className={`font-mono ${signColor(trade.rrUnknown ? 0 : trade.rr)}`}>{fmtTradeR(trade)}</span></span>
                   {note && <span className={note.cls}>{note.text}</span>}
                 </div>
               );

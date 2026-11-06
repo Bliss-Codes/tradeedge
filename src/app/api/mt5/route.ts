@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createHash, timingSafeEqual } from "crypto";
 import { sessionFromDate, Session } from "@/lib/types";
 
 /**
@@ -35,6 +36,14 @@ interface SyncBody {
   deals: IncomingDeal[];
 }
 
+/** Constant-time secret check (hashes first so lengths always match). */
+function safeEqual(a: string | null, b: string): boolean {
+  if (a === null) return false;
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 function cleanSymbol(s: string): string {
   // strip common broker suffixes like ".r", ".pro", "m", "+" cautiously (keep if ambiguous)
   return s.replace(/[._-](r|pro|raw|ecn|m|c)$/i, "").toUpperCase();
@@ -64,7 +73,7 @@ export async function POST(req: NextRequest) {
   if (!secret || !serviceKey || !url) {
     return NextResponse.json({ error: "Sync not configured. Set MT5_SYNC_SECRET and SUPABASE_SERVICE_ROLE_KEY in Vercel." }, { status: 500 });
   }
-  if (req.headers.get("x-sync-key") !== secret) {
+  if (!safeEqual(req.headers.get("x-sync-key"), secret)) {
     return NextResponse.json({ error: "Invalid sync key" }, { status: 401 });
   }
 
@@ -86,12 +95,14 @@ export async function POST(req: NextRequest) {
       const date = new Date(d.openTimeUtc);
       const iso = isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
       const session: Session = sessionFromDate(new Date(iso));
-      // RR from prices when a stop exists; falls back to 0 (user can edit).
+      // RR from prices when a stop exists; otherwise flagged rrUnknown (user can set it).
       let rr = 0;
+      let rrUnknown = true; // no stop loss → R is undefined; excluded from R stats until user sets it
       if (d.entry != null && d.stopLoss != null && d.exit != null && d.entry !== d.stopLoss) {
         const risk = Math.abs(d.entry - d.stopLoss);
         const reward = d.direction === "long" ? d.exit - d.entry : d.entry - d.exit;
         rr = +(reward / risk).toFixed(2);
+        rrUnknown = false;
       }
       const id = `mt5-${body.login}-${d.ticket}`;
       const trade = {
@@ -107,6 +118,7 @@ export async function POST(req: NextRequest) {
         takeProfit: d.takeProfit,
         lotSize: d.volume,
         rr,
+        ...(rrUnknown ? { rrUnknown: true } : {}),
         pnl: +(+d.profit).toFixed(2),
         session,
         tags: ["mt5-sync"],

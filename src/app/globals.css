@@ -717,3 +717,7 @@ input, select, textarea {
     top: 45px;
   }
 }
+
+/* Dashboard KPIs: two per row on phones, hero spans the full row. */
+.dashboard-kpis > :first-child { grid-column: span 2; }
+@media (min-width: 1280px) { .dashboard-kpis > :first-child { grid-column: span 1; } }

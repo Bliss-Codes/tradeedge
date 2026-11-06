@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp, useVisibleTrades, useAllTags, uid } from "@/stores/useApp";
 import { Trade, SESSIONS, outcomeOf } from "@/lib/types";
-import { fmtDate, fmtMoney, fmtR, signColor } from "@/lib/metrics";
+import { fmtDate, fmtMoney, fmtR, signColor, fmtTradeR } from "@/lib/metrics";
 import { Button, Card, EmptyState, Input, Modal, OutcomePill, Select, TagChip, Tabs } from "@/components/ui/primitives";
 import { TradeModal } from "@/components/trades/TradeModal";
 import { MissedPanel } from "@/components/trades/MissedPanel";
@@ -50,7 +50,7 @@ function GalleryCard({ trade, onOpen }: { trade: Trade; onOpen: () => void }) {
   const url = useImageUrl(trade.beforeImageIds[0] ?? null);
   return (
     <button onClick={onOpen} className="group overflow-hidden rounded-2xl border border-edge bg-card text-left transition-colors hover:border-accent/40">
-      <div className="flex h-40 items-center justify-center bg-surface">
+      <div className={`flex items-center justify-center bg-surface ${trade.beforeImageIds.length ? "h-40" : "h-9"}`}>
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={`${trade.pair} setup`} className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]" />
@@ -65,7 +65,7 @@ function GalleryCard({ trade, onOpen }: { trade: Trade; onOpen: () => void }) {
         </div>
         <div className="flex items-center justify-between text-xs text-mute">
           <span>{fmtDate(trade.date)}</span>
-          <span className={`font-mono ${signColor(trade.rr)}`}>{fmtR(trade.rr)}</span>
+          <span className={`font-mono ${signColor(trade.rrUnknown ? 0 : trade.rr)}`}>{fmtTradeR(trade)}</span>
         </div>
         {trade.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
@@ -305,7 +305,7 @@ function JournalInner() {
                         {t.direction === "long" ? "Long" : "Short"}
                       </span>
                     </td>
-                    <td className={`py-3.5 pr-4 font-mono font-semibold ${signColor(t.rr)}`}>{fmtR(t.rr)}</td>
+                    <td className={`py-3.5 pr-4 font-mono font-semibold ${signColor(t.rr)}`}>{fmtTradeR(t)}</td>
                     <td className={`py-3.5 pr-4 font-mono ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl) : "—"}</td>
                     <td className="py-3.5 pr-4 text-sub">{t.session}</td>
                     <td className="py-3.5 pr-4 text-sub">{strategies.find((s) => s.id === t.strategyId)?.name ?? "—"}</td>

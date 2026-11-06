@@ -167,7 +167,7 @@ export default function StrategiesPage() {
       let run = 0;
       map.set(
         s.id,
-        list.map((t) => (run += t.rr))
+        list.filter((t) => !t.rrUnknown).map((t) => (run += t.rr))
       );
     });
     return map;

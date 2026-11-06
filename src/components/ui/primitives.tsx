@@ -27,7 +27,7 @@ export function Stat({ label, value, tone, hint }: { label: string; value: strin
     <Card className="min-w-0">
       <div className="text-xs font-medium uppercase tracking-wider text-mute">{label}</div>
       <div className="mt-2 flex items-baseline gap-1.5">
-        <span className={`truncate font-mono text-2xl font-semibold ${tone !== undefined ? signColor(tone) : "text-ink"}`}>{value}</span>
+        <span className={`truncate font-mono text-xl font-semibold sm:text-2xl ${tone !== undefined ? signColor(tone) : "text-ink"}`}>{value}</span>
         {tone !== undefined && tone !== 0 && <span className={`text-sm ${signColor(tone)}`}>{tone > 0 ? "↑" : "↓"}</span>}
       </div>
       {hint && <div className="mt-1 text-xs text-mute">{hint}</div>}

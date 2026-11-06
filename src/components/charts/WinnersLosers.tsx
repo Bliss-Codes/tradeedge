@@ -22,7 +22,7 @@ interface SideStats {
 
 function sideStats(list: Trade[], all: Trade[], isWin: boolean): SideStats {
   const count = list.length;
-  const rs = list.map((t) => t.rr);
+  const rs = list.filter((t) => !t.rrUnknown).map((t) => t.rr);
   const best = rs.length ? (isWin ? Math.max(...rs) : Math.min(...rs)) : 0;
   const avg = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0;
 

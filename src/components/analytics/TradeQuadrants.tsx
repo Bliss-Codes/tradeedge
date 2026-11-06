@@ -73,7 +73,7 @@ export function TradeQuadrants({ trades, currency = "USD" }: { trades: Trade[]; 
                       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`} />
                       <span className="font-medium text-sub">{t.pair}</span>
                       <span className="text-mute">{new Date(t.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                      <span className={`ml-auto font-mono ${t.rr >= 0 ? "text-pos" : "text-neg"}`}>{t.rr.toFixed(2)}R</span>
+                      <span className={`ml-auto font-mono ${t.rr >= 0 ? "text-pos" : "text-neg"}`}>{t.rrUnknown ? "n/a" : `${t.rr.toFixed(2)}R`}</span>
                     </div>
                   ))}
                   {(byType.get(meta.key)?.length ?? 0) > 8 && (

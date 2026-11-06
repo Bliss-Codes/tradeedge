@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp, useVisibleTrades, useDisplayCurrency } from "@/stores/useApp";
 import { Trade } from "@/lib/types";
-import { computeStats, fmtPct, fmtR, fmtMoney, signColor } from "@/lib/metrics";
+import { computeStats, fmtPct, fmtR, fmtMoney, signColor, fmtTradeR } from "@/lib/metrics";
 import { Button, Card, Modal, OutcomePill, Tabs } from "@/components/ui/primitives";
 import { TradeDetail } from "@/components/trades/TradeDetail";
 import { DayReviewModal } from "@/components/trades/DayReviewModal";
@@ -30,7 +30,7 @@ function DayTradesModal({ date, trades, onClose, onSelect, onReview, currency }:
               <span className="ml-2 text-xs text-mute">{t.session} · {t.direction}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
+              <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtTradeR(t)}</span>
               <OutcomePill rr={t.rr} pnl={t.pnl} />
             </div>
           </button>
@@ -212,7 +212,7 @@ export function CalendarPanel() {
                   <span className="text-sm font-medium text-ink">{t.pair}</span>
                   <span className="ml-2 text-xs text-mute">{t.session} · {t.direction}</span>
                 </div>
-                <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtR(t.rr)}</span>
+                <span className={`font-mono text-sm ${signColor(t.pnl)}`}>{t.pnl !== 0 ? fmtMoney(t.pnl, currency) : fmtTradeR(t)}</span>
               </button>
             ))}
           </div>

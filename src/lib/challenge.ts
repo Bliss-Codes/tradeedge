@@ -171,7 +171,7 @@ export function computeChallengeState(account: Account, allTrades: Trade[]): Cha
     equity += t.pnl;
     if (equity > peak) peak = equity;
     dailyPnl.set(dayKey(t.date), (dailyPnl.get(dayKey(t.date)) ?? 0) + t.pnl);
-    if (t.pnl > 0) { wins++; if (t.rr > 0) winnerRs.push(t.rr); }
+    if (t.pnl > 0) { wins++; if (!t.rrUnknown && t.rr > 0) winnerRs.push(t.rr); }
     else if (t.pnl < 0) losses++;
     else breakevens++;
   }

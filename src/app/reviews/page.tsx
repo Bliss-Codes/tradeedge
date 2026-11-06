@@ -51,7 +51,10 @@ function detectPatterns(trades: Trade[]): { headline: string | null; notes: stri
 
   const noThesis = trades.filter((t) => !(t.thesis ?? "").trim());
   const withThesis = trades.filter((t) => (t.thesis ?? "").trim());
-  const avgR = (list: Trade[]) => (list.length ? list.reduce((a, t) => a + t.rr, 0) / list.length : 0);
+  const avgR = (list: Trade[]) => {
+    const k = list.filter((t) => !t.rrUnknown);
+    return k.length ? k.reduce((a, t) => a + t.rr, 0) / k.length : 0;
+  };
 
   let headline: string | null = null;
   let suggestion: string | null = null;
