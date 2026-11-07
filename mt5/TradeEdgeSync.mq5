@@ -2,28 +2,35 @@
 //| TradeEdgeSync.mq5                                                 |
 //| Sends every CLOSED trade to your TradeEdge journal automatically. |
 //|                                                                   |
-//| SETUP (one time):                                                 |
-//| 1) MT5 → Tools → Options → Expert Advisors →                      |
-//|      ✔ "Allow WebRequest for listed URL" and add your site, e.g.  |
-//|      https://your-app.vercel.app                                  |
-//| 2) Drag this EA onto ANY chart. In its Inputs fill:               |
-//|      WebhookURL  = https://your-app.vercel.app/api/mt5            |
-//|      SecretKey   = the same value you set as MT5_SYNC_SECRET      |
-//|      UserId      = your TradeEdge user id (Settings page)         |
-//|      AccountId   = the TradeEdge account id (Settings page)       |
-//| 3) Keep "Algo Trading" enabled. Done — every trade you close      |
-//|    appears in TradeEdge. On start it also backfills recent        |
-//|    history (duplicates are ignored server-side).                  |
+//| EASY SETUP: in TradeEdge open Accounts → Add account → Connect   |
+//| MT5, download the EA from there (it already contains your site    |
+//| address and link token), then:                                    |
+//| 1) Put it in MT5 → File → Open Data Folder → MQL5/Experts,        |
+//|    compile it in MetaEditor (F7).                                 |
+//| 2) MT5 → Tools → Options → Expert Advisors → tick                 |
+//|    "Allow WebRequest for listed URL" and add your site address.   |
+//| 3) Drag the EA onto ANY chart and keep "Algo Trading" on.         |
+//|                                                                   |
+//| The EA pings TradeEdge every minute (so the app shows            |
+//| "Connected") and sends every closed trade; on start it also      |
+//| backfills recent history (duplicates are ignored server-side).    |
+//|                                                                   |
+//| Legacy mode (no LinkToken): fill SecretKey, UserId, AccountId.    |
 //+------------------------------------------------------------------+
 #property copyright "TradeEdge"
-#property version   "1.00"
+#property version   "2.00"
 #property strict
 
 input string WebhookURL   = "https://your-app.vercel.app/api/mt5";
-input string SecretKey    = "";
-input string UserId       = "";   // TradeEdge → Settings → MT5 Sync
-input string AccountId    = "";   // TradeEdge → Settings → MT5 Sync
+input string LinkToken    = "";   // pre-filled when downloaded from TradeEdge → Connect MT5
+input string SecretKey    = "";   // legacy mode only
+input string UserId       = "";   // legacy mode only
+input string AccountId    = "";   // legacy mode only
 input int    BackfillDays = 30;   // history to sync on start (0 = off)
+
+bool UsingToken() { return StringLen(LinkToken) > 0; }
+bool Configured() { return UsingToken() || (StringLen(SecretKey) > 0 && StringLen(UserId) > 0 && StringLen(AccountId) > 0); }
+string SyncKey()  { return UsingToken() ? LinkToken : SecretKey; }
 
 //+------------------------------------------------------------------+
 datetime GmtOffset() { return (TimeTradeServer() - TimeGMT()); }
@@ -95,40 +102,63 @@ string DealJson(ulong dealTicket)
 }
 
 //+------------------------------------------------------------------+
-bool SendDeals(string dealsJsonArray, int count)
+bool Post(string body, bool isDeals, int count)
 {
-   if(count == 0) return true;
-   string body = "{";
-   body += "\"login\":" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + ",";
-   body += "\"userId\":\"" + UserId + "\",";
-   body += "\"accountId\":\"" + AccountId + "\",";
-   body += "\"deals\":[" + dealsJsonArray + "]}";
-
    char post[]; char result[];
    StringToCharArray(body, post, 0, StringLen(body), CP_UTF8);
-   string headers = "Content-Type: application/json\r\nx-sync-key: " + SecretKey + "\r\n";
+   string headers = "Content-Type: application/json\r\nx-sync-key: " + SyncKey() + "\r\n";
    string resultHeaders;
    ResetLastError();
    int status = WebRequest("POST", WebhookURL, headers, 8000, post, result, resultHeaders);
    if(status == -1)
    {
       Print("TradeEdgeSync: WebRequest failed (", GetLastError(),
-            "). Add the site under Tools → Options → Expert Advisors → Allow WebRequest.");
+            "). Add your site under Tools → Options → Expert Advisors → Allow WebRequest.");
       return false;
    }
    string resp = CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8);
-   Print("TradeEdgeSync: sent ", count, " deal(s) → HTTP ", status, " ", resp);
+   if(isDeals)
+      Print("TradeEdgeSync: sent ", count, " deal(s) → HTTP ", status, " ", resp);
+   else if(status < 200 || status >= 300)
+      Print("TradeEdgeSync: heartbeat → HTTP ", status, " ", resp);
    return (status >= 200 && status < 300);
+}
+
+bool SendDeals(string dealsJsonArray, int count)
+{
+   if(count == 0) return true;
+   string body = "{";
+   body += "\"login\":" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + ",";
+   if(!UsingToken())
+   {
+      body += "\"userId\":\"" + UserId + "\",";
+      body += "\"accountId\":\"" + AccountId + "\",";
+   }
+   body += "\"deals\":[" + dealsJsonArray + "]}";
+   return Post(body, true, count);
+}
+
+// Lets TradeEdge show "Connected" even before your first trade closes.
+void SendHeartbeat()
+{
+   if(!UsingToken()) return;
+   string server = AccountInfoString(ACCOUNT_SERVER);
+   StringReplace(server, "\"", "");
+   string body = "{\"heartbeat\":true,\"login\":" + (string)AccountInfoInteger(ACCOUNT_LOGIN) +
+                 ",\"server\":\"" + server + "\",\"balance\":" + DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE), 2) + "}";
+   Post(body, false, 0);
 }
 
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   if(StringLen(SecretKey) == 0 || StringLen(UserId) == 0 || StringLen(AccountId) == 0)
+   if(!Configured())
    {
-      Print("TradeEdgeSync: fill in SecretKey, UserId and AccountId in the EA inputs.");
+      Print("TradeEdgeSync: set LinkToken (download the EA from TradeEdge → Connect MT5), or fill SecretKey, UserId and AccountId.");
       return(INIT_SUCCEEDED);
    }
+   EventSetTimer(60);
+   SendHeartbeat();
    if(BackfillDays > 0)
    {
       datetime from = TimeCurrent() - BackfillDays * 86400;
@@ -154,6 +184,11 @@ int OnInit()
    }
    return(INIT_SUCCEEDED);
 }
+
+//+------------------------------------------------------------------+
+void OnTimer() { SendHeartbeat(); }
+
+void OnDeinit(const int reason) { EventKillTimer(); }
 
 //+------------------------------------------------------------------+
 void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)

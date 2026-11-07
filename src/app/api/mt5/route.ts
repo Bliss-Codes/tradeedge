@@ -30,10 +30,13 @@ interface IncomingDeal {
 }
 
 interface SyncBody {
-  login: number | string;
-  userId: string;
-  accountId: string;
-  deals: IncomingDeal[];
+  login?: number | string;
+  userId?: string;
+  accountId?: string;
+  deals?: IncomingDeal[];
+  heartbeat?: boolean;
+  server?: string;
+  balance?: number;
 }
 
 /** Constant-time secret check (hashes first so lengths always match). */
@@ -58,7 +61,7 @@ export async function GET() {
     ok: true,
     endpoint: "POST deals here from the TradeEdgeSync EA",
     configured: {
-      MT5_SYNC_SECRET: Boolean(process.env.MT5_SYNC_SECRET),
+      MT5_SYNC_SECRET: Boolean(process.env.MT5_SYNC_SECRET), // optional (legacy mode)
       SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
       NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
     },
@@ -66,15 +69,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.MT5_SYNC_SECRET;
+  const legacySecret = process.env.MT5_SYNC_SECRET; // optional now: per-account tokens replace it
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  if (!secret || !serviceKey || !url) {
-    return NextResponse.json({ error: "Sync not configured. Set MT5_SYNC_SECRET and SUPABASE_SERVICE_ROLE_KEY in Vercel." }, { status: 500 });
-  }
-  if (!safeEqual(req.headers.get("x-sync-key"), secret)) {
-    return NextResponse.json({ error: "Invalid sync key" }, { status: 401 });
+  if (!serviceKey || !url) {
+    return NextResponse.json({ error: "Sync not configured. Set SUPABASE_SERVICE_ROLE_KEY in Vercel and redeploy." }, { status: 500 });
   }
 
   let body: SyncBody;
@@ -83,11 +83,47 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (!body.userId || !body.accountId || !Array.isArray(body.deals)) {
-    return NextResponse.json({ error: "Missing userId, accountId or deals" }, { status: 400 });
-  }
 
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const key = req.headers.get("x-sync-key") ?? "";
+
+  let userId: string;
+  let accountId: string;
+  let linkToken: string | null = null;
+
+  if (/^[a-f0-9]{48}$/.test(key)) {
+    // Per-account link token (the easy path).
+    const { data: link } = await supabase.from("mt5_links").select("user_id, account_id, revoked").eq("token", key).maybeSingle();
+    if (!link || link.revoked) return NextResponse.json({ error: "Invalid sync key" }, { status: 401 });
+    userId = link.user_id as string;
+    accountId = link.account_id as string;
+    linkToken = key;
+  } else if (legacySecret && safeEqual(key, legacySecret)) {
+    // Legacy shared secret + ids in the body.
+    if (!body.userId || !body.accountId) return NextResponse.json({ error: "Missing userId or accountId" }, { status: 400 });
+    userId = body.userId;
+    accountId = body.accountId;
+  } else {
+    return NextResponse.json({ error: "Invalid sync key" }, { status: 401 });
+  }
+
+  const touchLink = async () => {
+    if (!linkToken) return;
+    const patch: Record<string, unknown> = { last_seen: new Date().toISOString() };
+    if (body.login != null) patch.login = String(body.login);
+    if (typeof body.server === "string") patch.server = body.server.slice(0, 80);
+    if (typeof body.balance === "number" && Number.isFinite(body.balance)) patch.balance = body.balance;
+    await supabase.from("mt5_links").update(patch).eq("token", linkToken);
+  };
+
+  if (body.heartbeat) {
+    await touchLink();
+    return NextResponse.json({ ok: true });
+  }
+  if (!Array.isArray(body.deals)) {
+    return NextResponse.json({ error: "Missing deals" }, { status: 400 });
+  }
+  await touchLink();
 
   const rows = body.deals
     .filter((d) => d && d.ticket != null && d.symbol && d.openTimeUtc)
@@ -104,10 +140,10 @@ export async function POST(req: NextRequest) {
         rr = +(reward / risk).toFixed(2);
         rrUnknown = false;
       }
-      const id = `mt5-${body.login}-${d.ticket}`;
+      const id = `mt5-${body.login ?? "x"}-${d.ticket}`;
       const trade = {
         id,
-        accountId: body.accountId,
+        accountId,
         type: "live",
         pair: cleanSymbol(d.symbol),
         direction: d.direction,
@@ -128,7 +164,7 @@ export async function POST(req: NextRequest) {
         notes: "",
         createdAt: new Date().toISOString(),
       };
-      return { id, user_id: body.userId, data: trade };
+      return { id, user_id: userId, data: trade };
     });
 
   if (rows.length === 0) return NextResponse.json({ received: 0, inserted: 0 });

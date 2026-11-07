@@ -45,7 +45,7 @@ export default function SettingsPage() {
       <Card>
         <SectionTitle>MT5 auto-sync</SectionTitle>
         <p className="mb-3 text-sm text-mute">
-          The TradeEdgeSync EA (in the repo&apos;s <span className="font-mono text-sub">mt5/</span> folder) logs every closed MT5 trade here automatically. Paste these IDs into the EA inputs — full steps in <span className="font-mono text-sub">mt5/SETUP.md</span>.
+          The TradeEdgeSync EA (in the repo&apos;s <span className="font-mono text-sub">mt5/</span> folder) logs every closed MT5 trade here automatically. The easy way: Accounts → Add account → Connect MetaTrader 5 gives you a ready-made EA with nothing to type. The IDs below are only for the older manual method: paste them into the EA inputs — full steps in <span className="font-mono text-sub">mt5/SETUP.md</span>.
         </p>
         <div className="space-y-2 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-edge bg-surface/40 px-3 py-2">

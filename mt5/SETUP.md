@@ -1,3 +1,14 @@
+# MT5 auto-sync: easy setup (recommended)
+
+1. One time, in Vercel → Settings → Environment Variables: add `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Settings → API → service_role) and redeploy. In Supabase SQL editor run `supabase/20261104_mt5_links.sql`.
+2. In TradeEdge open **Accounts → Add account → Connect MetaTrader 5**, pick the account, and **download the EA**. It already contains your site address and a private link for that account, so there is nothing to type.
+3. Put it in MT5 (File → Open Data Folder → MQL5/Experts), compile in MetaEditor (F7), allow your site under Tools → Options → Expert Advisors → Allow WebRequest, drag it on any chart, and turn on Algo Trading.
+4. The drawer turns green ("Connected") within a minute. The Accounts table shows live status, MT5 login, balance and last update.
+
+Repeat for each MT5 login (each account gets its own EA file). `MT5_SYNC_SECRET` is no longer required; the steps below are the older manual method and still work.
+
+---
+
 # MT5 → TradeEdge auto-sync (free)
 
 Every trade you close in MT5 appears in TradeEdge automatically. One-time setup, ~10 minutes.
@@ -39,5 +50,5 @@ Make sure the **Algo Trading** button (toolbar) is ON. The EA prints its activit
 
 ## Limits (honest ones)
 - Syncs only while **your MT5 terminal is running**. Trades closed while it was off are picked up by the backfill next time you start MT5 (set `BackfillDays` accordingly).
-- SL/TP are read from the closing deal — if you never set them, RR can't be derived and stays 0 (edit the trade to add it).
+- SL/TP are read from the closing deal — if you never set them, R can't be derived, so the trade is flagged "R unknown" and left out of R stats until you edit it.
 - Strategy, grade, emotions, screenshots stay manual — that's your journaling.
